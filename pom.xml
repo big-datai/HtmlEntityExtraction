@@ -89,6 +89,11 @@
 		</dependency>
 		<!-- <dependency> <groupId>org.apache.hadoop</groupId> <artifactId>hadoop-client</artifactId> 
 			<version>1.0.4</version> </dependency> -->
+		<dependency>
+			<groupId>com.typesafe.play</groupId>
+			<artifactId>play-json_2.10</artifactId>
+			<version>2.4.0-M2</version>
+		</dependency>
 	</dependencies>
 	<build>
 		<plugins>

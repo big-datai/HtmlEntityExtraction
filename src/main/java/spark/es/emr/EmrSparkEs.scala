@@ -17,8 +17,8 @@ import java.io.BufferedWriter
 object EmrSparkEs extends App {
 
   val conf = new Configuration()
-  conf.set("es.resource", "full_river/data")
-  //conf.set("es.query", "?q=hello")
+  conf.set("es.resource", "htmls/data")
+  conf.set("es.query", "?q=prod_id:11202409")
   conf.set("es.nodes", "ec2-54-167-216-26.compute-1.amazonaws.com")
 
   val conf_s = new SparkConf().setAppName("es").set("master", "yarn-cluster").set("spark.serializer", classOf[KryoSerializer].getName)
@@ -28,6 +28,11 @@ object EmrSparkEs extends App {
   val esRDD = sc.newAPIHadoopRDD(conf, classOf[EsInputFormat[Text, MapWritable]], classOf[Text], classOf[MapWritable]).cache
   val docCount = esRDD.count()
 
+  println(docCount)
+  println(esRDD.toArray.toString)
+  esRDD.collect().foreach(println)
+  
+  /*
   val file = new File("hdfs:///spark-logs//domains.json");
   if (!file.exists()) {
     file.createNewFile();
@@ -37,6 +42,8 @@ object EmrSparkEs extends App {
   val bw = new BufferedWriter(fw);
   bw.write("++++++++++++++++++++++++++++++++++++++++++++++++++++         " + docCount);
   bw.close();
+  * */
+  
 
   print("++++++++++++++++++++++++++++++++++++++++++++++++++++         " + docCount)
 }

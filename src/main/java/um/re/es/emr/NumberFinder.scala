@@ -6,10 +6,17 @@ import scala.util.matching.Regex
 import play.api.libs.json.{Json,JsValue,JsObject}
 import scala.io.Codec
 
-class NumberFinder(val CURRENCY_SYMBOLS :Regex = "\\p{Sc}".r,
-    			   val TEXT_NEAR_PRICE :Regex = "(price)|(Price)|(PRICE)".r,
-    			   val NUM_PATTERN :Regex = "([0-9,\\.]*[0-9])(?:[^0-9,\\.])".r,
-    			   val snippetSize :Int = 50) extends java.io.Serializable {
+/*class NumberFinder(val CURRENCY_SYMBOLS :Regex = "\\p{Sc}".r,
+  				   val TEXT_NEAR_PRICE :Regex = "(price)|(Price)|(PRICE)".r,
+  				   val NUM_PATTERN :Regex = "([0-9,\\.]*[0-9])(?:[^0-9,\\.])".r,
+  				   val snippetSize :Int = 50) extends Serializable {
+  
+  */
+object NumberFinder {
+  val CURRENCY_SYMBOLS :Regex = "\\p{Sc}".r
+  val TEXT_NEAR_PRICE :Regex = "(price)|(Price)|(PRICE)".r
+  val NUM_PATTERN :Regex = "([0-9,\\.]*[0-9])(?:[^0-9,\\.])".r
+  val snippetSize :Int = 50
   
   def find(url:String,html:String)={
     // this is the main method to use, Input : URL and HTML , Output : JSON object with price candidates and their features  

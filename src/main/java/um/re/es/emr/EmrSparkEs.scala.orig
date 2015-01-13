@@ -59,8 +59,13 @@ object EmrSparkEs extends App {
       val price_id_end=dc.length()-2
       val price=dc.substring(price_id, price_id_end)
       
-      val res= nf.find(id, html)
+<<<<<<< HEAD
+      val res=nf.find(id, html)
       (id, res.toString)
+=======
+      val res= nf.find(id, html)
+      (id, res)
+>>>>>>> 4ab7f6bdc2061e21b9f76e8a016ce46c46ccdfeb
     }
   }.collect
 

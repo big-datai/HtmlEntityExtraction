@@ -6,7 +6,7 @@ import um.re.es.emr.NumberFinder
 
 object tester {
 	def main(args:Array[String]){
-		val nf = new NumberFinder
+		val nf =  NumberFinder
 		val jsonStr = scala.io.Source.fromFile("C:\\test\\jsonArray.txt")("ISO_8859-1").getLines.toList.filter{l=>
 		  l.startsWith("""			"url": """)||
 		  l.startsWith("""			"price_prop1": """)||

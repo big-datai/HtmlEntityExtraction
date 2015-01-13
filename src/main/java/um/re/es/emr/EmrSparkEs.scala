@@ -48,7 +48,7 @@ object EmrSparkEs extends App {
 
   val nf = new NumberFinder
   //leaves it RDD format
-   val docs2 = source.map { hit =>
+   val docs4 = source.map { hit =>
     {
       val id = hit._1.toString()
       val dc = hit._2.toString
@@ -60,9 +60,9 @@ object EmrSparkEs extends App {
       val price=dc.substring(price_id, price_id_end)
       
       val res=nf.find(id, html)
-      (id, res)
+      (id, res.toString)
     }
-  }
+  }.collect
 
   println(Json.parse(docs.apply(1)._2) + "++++++++++++++++++")
 

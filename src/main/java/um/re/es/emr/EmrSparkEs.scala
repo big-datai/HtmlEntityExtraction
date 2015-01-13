@@ -12,6 +12,11 @@ import java.io.FileWriter
 import java.io.BufferedWriter
 import collection.JavaConversions._
 import play.api.libs.json.Json
+import org.elasticsearch.spark.rdd.EsSpark
+
+
+
+//import org.elasticsearch.spark
 
 /**
  * This class is supposed to read and write data to ES and analyse it on EMR cluster
@@ -23,15 +28,15 @@ object EmrSparkEs extends App {
   conf.set("es.query", "?q=prod_id:11202409")
   conf.set("es.nodes", "ec2-54-167-216-26.compute-1.amazonaws.com")
 
-  // val conf_s = new SparkConf().setAppName("es").set("master", "yarn-cluster").set("spark.serializer", classOf[KryoSerializer].getName)
-  //val sc = new SparkContext(conf_s)
-
-  val conf_s = new SparkConf().setAppName("es").setMaster("local").set("spark.serializer", classOf[KryoSerializer].getName)
+  val conf_s = new SparkConf().setAppName("es").set("master", "yarn-cluster").set("spark.serializer", classOf[KryoSerializer].getName)
   val sc = new SparkContext(conf_s)
+
+  // val conf_s = new SparkConf().setAppName("es").setMaster("local").set("spark.serializer", classOf[KryoSerializer].getName)
+  // val sc = new SparkContext(conf_s)
 
   val source = sc.newAPIHadoopRDD(conf, classOf[EsInputFormat[Text, MapWritable]], classOf[Text], classOf[MapWritable]).cache
   //val docCount = source.count()
-
+  /*
   val docs = source.map { hit =>
     {
       val id = hit._1.toString()
@@ -46,25 +51,48 @@ object EmrSparkEs extends App {
     }
   }.collect
 
-  val nf =  NumberFinder
+ */
+  //not parallel calculation without RDD
+  val nf = NumberFinder
   //leaves it RDD format
-   val docs4 = source.map { hit =>
+  val docs4 = source.map { hit =>
     {
       val id = hit._1.toString()
       val dc = hit._2.toString
-      val html_start=dc.indexOf("price_prop1=")
-      val html_end=dc.indexOf("price_prop_anal=")
-      val html=dc.substring(html_start, html_end)
-      val price_id=dc.indexOf("price_updated=")
-      val price_id_end=dc.length()-2
-      val price=dc.substring(price_id, price_id_end)
-      
-      val res= nf.find(id, html)
-      (id, res.toString)
+      val html_start = dc.indexOf("price_prop1=")
+      val html_end = dc.indexOf("price_prop_anal=")
+      val html = dc.substring(html_start, html_end)
+      val price_id = dc.indexOf("price_updated=")
+      val price_id_end = dc.length() - 2
+      val price = dc.substring(price_id, price_id_end)
+      (id, html)
     }
   }.collect
 
-  println(Json.parse(docs.apply(1)._2) + "++++++++++++++++++")
+  val re = docs4.map {
+    l =>
+      val id = l._1
+      val r = l._2
+      nf.find(id, r).toString
+
+  }
+  //back to RDD
+  val par = sc.parallelize(re)
+
+  par.saveAsTextFile("hdfs:///spark-logs//pc.json")
+  
+  
+  val json1 = "{\"reason\" : \"business\",\"airport\" : \"SFO\"}"      
+  val json2 = "{\"participants\" : 5,\"airport\" : \"OTP\"}"
+  
+    EsSpark.saveJsonToEs(sc.makeRDD(Seq(json1,json2)),"htt/docs")
+  
+  
+    EsSpark.saveJsonToEs(par,"htmls/docs")
+  EsSpark.saveToEs(par,"gogo/docs")
+  
+  //sc.makeRDD(Seq(numbers, airports)).saveToEs("htmls/docs")
+  // println(Json.parse(docs.apply(1)._2) + "++++++++++++++++++")
 
   /*
   //println(docCount)

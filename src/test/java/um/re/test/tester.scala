@@ -2,11 +2,11 @@ package um.re.test
 
 
 import scala.io.Codec.string2codec
-import um.re.es.emr.NumberFinder
+import um.re.es.emr.NumberFinder2
 
 object tester {
 	def main(args:Array[String]){
-		val nf =  NumberFinder
+		val nf =  NumberFinder2
 		val jsonStr = scala.io.Source.fromFile("C:\\test\\jsonArray.txt")("ISO_8859-1").getLines.toList.filter{l=>
 		  l.startsWith("""			"url": """)||
 		  l.startsWith("""			"price_prop1": """)||

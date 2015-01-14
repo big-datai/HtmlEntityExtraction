@@ -126,7 +126,7 @@ object HMain {
     //MLUtils.saveAsLibSVMFile(parsedData, "label_points")
 
     /*
-    printToFile(new File("parsed.txt"))(p => {
+   printToFile(new File("parsed.txt"))(p => {
       parsedData.foreach(p.println)
     })
  

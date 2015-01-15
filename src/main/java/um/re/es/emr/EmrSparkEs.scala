@@ -12,9 +12,11 @@ import java.io.FileWriter
 import java.io.BufferedWriter
 import collection.JavaConversions._
 import play.api.libs.json.Json
+import play.api.libs.json.Writes
+import play.api.libs.json._
 import org.elasticsearch.spark.rdd.EsSpark
 import um.re.es.emr.NumberFinder
-//import org.elasticsearch.spark
+import org.elasticsearch.spark
 
 /**
  * This class is supposed to read and write data to ES and analyse it on EMR cluster
@@ -23,8 +25,13 @@ object EmrSparkEs extends App {
 
   val conf = new Configuration()
   conf.set("es.resource", "htmls/data")
-  //conf.set("es.query", "?q=prod_id:11202409")
+   conf.set("es.query", "?q=price_prop1:xml")
   conf.set("es.nodes", "ec2-54-167-216-26.compute-1.amazonaws.com")
+  
+  conf.set("es.query", "{\"query\":{\"bool\":{\"must\":[{\"query_string\":{\"default_field\":\"data.price_prop1\",\"query\":\" xml:lang=\"en\"\"}},{\"query_string\":{\"default_field\":\"data.price_patterns\",\"query\":\"price \"}}],\"must_not\":[],\"should\":[]}},\"from\":0,\"size\":50,\"sort\":[],\"facets\":{}}")
+  //{"query":{"bool":{"must":[{"query_string":{"default_field":"data.price_prop1","query":"<?xml version=\"1.0\""}}],"must_not":[],"should":[]}},"from":0,"size":10,"sort":[],"facets":{}}
+  //{"query":{"bool":{"must":[{"query_string":{"default_field":"data.price_prop1","query":" xml:lang=\"en\""}},{"query_string":{"default_field":"data.price_patterns","query":"price "}}],"must_not":[],"should":[]}},"from":0,"size":10,"sort":[],"facets":{}}
+
 
   val conf_s = new SparkConf().setAppName("es").set("master", "yarn-cluster").set("spark.serializer", classOf[KryoSerializer].getName)
   val sc = new SparkContext(conf_s)
@@ -34,6 +41,7 @@ object EmrSparkEs extends App {
 
   val source = sc.newAPIHadoopRDD(conf, classOf[EsInputFormat[Text, MapWritable]], classOf[Text], classOf[MapWritable]).cache
 
+  //source.count
   val docs = source.map { hit =>
     {
       val nf = NumberFinder
@@ -45,14 +53,15 @@ object EmrSparkEs extends App {
       val price_id = dc.indexOf("price_updated=")
       val price_id_end = dc.length() - 2
       val price = dc.substring(price_id, price_id_end)
-      val res = nf.find(id, html)
+      //val res = nf.find(id, html)
+      val res=html
       res.toString
     }
-  }
-  docs.cache
+  }.cache
   docs.count
-
-  docs.coalesce(1, true).saveAsTextFile("hdfs:///spark-logs//docs1")
+  source.saveAsTextFile("hdfs:///spark-logs//raw1")
+  source.coalesce(1, true).saveAsTextFile("hdfs:///spark-logs//raw")
+  docs.coalesce(1, true).saveAsTextFile("hdfs:///spark-logs//docs2")
 
   printToFile(new File("//mnt//res.txt"))(p => {
     docs.foreach(p.println)

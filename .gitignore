@@ -29,3 +29,4 @@ wiser.pem
 *.launch
 *.log
 dependency-reduced-pom.xml
+/target

@@ -1,146 +1,158 @@
 package um.re.es.emr
 
+import java.io.File
+import scala.collection.JavaConversions._
+import org.apache.hadoop.io.MapWritable
+import org.apache.hadoop.io.Text
+import org.apache.hadoop.mapred.JobConf
+import org.apache.spark._
 import org.apache.spark.SparkConf
 import org.apache.spark.SparkContext
-import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.io.MapWritable
-import org.elasticsearch.hadoop.mr.EsInputFormat
-import org.apache.hadoop.io.Text
+import org.apache.spark.SparkContext._
+import org.apache.spark.rdd._
 import org.apache.spark.serializer.KryoSerializer
-import java.io.File
-import java.io.FileWriter
-import java.io.BufferedWriter
-import collection.JavaConversions._
-import play.api.libs.json.Json
-import play.api.libs.json.Writes
-import play.api.libs.json._
-import org.elasticsearch.spark.rdd.EsSpark
-import um.re.es.emr.NumberFinder
+import org.elasticsearch.hadoop.mr.EsInputFormat
 import org.elasticsearch.spark
+import play.api.libs.json._
+import um.re.es.emr.NumberFinder2
+import com.esotericsoftware.kryo.Kryo
+import org.apache.spark.serializer.KryoRegistrator
+import um.re.es.emr.MyRegistrator
+import scala.math
+import scala.io.Source
+import scala.util.matching.Regex
+import play.api.libs.json.{ Json, JsValue, JsObject, JsArray }
+import scala.io.Codec
+import org.elasticsearch.spark.rdd.EsSpark
 
 /**
  * This class is supposed to read and write data to ES and analyse it on EMR cluster
  */
+
 object EmrSparkEs extends App {
 
-  val conf = new Configuration()
-  conf.set("es.resource", "htmls/data")
-   conf.set("es.query", "?q=price_prop1:xml")
-  conf.set("es.nodes", "ec2-54-167-216-26.compute-1.amazonaws.com")
-  
-  conf.set("es.query", "{\"query\":{\"bool\":{\"must\":[{\"query_string\":{\"default_field\":\"data.price_prop1\",\"query\":\" xml:lang=\"en\"\"}},{\"query_string\":{\"default_field\":\"data.price_patterns\",\"query\":\"price \"}}],\"must_not\":[],\"should\":[]}},\"from\":0,\"size\":50,\"sort\":[],\"facets\":{}}")
-  //{"query":{"bool":{"must":[{"query_string":{"default_field":"data.price_prop1","query":"<?xml version=\"1.0\""}}],"must_not":[],"should":[]}},"from":0,"size":10,"sort":[],"facets":{}}
-  //{"query":{"bool":{"must":[{"query_string":{"default_field":"data.price_prop1","query":" xml:lang=\"en\""}},{"query_string":{"default_field":"data.price_patterns","query":"price "}}],"must_not":[],"should":[]}},"from":0,"size":10,"sort":[],"facets":{}}
-
-
-  val conf_s = new SparkConf().setAppName("es").set("master", "yarn-cluster").set("spark.serializer", classOf[KryoSerializer].getName)
-  val sc = new SparkContext(conf_s)
-
-  // val conf_s = new SparkConf().setAppName("es").setMaster("local").set("spark.serializer", classOf[KryoSerializer].getName)
-  // val sc = new SparkContext(conf_s)
-
-  val source = sc.newAPIHadoopRDD(conf, classOf[EsInputFormat[Text, MapWritable]], classOf[Text], classOf[MapWritable]).cache
-
-  //source.count
-  val docs = source.map { hit =>
-    {
-      val nf = NumberFinder
-      val id = hit._1.toString()
-      val dc = hit._2.toString
-      val html_start = dc.indexOf("price_prop1=")
-      val html_end = dc.indexOf("price_prop_anal=")
-      val html = dc.substring(html_start, html_end)
-      val price_id = dc.indexOf("price_updated=")
-      val price_id_end = dc.length() - 2
-      val price = dc.substring(price_id, price_id_end)
-      //val res = nf.find(id, html)
-      val res=html
-      res.toString
-    }
-  }.cache
-  docs.count
-  source.saveAsTextFile("hdfs:///spark-logs//raw1")
-  source.coalesce(1, true).saveAsTextFile("hdfs:///spark-logs//raw")
-  docs.coalesce(1, true).saveAsTextFile("hdfs:///spark-logs//docs2")
-
-  printToFile(new File("//mnt//res.txt"))(p => {
-    docs.foreach(p.println)
-  })
-
-  //back to RDD
-  // val par = sc.parallelize(re)
-
-  //par.saveAsTextFile("hdfs:///spark-logs//pc.json")
-
-  //not parallel calculation without RDD
-  /*
-  //leaves it RDD format
-  val docs4 = source.map { hit =>
-    {
-       val nf = NumberFinder
-      val id = hit._1.toString()
-      val dc = hit._2.toString
-      val html_start = dc.indexOf("price_prop1=")
-      val html_end = dc.indexOf("price_prop_anal=")
-      val html = dc.substring(html_start, html_end)
-      val price_id = dc.indexOf("price_updated=")
-      val price_id_end = dc.length() - 2
-      val price = dc.substring(price_id, price_id_end)
-      
-      (id, html)
-    }
-  }.collect
-
-  val re = docs4.map {
-    l =>
-      val nf = NumberFinder
-      val id = l._1
-      val r = l._2
-      nf.find(id, r).toString
-
-  }
-  
-  val json1 = "{\"reason\" : \"business\",\"airport\" : \"SFO\"}"
-  val json2 = "{\"participants\" : 5,\"airport\" : \"OTP\"}"
-
-  EsSpark.saveJsonToEs(sc.makeRDD(Seq(json1, json2)), "htt/docs")
-
-  EsSpark.saveJsonToEs(par, "htmls/docs")
-
-  EsSpark.saveToEs(par, "gogo/docs")
- */
-  //sc.makeRDD(Seq(numbers, airports)).saveToEs("htmls/docs")
-  // println(Json.parse(docs.apply(1)._2) + "++++++++++++++++++")
-
-  /*
-  //println(docCount)
-  println(source.toArray.toString)
-  source.collect().foreach(println)
-
-  println("                    +++++++++++++++++++++++++++++++++++++++                    ")
- 
-  //org.apache.hadoop.io.Text, org.apache.hadoop.io.MapWritable
-  source.map {
-    unit =>
-      val url = unit._2
-      println(url )
-  }
-*/
-  /*
-  val file = new File("hdfs:///spark-logs//domains.json");
-  if (!file.exists()) {
-    file.createNewFile();
-  }
-  val fw = new FileWriter(file.getAbsoluteFile());
-
-  val bw = new BufferedWriter(fw);
-  bw.write("++++++++++++++++++++++++++++++++++++++++++++++++++++         " + docCount);
-  bw.close();
-  * */
-
-  // print("++++++++++++++++++++++++++++++++++++++++++++++++++++         " + docCount)
   def printToFile(f: java.io.File)(op: java.io.PrintWriter => Unit) {
     val p = new java.io.PrintWriter(f)
     try { op(p) } finally { p.close() }
   }
+  // helper function to convert Map to a Writable
+  //http://loads.pickle.me.uk/2013/11/12/spark-and-elasticsearch.html
+  def toWritable(map: Map[String, String]) = {
+    val m = new MapWritable
+    for ((k, v) <- map)
+      m.put(new Text(k), new Text(v))
+    m
+  }
+
+  def mapWritableToInput(in: MapWritable): Map[String, String] = {
+    in.map { case (k, v) => (k.toString, v.toString) }.toMap
+  }
+
+  //val conf = new Configuration()
+  val reg = new MyRegistrator
+
+  val conf = new JobConf()
+  conf.set("es.resource", "htmls/data")
+  conf.set("es.query", "?q=price_prop1:xml")
+  conf.set("es.nodes", "ec2-54-167-216-26.compute-1.amazonaws.com")
+
+  // conf.set("es.query", "{\"query\":{\"bool\":{\"must\":[{\"query_string\":{\"default_field\":\"data.price_prop1\",\"query\":\" xml:lang=\"en\"\"}},{\"query_string\":{\"default_field\":\"data.price_patterns\",\"query\":\"price \"}}],\"must_not\":[],\"should\":[]}},\"from\":0,\"size\":50,\"sort\":[],\"facets\":{}}")
+  //{"query":{"bool":{"must":[{"query_string":{"default_field":"data.price_prop1","query":"<?xml version=\"1.0\""}}],"must_not":[],"should":[]}},"from":0,"size":10,"sort":[],"facets":{}}
+  //{"query":{"bool":{"must":[{"query_string":{"default_field":"data.price_prop1","query":" xml:lang=\"en\""}},{"query_string":{"default_field":"data.price_patterns","query":"price "}}],"must_not":[],"should":[]}},"from":0,"size":10,"sort":[],"facets":{}}
+
+  //val conf_s = new SparkConf().setAppName("es").set("master", "yarn-cluster").set("spark.serializer", classOf[KryoSerializer].getName)
+  //val sc = new SparkContext(conf_s)
+
+  val conf_s = new SparkConf().setAppName("es").setMaster("local[8]").set("spark.serializer", classOf[KryoSerializer].getName)
+  conf_s.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
+  conf_s.set("spark.kryo.registrator", "um.re.es.emr.MyRegistrator")
+  val sc = new SparkContext(conf_s)
+
+  val source = sc.newAPIHadoopRDD(conf, classOf[EsInputFormat[Text, MapWritable]], classOf[Text], classOf[MapWritable])
+
+  val source2 = source.map { l => (l._1.toString(), l._2.map { case (k, v) => (k.toString, v.toString) }.toMap) }.repartition(100)
+  source2.partitions.size
+
+  val source3 = source.map { l => (l._1.toString(), l._2.toString) }.repartition(100)
+
+  //Parsing strings
+  val parsed = source3.map { hit =>
+    {
+      try {
+        val time1 = System.currentTimeMillis()
+        val nf = NumberFinder2
+        val id = hit._1.toString()
+        val dc = hit._2.toString
+        var html_start: Int = dc.indexOf("<html>")
+        var html_end: Int = dc.indexOf("</html>")
+        if (html_start == -1 || html_end == -1 && html_end - html_start < 1000) {
+          html_start = dc.indexOf("price_prop1=")
+          html_end = dc.indexOf("price_prop_anal=")
+        }
+        if (html_start == -1 || html_end == -1 && html_end - html_start < 1000) {
+          html_start = 0
+          html_end = dc.length
+        }
+        val html = dc.substring(html_start, html_end)
+        val res = nf.find(id, html)
+        //val res=html
+        println(System.currentTimeMillis() - time1)
+        res.toString.drop(1).dropRight(1)
+      } catch {
+        case _: Exception => { "[{\"no\":\"data\"}]" }
+      }
+    }
+  }
+
+  val candid = source2.map { l =>
+    try {
+      val nf = NumberFinder2
+      val id = l._2.get("url").toString
+      val h = l._2.get("price_prop1").toString
+      val res = nf.find(id, h)
+      res
+    } catch {
+      case _: Exception => { "[{\"no\":\"data\"}]" }
+    }
+  }
+  val source15 = sc.makeRDD(source2.take(15))
+  val candid15 = source15.map { l =>
+    try {
+      val nf = NumberFinder2
+      val id = l._2.get("url").toString
+      val h = l._2.get("price_prop1").toString
+      val res = nf.find(id, h)
+      res
+    } catch {
+      case _: Exception => { "[{\"no\":\"data\"}]" }
+    }
+  }
+
+  val one = source2.take(1)
+  val m = one.apply(0)._2.filterKeys(p =>
+    if (p == "url" || p == "price_prop1")
+      true
+    else
+      false)
+
+  source.saveAsTextFile("hdfs:///spark-logs//raw1")
+  source.coalesce(1, true).saveAsTextFile("hdfs:///spark-logs//raw")
+  parsed.coalesce(1, true).saveAsTextFile("hdfs:///spark-logs//docs2")
+  parsed.coalesce(1, true).saveAsTextFile("s3://pavlovout/order/3")
+  //http://wpcertification.blogspot.co.il/2014/08/how-to-use-elasticsearch-as-input-for.html
+  parsed.saveAsTextFile("file:///tmp/sparkes");
+  val temp2 = sc.textFile("hdfs:///spark-logs/docs2/part-00000")
+
+  val temp = sc.textFile("")
+
+  printToFile(new File("//mnt//res.txt"))(p => {
+    temp2.toArray.foreach(p.println)
+  })
+
+  val json1 = "{\"url\" : \"business\",\"title\" : \"SFO\"}"
+  val json2 = "{\"url\" : 5,\"title\" : \"OTP\"}"
+
+  EsSpark.saveToEs(sc.makeRDD(Seq(json1, json2)), "htmls/data")
+  EsSpark.saveToEs(source15, "htmls/docs")
+
 }

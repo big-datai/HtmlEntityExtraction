@@ -1,7 +1,6 @@
 package um.re.es.emr
 
 import java.io.File
-import scala.collection.JavaConversions._
 import org.apache.hadoop.io.MapWritable
 import org.apache.hadoop.io.Text
 import org.apache.hadoop.mapred.JobConf
@@ -11,19 +10,20 @@ import org.apache.spark.SparkContext
 import org.apache.spark.SparkContext._
 import org.apache.spark.rdd._
 import org.apache.spark.serializer.KryoSerializer
+import org.apache.spark.serializer.KryoRegistrator
+import com.esotericsoftware.kryo.Kryo
+import um.re.es.emr.MyRegistrator
+import um.re.es.emr.NumberFinder2
+import scala.math
+import scala.collection.JavaConversions._
+import play.api.libs.json._
+import play.api.libs.json.{ Json, JsValue, JsObject, JsArray }
 import org.elasticsearch.hadoop.mr.EsInputFormat
 import org.elasticsearch.spark
-import play.api.libs.json._
-import um.re.es.emr.NumberFinder2
-import com.esotericsoftware.kryo.Kryo
-import org.apache.spark.serializer.KryoRegistrator
-import um.re.es.emr.MyRegistrator
-import scala.math
-import scala.io.Source
-import scala.util.matching.Regex
-import play.api.libs.json.{ Json, JsValue, JsObject, JsArray }
-import scala.io.Codec
 import org.elasticsearch.spark.rdd.EsSpark
+import org.apache.spark.SparkContext
+import org.apache.hadoop.io.NullWritable
+import org.elasticsearch.hadoop.mr.EsOutputFormat
 
 /**
  * This class is supposed to read and write data to ES and analyse it on EMR cluster
@@ -70,6 +70,7 @@ object EmrSparkEs extends App {
 
   val source = sc.newAPIHadoopRDD(conf, classOf[EsInputFormat[Text, MapWritable]], classOf[Text], classOf[MapWritable])
 
+  
   val source2 = source.map { l => (l._1.toString(), l._2.map { case (k, v) => (k.toString, v.toString) }.toMap) }.repartition(100)
   source2.partitions.size
 
@@ -134,7 +135,12 @@ object EmrSparkEs extends App {
       true
     else
       false)
-
+  
+  //    
+  source.saveAsNewAPIHadoopFile("-", classOf[NullWritable], classOf[MapWritable], classOf[EsOutputFormat], conf)
+  
+  
+  
   source.saveAsTextFile("hdfs:///spark-logs//raw1")
   source.coalesce(1, true).saveAsTextFile("hdfs:///spark-logs//raw")
   parsed.coalesce(1, true).saveAsTextFile("hdfs:///spark-logs//docs2")
@@ -155,4 +161,16 @@ object EmrSparkEs extends App {
   EsSpark.saveToEs(sc.makeRDD(Seq(json1, json2)), "htmls/data")
   EsSpark.saveToEs(source15, "htmls/docs")
 
+ /* 
+  val stream = KafkaUtils.createStream[String, Message, StringDecoder, MessageDecoder](ssc, kafkaConfig, kafkaTopics, StorageLevel.MEMORY_AND_DISK).map(_._2)
+  stream.foreachRDD(messageRDD => {
+    /**
+     * Live indexing of Kafka messages; note, that this is also
+     * an appropriate place to integrate further message analysis
+     */
+    val messages = messageRDD.map(prepare)
+    messages.saveAsNewAPIHadoopFile("-", classOf[NullWritable], classOf[MapWritable], classOf[EsOutputFormat], esConfig)
+
+  })
+*/
 }

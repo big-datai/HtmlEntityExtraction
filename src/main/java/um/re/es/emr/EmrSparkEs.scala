@@ -67,9 +67,13 @@ object EmrSparkEs extends App {
   conf_s.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
   conf_s.set("spark.kryo.registrator", "um.re.es.emr.MyRegistrator")
   val sc = new SparkContext(conf_s)
+  sc.hadoopConfiguration.set("es.nodes", "ec2-54-167-216-26.compute-1.amazonaws.com")
+  sc.hadoopConfiguration.set("es.query", "?q=price_prop1:xml")
+  sc.hadoopConfiguration.set("es.resource", "htmls/data")
 
   val source = sc.newAPIHadoopRDD(conf, classOf[EsInputFormat[Text, MapWritable]], classOf[Text], classOf[MapWritable])
 
+  
   
   val source2 = source.map { l => (l._1.toString(), l._2.map { case (k, v) => (k.toString, v.toString) }.toMap) }.repartition(100)
   source2.partitions.size

@@ -67,6 +67,7 @@ wget http://www.java2s.com/Code/JarDownload/play/play_2.10.jar.zip
 wget http://www.java2s.com/Code/JarDownload/play-iteratees/play-iteratees_2.10.jar.zip
 wget http://www.us.apache.org/dist/maven/maven-3/3.0.5/binaries/apache-maven-3.0.5-bin.tar.gz
 wget http://central.maven.org/maven2/org/elasticsearch/elasticsearch-spark_2.10/2.1.0.Beta3/elasticsearch-spark_2.10-2.1.0.Beta3.jar
+wget http://central.maven.org/maven2/org/elasticsearch/elasticsearch-hadoop/2.1.0.Beta3/elasticsearch-hadoop-2.1.0.Beta3.jar
 
 unzip play_2.10.jar.zip
 unzip play-iteratees_2.10.jar.zip

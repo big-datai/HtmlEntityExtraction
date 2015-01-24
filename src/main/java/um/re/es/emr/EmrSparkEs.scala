@@ -30,22 +30,24 @@ import org.elasticsearch.hadoop.mr.EsOutputFormat
  */
 
 object EmrSparkEs extends App {
+  
 
-  def printToFile(f: java.io.File)(op: java.io.PrintWriter => Unit) {
-    val p = new java.io.PrintWriter(f)
-    try { op(p) } finally { p.close() }
-  }
-  // helper function to convert Map to a Writable
-  //http://loads.pickle.me.uk/2013/11/12/spark-and-elasticsearch.html
-  def toWritable(map: Map[String, String]) = {
-    val m = new MapWritable
-    for ((k, v) <- map)
-      m.put(new Text(k), new Text(v))
-    m
-  }
-
-  def mapWritableToInput(in: MapWritable): Map[String, String] = {
-    in.map { case (k, v) => (k.toString, v.toString) }.toMap
+  /**
+   * This function takes ES source and transforms it to format of R candidates
+   */
+   def getCandidates(source2: RDD[(String, Map[String, String])]) = {
+    val candid = source2.map { l =>
+      try {
+        val nf = NumberFinder2
+        val id = l._2.get("url").toString
+        val h = l._2.get("price_prop1").toString
+        val res = nf.find(id, h)
+        res
+      } catch {
+        case _: Exception => { "[{\"no\":\"data\"}]" }
+      }
+    }
+    candid
   }
 
   //val conf = new Configuration()
@@ -73,53 +75,11 @@ object EmrSparkEs extends App {
 
   val source = sc.newAPIHadoopRDD(conf, classOf[EsInputFormat[Text, MapWritable]], classOf[Text], classOf[MapWritable])
 
-  
-  
   val source2 = source.map { l => (l._1.toString(), l._2.map { case (k, v) => (k.toString, v.toString) }.toMap) }.repartition(100)
   source2.partitions.size
 
   val source3 = source.map { l => (l._1.toString(), l._2.toString) }.repartition(100)
 
-  //Parsing strings
-  val parsed = source3.map { hit =>
-    {
-      try {
-        val time1 = System.currentTimeMillis()
-        val nf = NumberFinder2
-        val id = hit._1.toString()
-        val dc = hit._2.toString
-        var html_start: Int = dc.indexOf("<html>")
-        var html_end: Int = dc.indexOf("</html>")
-        if (html_start == -1 || html_end == -1 && html_end - html_start < 1000) {
-          html_start = dc.indexOf("price_prop1=")
-          html_end = dc.indexOf("price_prop_anal=")
-        }
-        if (html_start == -1 || html_end == -1 && html_end - html_start < 1000) {
-          html_start = 0
-          html_end = dc.length
-        }
-        val html = dc.substring(html_start, html_end)
-        val res = nf.find(id, html)
-        //val res=html
-        println(System.currentTimeMillis() - time1)
-        res.toString.drop(1).dropRight(1)
-      } catch {
-        case _: Exception => { "[{\"no\":\"data\"}]" }
-      }
-    }
-  }
-
-  val candid = source2.map { l =>
-    try {
-      val nf = NumberFinder2
-      val id = l._2.get("url").toString
-      val h = l._2.get("price_prop1").toString
-      val res = nf.find(id, h)
-      res
-    } catch {
-      case _: Exception => { "[{\"no\":\"data\"}]" }
-    }
-  }
   val source15 = sc.makeRDD(source2.take(15))
   val candid15 = source15.map { l =>
     try {
@@ -139,33 +99,21 @@ object EmrSparkEs extends App {
       true
     else
       false)
-  
-  //    
-  source.saveAsNewAPIHadoopFile("-", classOf[NullWritable], classOf[MapWritable], classOf[EsOutputFormat], conf)
-  
-  
-  
+
   source.saveAsTextFile("hdfs:///spark-logs//raw1")
   source.coalesce(1, true).saveAsTextFile("hdfs:///spark-logs//raw")
-  parsed.coalesce(1, true).saveAsTextFile("hdfs:///spark-logs//docs2")
-  parsed.coalesce(1, true).saveAsTextFile("s3://pavlovout/order/3")
   //http://wpcertification.blogspot.co.il/2014/08/how-to-use-elasticsearch-as-input-for.html
-  parsed.saveAsTextFile("file:///tmp/sparkes");
   val temp2 = sc.textFile("hdfs:///spark-logs/docs2/part-00000")
 
   val temp = sc.textFile("")
 
-  printToFile(new File("//mnt//res.txt"))(p => {
+  Utils.printToFile(new File("//mnt//res.txt"))(p => {
     temp2.toArray.foreach(p.println)
   })
 
-  val json1 = "{\"url\" : \"business\",\"title\" : \"SFO\"}"
-  val json2 = "{\"url\" : 5,\"title\" : \"OTP\"}"
 
-  EsSpark.saveToEs(sc.makeRDD(Seq(json1, json2)), "htmls/data")
-  EsSpark.saveToEs(source15, "htmls/docs")
 
- /* 
+  /* 
   val stream = KafkaUtils.createStream[String, Message, StringDecoder, MessageDecoder](ssc, kafkaConfig, kafkaTopics, StorageLevel.MEMORY_AND_DISK).map(_._2)
   stream.foreachRDD(messageRDD => {
     /**

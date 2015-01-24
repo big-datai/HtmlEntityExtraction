@@ -24,6 +24,8 @@ import org.elasticsearch.spark.rdd.EsSpark
 import org.apache.spark.SparkContext
 import org.apache.hadoop.io.NullWritable
 import org.elasticsearch.hadoop.mr.EsOutputFormat
+import um.re.utils
+import um.re.utils.Utils
 
 /**
  * This class is supposed to read and write data to ES and analyse it on EMR cluster

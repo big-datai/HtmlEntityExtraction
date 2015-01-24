@@ -1,30 +1,11 @@
-package um.re.es.emr
-
-
-import java.io.File
+package um.re.utils
 import org.apache.hadoop.io.MapWritable
 import org.apache.hadoop.io.Text
-import org.apache.hadoop.mapred.JobConf
 import org.apache.spark._
-import org.apache.spark.SparkConf
-import org.apache.spark.SparkContext
 import org.apache.spark.SparkContext._
 import org.apache.spark.rdd._
-import org.apache.spark.serializer.KryoSerializer
-import org.apache.spark.serializer.KryoRegistrator
-import com.esotericsoftware.kryo.Kryo
-import um.re.es.emr.MyRegistrator
-import um.re.es.emr.NumberFinder2
-import scala.math
 import scala.collection.JavaConversions._
 import play.api.libs.json._
-import play.api.libs.json.{ Json, JsValue, JsObject, JsArray }
-import org.elasticsearch.hadoop.mr.EsInputFormat
-import org.elasticsearch.spark
-import org.elasticsearch.spark.rdd.EsSpark
-import org.apache.spark.SparkContext
-import org.apache.hadoop.io.NullWritable
-import org.elasticsearch.hadoop.mr.EsOutputFormat
 
 object Utils {
 

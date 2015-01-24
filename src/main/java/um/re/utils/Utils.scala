@@ -9,13 +9,17 @@ import play.api.libs.json._
 
 object Utils {
 
-  def getPatternLocations(pattern: String, html: String): Map[String, List[Long]] = {
-    null
+  def extPatternLocationPair(pattern: String, html: String, length: Int) = {
+    val size = html.length
+    val res = pattern.r.findAllMatchIn(html).
+      map { m =>
+        println(m.start + " the end: " + m.end)
+        // println(" html sub string :"+html.substring(math.max(m.start - length, 0)))
+        (m.start, html.substring(math.max(m.start - length, 0), math.min(m.end + length, size)))
+      }.toMap
+    res
   }
 
-  def extendPattern(location: List[Long], length: Int, html: String): String = {
-    null
-  }
   /**
    * this function removes more then 3 spaces from string
    */

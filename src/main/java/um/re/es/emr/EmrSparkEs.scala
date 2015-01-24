@@ -32,12 +32,11 @@ import um.re.utils.Utils
  */
 
 object EmrSparkEs extends App {
-  
 
   /**
    * This function takes ES source and transforms it to format of R candidates
    */
-   def getCandidates(source2: RDD[(String, Map[String, String])]) = {
+  def getCandidates(source2: RDD[(String, Map[String, String])]) = {
     val candid = source2.map { l =>
       try {
         val nf = NumberFinder2
@@ -57,7 +56,7 @@ object EmrSparkEs extends App {
 
   val conf = new JobConf()
   conf.set("es.resource", "htmls/data")
-  conf.set("es.query", "?q=price_prop1:xml")
+  conf.set("es.query", "?q=prod_id:23799864")
   conf.set("es.nodes", "ec2-54-167-216-26.compute-1.amazonaws.com")
 
   // conf.set("es.query", "{\"query\":{\"bool\":{\"must\":[{\"query_string\":{\"default_field\":\"data.price_prop1\",\"query\":\" xml:lang=\"en\"\"}},{\"query_string\":{\"default_field\":\"data.price_patterns\",\"query\":\"price \"}}],\"must_not\":[],\"should\":[]}},\"from\":0,\"size\":50,\"sort\":[],\"facets\":{}}")
@@ -96,12 +95,18 @@ object EmrSparkEs extends App {
   }
 
   val one = source2.take(1)
+  
+  
   val m = one.apply(0)._2.filterKeys(p =>
-    if (p == "url" || p == "price_prop1")
+    if (p == "url" || p == "price_prop1" || p == "price_patterns")
       true
     else
       false)
 
+  val url=m.get("url")    
+  val pat=m.get("price_patterns")
+  val html=m.get("price_prop1")
+  
   source.saveAsTextFile("hdfs:///spark-logs//raw1")
   source.coalesce(1, true).saveAsTextFile("hdfs:///spark-logs//raw")
   //http://wpcertification.blogspot.co.il/2014/08/how-to-use-elasticsearch-as-input-for.html
@@ -113,8 +118,7 @@ object EmrSparkEs extends App {
     temp2.toArray.foreach(p.println)
   })
 
-
-
+  
   /* 
   val stream = KafkaUtils.createStream[String, Message, StringDecoder, MessageDecoder](ssc, kafkaConfig, kafkaTopics, StorageLevel.MEMORY_AND_DISK).map(_._2)
   stream.foreachRDD(messageRDD => {

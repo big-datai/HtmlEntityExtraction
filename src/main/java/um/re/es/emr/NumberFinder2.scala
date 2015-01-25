@@ -19,6 +19,10 @@ object NumberFinder2 extends Serializable {
   val NUM_PATTERN: Regex = "([0-9,\\.]*[0-9])(?:[^0-9,\\.])".r
   val snippetSize: Int = 50
 
+  def findM(url: String, html: String) : List[Map[String,String]]= {
+    val candidates = fetchPriceCandidates(html)
+    createMap(candidates,url)
+  }
   def find(url: String, html: String) : JsValue= {
     // this is the main method to use, Input : URL and HTML , Output : JSON object with price candidates and their features  
     val candidates = fetchPriceCandidates(html)
@@ -36,6 +40,14 @@ object NumberFinder2 extends Serializable {
           ((!CURRENCY_SYMBOLS.findFirstIn(snip).isDefined) && (!TEXT_NEAR_PRICE.findFirstIn(snip).isDefined))
     }
   }
+  def createMap(iter: Iterator[Regex.Match], url: String): List[Map[String,String]] = {
+    val mapList = iter.map { i =>
+      	Map("url" -> url,
+          "priceCandidate" -> i.group(1)) ++
+          extractFeaturesM(i)
+    }.toList
+    mapList
+  }
   def createJSON(iter: Iterator[Regex.Match], url: String): JsValue = {
     // this method forms the cnadidates into a JSON object 
     val jsonList = iter.map { i =>
@@ -50,6 +62,13 @@ object NumberFinder2 extends Serializable {
 
   }
   
+  def extractFeaturesM(m: Regex.Match): Map[String, String] = {
+    // this method extracts relevant features for a price candidate , such as snippet from HTML and its location
+    val str: String = m.before.subSequence(math.max(m.before.length() - snippetSize, 0), m.before.length) +
+      m.toString + m.after.subSequence(0, math.min(snippetSize - 1, m.after.length))
+    Map("text" -> str,
+      "location" -> m.start.toString)
+  }
   def extractFeatures(m: Regex.Match): Map[String, JsValue] = {
     // this method extracts relevant features for a price candidate , such as snippet from HTML and its location
     val str: String = m.before.subSequence(math.max(m.before.length() - snippetSize, 0), m.before.length) +

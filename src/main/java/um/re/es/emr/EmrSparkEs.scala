@@ -75,7 +75,22 @@ object EmrSparkEs extends App {
   sc.hadoopConfiguration.set("es.resource", "htmls/data")
 
   val source = sc.newAPIHadoopRDD(conf, classOf[EsInputFormat[Text, MapWritable]], classOf[Text], classOf[MapWritable])
-
+  
+  val conf_w = new JobConf()
+  conf_w.set("es.resource", "process_count/candid")
+  conf_w.set("es.nodes", "ec2-54-167-216-26.compute-1.amazonaws.com")
+  
+  source.flatMap{r=>
+    val nf = NumberFinder2
+    val doc = r._2.map{case (k, v) => (k.toString, v.toString) }.toMap
+    val url = doc.get("url").get
+    val html = doc.get("price_prop1").get
+    nf.findM(url, html)
+  }.map{m=>
+    val mw = Utils.toWritable(m)
+    (NullWritable.get(), mw)
+    }.saveAsNewAPIHadoopFile("-", classOf[NullWritable], classOf[MapWritable], classOf[EsOutputFormat], conf_w)
+  
   val source2 = source.map { l => (l._1.toString(), l._2.map { case (k, v) => (k.toString, v.toString) }.toMap) }.repartition(100)
   source2.partitions.size
 

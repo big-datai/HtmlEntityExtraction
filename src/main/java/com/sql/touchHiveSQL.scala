@@ -1,5 +1,5 @@
 package com.sql
-/*
+
 import org.apache.spark.SparkConf
 import org.apache.spark.SparkContext
 
@@ -15,11 +15,10 @@ object touchHiveSQL {
     // sc is an existing SparkContext.
 
     sqlContext.sql("CREATE TABLE IF NOT EXISTS src (key INT, value STRING)")
-    sqlContext.sql("LOAD DATA LOCAL INPATH 'examples/src/main/resources/kv1.txt' INTO TABLE src")
+    sqlContext.sql("LOAD DATA LOCAL INPATH '/user/boris/DetectionQuery1_data/000000_0' INTO TABLE src")
 
     // Queries are expressed in HiveQL
     sqlContext.sql("FROM src SELECT key, value").collect().foreach(println)
   }
 
 }
-*/

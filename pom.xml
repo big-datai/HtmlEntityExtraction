@@ -44,7 +44,14 @@
 		<version>2.5.6</version> </dependency> <dependency> <groupId>cascading</groupId> 
 		<artifactId>cascading-hadoop</artifactId> <version>2.5.6</version> </dependency> 
 		<dependency> <groupId>org.elasticsearch</groupId> <artifactId>elasticsearch-hadoop-cascading</artifactId> 
-		<version>2.1.0.Beta3</version> </dependency> -->
+		<version>2.1.0.Beta3</version> </dependency>
+		
+		<dependency>
+			<groupId>org.apache.spark</groupId>
+			<artifactId>spark-hive_2.10</artifactId>
+			<version>1.2.0</version>
+		</dependency>
+		 -->
 	<dependencies>
 		<dependency>
 			<groupId>org.elasticsearch</groupId>
@@ -103,7 +110,7 @@
 			<version>2.1.23</version>
 		</dependency>
 	</dependencies>
-	
+
 	<build>
 		<plugins>
 			<plugin>

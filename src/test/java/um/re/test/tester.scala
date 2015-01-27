@@ -16,7 +16,7 @@ object tester {
 		  l.substring(trimFrom+4, l.length()-1)}.toArray
 		for(i <- 0 to 49){
 		  var id = i*3
-		  println(nf.find(jsonStr(id), jsonStr(id+1)))
+		  println(nf.findM(jsonStr(id), jsonStr(id+1)))
 		  
 		}
 		

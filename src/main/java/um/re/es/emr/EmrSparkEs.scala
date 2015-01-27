@@ -75,7 +75,9 @@ object EmrSparkEs extends App {
   sc.hadoopConfiguration.set("es.resource", "htmls/data")
 
   val source = sc.newAPIHadoopRDD(conf, classOf[EsInputFormat[Text, MapWritable]], classOf[Text], classOf[MapWritable])
-
+  
+  
+  
   val source2 = source.map { l => (l._1.toString(), l._2.map { case (k, v) => (k.toString, v.toString) }.toMap) }.repartition(100)
   source2.partitions.size
 

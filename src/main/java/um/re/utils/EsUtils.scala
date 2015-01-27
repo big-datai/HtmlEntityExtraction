@@ -47,11 +47,8 @@ object EsUtils {
    * This method should write to ES using hadoop style
    */
   //http://www.elasticsearch.org/guide/en/elasticsearch/hadoop/current/mapreduce.html
-  def write2ESHadoop(source:RDD[(Text,MapWritable)],sc:SparkContext){
-    //Writing back to ES
-  
-    source.saveAsNewAPIHadoopFile("-", classOf[NullWritable], classOf[MapWritable], classOf[EsOutputFormat], conf)
-    //sc.makeRDD(Seq(json1, json2)).saveAsNewAPIHadoopFile("-", classOf[NullWritable], classOf[MapWritable], classOf[EsOutputFormat], conf)
-
+  def write2ESHadoop(source:RDD[(String,Map[String,String])],cfg:JobConf)={
+    source.map(r=>
+      (NullWritable.get,Utils.toWritable(r._2))).saveAsNewAPIHadoopFile("-", classOf[NullWritable], classOf[MapWritable], classOf[EsOutputFormat], cfg)
   }
 }

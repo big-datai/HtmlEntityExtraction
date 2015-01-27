@@ -29,6 +29,10 @@ import um.re.utils.Utils
 
 object TestUtils extends App {
 
+  
+  val nn=Utils.hideSpecialChar(" hellod from the helld [ asdf ] asdf( asdf )Asdf asdfgadsf a$ money $ 50 k % (.*?)")
+  println(nn)
+  
   val conf_s = new SparkConf().setAppName("es").setMaster("local[8]")//.set("spark.serializer", classOf[KryoSerializer].getName)
   conf_s.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
   conf_s.set("spark.kryo.registrator", "um.re.es.emr.MyRegistrator")

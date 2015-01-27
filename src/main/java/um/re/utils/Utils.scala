@@ -11,7 +11,7 @@ object Utils {
 
   def extPatternLocationPair(pattern: String, html: String, length: Int) = {
     val size = html.length
-    val res = pattern.r.findAllMatchIn(html).
+    val res = Utils.hideSpecialChar(pattern).r.findAllMatchIn(html).
       map { m =>
         println(m.start + " the end: " + m.end)
         // println(" html sub string :"+html.substring(math.max(m.start - length, 0)))
@@ -20,6 +20,14 @@ object Utils {
     res
   }
 
+  def hideSpecialChar(price_pattern: String) = {
+    val price_match = price_pattern.replaceAll("[\t\n\r,]", "").replaceAll("[\\p{Blank}]{1,}", " ").replaceAll("\\(", "\\\\(")
+      .replaceAll("\\)", "\\\\)").replaceAll("\\[", "\\\\[").replaceAll("\\]", "\\\\]").replaceAll("\\$", "\\\\\\$")
+      .replaceAll("\\.", "\\\\.").replaceAll("\\*", "\\\\*").replaceAll("\\?", "\\\\?").replaceAll("\\+", "\\\\+")
+      .replace("\\(\\.\\*\\?\\)", "(.*?)");
+    price_match
+  }
+  
   /**
    * this function removes more then 3 spaces from string
    */

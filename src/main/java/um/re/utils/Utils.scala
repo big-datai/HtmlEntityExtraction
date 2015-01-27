@@ -6,26 +6,34 @@ import org.apache.spark.SparkContext._
 import org.apache.spark.rdd._
 import scala.collection.JavaConversions._
 import play.api.libs.json._
+import java.util.regex.Pattern
+import scala.util.control.Exception
 
 object Utils {
 
-  def extPatternLocationPair(pattern: String, html: String, length: Int) = {
+  def extPatternLocationPair(pattern: String, html: String, new_length: Int) = {
     val size = html.length
     val res = Utils.hideSpecialChar(pattern).r.findAllMatchIn(html).
       map { m =>
         println(m.start + " the end: " + m.end)
         // println(" html sub string :"+html.substring(math.max(m.start - length, 0)))
-        (m.start, html.substring(math.max(m.start - length, 0), math.min(m.end + length, size)))
+        (m.start(1), html.substring(math.max(m.start(1) - new_length, 0), math.min(m.end(1) + new_length, size)))
       }.toMap
     res
   }
 
   def hideSpecialChar(price_pattern: String) = {
-    val price_match = price_pattern.replaceAll("[\t\n\r,]", "").replaceAll("[\\p{Blank}]{1,}", " ").replaceAll("\\(", "\\\\(")
+      val wildcard = "(.*?)"
+	  val wild_index = price_pattern.indexOf(wildcard)
+      val text_before = price_pattern.substring(0, wild_index)
+      val text_after = price_pattern.substring(wild_index + wildcard.length)
+      "(?:"+Pattern.quote(text_before)+")"+wildcard+"(?:"+Pattern.quote(text_after)+")"
+    
+    /*val price_match = price_pattern.replaceAll("[\t\n\r,]", "").replaceAll("[\\p{Blank}]{1,}", " ").replaceAll("\\(", "\\\\(")
       .replaceAll("\\)", "\\\\)").replaceAll("\\[", "\\\\[").replaceAll("\\]", "\\\\]").replaceAll("\\$", "\\\\\\$")
       .replaceAll("\\.", "\\\\.").replaceAll("\\*", "\\\\*").replaceAll("\\?", "\\\\?").replaceAll("\\+", "\\\\+")
       .replace("\\(\\.\\*\\?\\)", "(.*?)");
-    price_match
+    price_match*/
   }
   
   /**

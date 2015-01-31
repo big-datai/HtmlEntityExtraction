@@ -33,23 +33,7 @@ import um.re.utils.Utils
 
 object EmrSparkEs extends App {
 
-  /**
-   * This function takes ES source and transforms it to format of R candidates
-   */
-  def getCandidates(source2: RDD[(String, Map[String, String])]) = {
-    val candid = source2.map { l =>
-      try {
-        val nf = NumberFinder2
-        val id = l._2.get("url").toString
-        val h = l._2.get("price_prop1").toString
-        val res = nf.find(id, h)
-        res
-      } catch {
-        case _: Exception => { "[{\"no\":\"data\"}]" }
-      }
-    }
-    candid
-  }
+
 
   //val conf = new Configuration()
   val reg = new MyRegistrator
@@ -69,6 +53,7 @@ object EmrSparkEs extends App {
   val conf_s = new SparkConf().setAppName("es").setMaster("local[8]").set("spark.serializer", classOf[KryoSerializer].getName)
   conf_s.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
   conf_s.set("spark.kryo.registrator", "um.re.es.emr.MyRegistrator")
+  
   val sc = new SparkContext(conf_s)
   sc.hadoopConfiguration.set("es.nodes", "ec2-54-167-216-26.compute-1.amazonaws.com")
   sc.hadoopConfiguration.set("es.query", "?q=price_prop1:xml")
@@ -121,16 +106,4 @@ object EmrSparkEs extends App {
   })
 
   
-  /* 
-  val stream = KafkaUtils.createStream[String, Message, StringDecoder, MessageDecoder](ssc, kafkaConfig, kafkaTopics, StorageLevel.MEMORY_AND_DISK).map(_._2)
-  stream.foreachRDD(messageRDD => {
-    /**
-     * Live indexing of Kafka messages; note, that this is also
-     * an appropriate place to integrate further message analysis
-     */
-    val messages = messageRDD.map(prepare)
-    messages.saveAsNewAPIHadoopFile("-", classOf[NullWritable], classOf[MapWritable], classOf[EsOutputFormat], esConfig)
-
-  })
-*/
 }

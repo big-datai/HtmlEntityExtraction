@@ -1,0 +1,14 @@
+n class="saleprice">
+ $
+ <span class="price">
+ (.*?)
+ </span>
+ </span>
+ <meta itemprop="priceC|||
+n class="saleprice">
+ $
+ <span class="price">
+ (.*?)
+ </span>
+ </span>
+ <meta itemprop="priceC|||

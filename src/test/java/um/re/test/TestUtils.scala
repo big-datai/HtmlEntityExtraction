@@ -29,22 +29,23 @@ import um.re.utils.Utils
 
 object TestUtils extends App {
 
-  
-  val nn=Utils.hideSpecialChar(" hellod from the helld [ asdf ] asdf( asdf )Asdf asdfgadsf a$ money $ 50 k % (.*?)")
+  val nn = Utils.skipSpecialCharsInPattern(" n class=\"saleprice\">$<span class=\"price\"> (.*?)</span> </span>  <meta itemprop=\"priceC|||")
+
   println(nn)
-  
+  val remove = Utils.threePlusTrim("    a          b          c        asdf     lkjasdf          asdlkjas;dkljf  ")
+  println(remove)
+  /*
   val conf_s = new SparkConf().setAppName("es").setMaster("local[8]")//.set("spark.serializer", classOf[KryoSerializer].getName)
   conf_s.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
   conf_s.set("spark.kryo.registrator", "um.re.es.emr.MyRegistrator")
   val sc = new SparkContext(conf_s)
-
+ 
   val conf = new JobConf()
   conf.set("es.resource", "htmls/data")
   conf.set("es.query", "?q=prod_id:23799864")
   conf.set("es.nodes", "ec2-54-167-216-26.compute-1.amazonaws.com")
 
   val source = sc.newAPIHadoopRDD(conf, classOf[EsInputFormat[Text, MapWritable]], classOf[Text], classOf[MapWritable])
-
   val source2 = source.map { l => (l._1.toString(), l._2.map { case (k, v) => (k.toString, v.toString) }.toMap) }
   val one = source2.take(1)
   val one_json = one.apply(0)._2.filterKeys(p =>
@@ -52,7 +53,28 @@ object TestUtils extends App {
       true
     else
       false)
+  
+      val res = Utils.extPatternLocationPair(Utils.threePlusTrim(one_json.get("price_patterns").get.toString.dropRight(4)), Utils.threePlusTrim(one_json.get("price_prop1").get.toString), 150)
+val res2 = Utils.extPatternLocationPair((one_json.get("price_patterns").get.toString.dropRight(4)), (one_json.get("price_prop1").get.toString), 150)
+   */
 
-  val res = Utils.extPatternLocationPair(one_json.get("price_patterns").get.toString, one_json.get("price_prop1").get.toString, 150)
+  val source4 = scala.io.Source.fromFile("file.html")//("sample.html")
+  val lines = source4.mkString
+  source4.close()
 
+  val source3 = scala.io.Source.fromFile("pattern_sample.txt")
+  val lines2 = source3.mkString
+  source3.close()
+
+  //val ress = Utils.extPatternLocationPair(Utils.replaceS(Utils.threePlusTrim(lines2.dropRight(4))), Utils.replaceS(Utils.threePlusTrim(lines.toString)), 150)
+  
+  val ress =Utils.allPatterns(lines2,lines,150)
+  println("++++++++++++")
+  println(ress)
+
+import java.nio.file.{Paths, Files}
+import java.nio.charset.StandardCharsets
+
+//Files.write(Paths.get("file.txt"), html.getBytes(StandardCharsets.UTF_8))
 }
+

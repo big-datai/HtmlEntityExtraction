@@ -8,39 +8,104 @@ import scala.collection.JavaConversions._
 import play.api.libs.json._
 import java.util.regex.Pattern
 import scala.util.control.Exception
+import um.re.es.emr.NumberFinder2
 
 object Utils {
 
+  /**
+   * This function takes ES source and transforms it to format of R candidates
+   */
+  def getCandidates(source2: RDD[(String, Map[String, String])]) = {
+    val candid = source2.map { l =>
+      try {
+        val nf = NumberFinder2
+        val id = l._2.get("url").toString
+        val h = l._2.get("price_prop1").toString
+        val res = nf.find(id, h)
+        res
+      } catch {
+        case _: Exception => { "[{\"no\":\"data\"}]" }
+      }
+    }
+    candid
+  }
+  def getCandidatesPatternsHtmlTrimed(source2: RDD[(String, Map[String, String])]): RDD[List[Map[String, String]]] = {
+    val candid = source2.map { l =>
+      try {
+        val nf = NumberFinder2
+        nf.snippetSize = 150
+        val id = l._2.get("url").get
+        val price=l._2.get("price_updated").get
+        val html = shrinkString(l._2.get("price_prop1").get)
+        val patterns = shrinkString(l._2.get("price_patterns").get)
+        val res = nf.findM(id, html)
+        val p_h = Map("patterns" -> patterns, "html" -> html, "price" ->price)
+        p_h :: res
+      } catch {
+        case _: Exception => Nil
+      }
+    }
+    candid
+  }
+  /**
+   * allPatterns method gets a string of "|||" separated patterns and returns an array of maps[location, ext_pattern]
+   *
+   */
+  def allPatterns(patterns: String, html: String, new_length: Int) = {
+    patterns.split("\\|\\|\\|").filter(p => p != null && !p.isEmpty() && !p.equals("")).map { p =>
+      extPatternLocationPair(shrinkString(p), shrinkString(html), new_length)
+    }.toMap
+  }
+
+  /**
+   * extPatternLocationPair this method returns a pair (pattern location, extended pattern)
+   *
+   */
   def extPatternLocationPair(pattern: String, html: String, new_length: Int) = {
     val size = html.length
-    val res = Utils.hideSpecialChar(pattern).r.findAllMatchIn(html).
+    val res = Utils.skipSpecialCharsInPattern(pattern).r.findAllMatchIn(html).
       map { m =>
         println(m.start + " the end: " + m.end)
         // println(" html sub string :"+html.substring(math.max(m.start - length, 0)))
-        (m.start(1), html.substring(math.max(m.start(1) - new_length, 0), math.min(m.end(1) + new_length, size)))
-      }.toMap
+        println(html.substring(math.max(m.start(1) - new_length, 0), math.min(m.end(1) + new_length, size)))
+        (m.start(1).toString, html.substring(math.max(m.start(1) - new_length, 0), math.min(m.end(1) + new_length, size)))
+      }.toMap.head
     res
   }
 
-  def hideSpecialChar(price_pattern: String) = {
-      val wildcard = "(.*?)"
-	  val wild_index = price_pattern.indexOf(wildcard)
-      val text_before = price_pattern.substring(0, wild_index)
-      val text_after = price_pattern.substring(wild_index + wildcard.length)
-      "(?:"+Pattern.quote(text_before)+")"+wildcard+"(?:"+Pattern.quote(text_after)+")"
-    
-    /*val price_match = price_pattern.replaceAll("[\t\n\r,]", "").replaceAll("[\\p{Blank}]{1,}", " ").replaceAll("\\(", "\\\\(")
+  /**
+   * This method take a pattern and hides special characters beside (.*?) so we can find the price in a pattern
+   *
+   */
+  def skipSpecialCharsInPattern(price_pattern: String) = {
+    val wildcard = "(.*?)"
+    val wild_index = price_pattern.indexOf(wildcard)
+    val text_before = price_pattern.substring(0, wild_index)
+    val text_after = price_pattern.substring(wild_index + wildcard.length)
+    "(?:" + Pattern.quote(text_before) + ")" + wildcard + "(?:" + Pattern.quote(text_after) + ")"
+
+  }
+
+  def hideSpecialChars(price_pattern: String) = {
+    price_pattern.replaceAll("[\\p{Blank}]{1,}", " ").replaceAll("[\t\n\r,]", "").replaceAll("\\(", "\\\\(")
       .replaceAll("\\)", "\\\\)").replaceAll("\\[", "\\\\[").replaceAll("\\]", "\\\\]").replaceAll("\\$", "\\\\\\$")
       .replaceAll("\\.", "\\\\.").replaceAll("\\*", "\\\\*").replaceAll("\\?", "\\\\?").replaceAll("\\+", "\\\\+")
-      .replace("\\(\\.\\*\\?\\)", "(.*?)");
-    price_match*/
+      .replace("\\(\\.\\*\\?\\)", "(.*?)")
+
   }
-  
+  /**
+   * shrinkString replaces multiple tabs and spaces 3 and more, comma in numbers 1,000.00 =>1000.00 and new lines
+   *
+   */
+  def shrinkString(str: String): String = {
+    str.replaceAll("[\\p{Blank}]{3,}", " ").replaceAll("(?<=[\\d])(,)(?=[\\d])", "").replaceAll("[\t\n\r,]", "")
+  }
+
   /**
    * this function removes more then 3 spaces from string
    */
   def threePlusTrim(str: String): String = {
-    null
+    "\\p{Blank}{3,}+".r.replaceAllIn(str, " ");
   }
 
   /**

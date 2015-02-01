@@ -8,7 +8,7 @@ import scala.collection.JavaConversions._
 import play.api.libs.json._
 import java.util.regex.Pattern
 import scala.util.control.Exception
-import um.re.es.emr.NumberFinder2
+import um.re.es.emr.PriceParcer
 
 object Utils {
 
@@ -18,7 +18,7 @@ object Utils {
   def getCandidates(source2: RDD[(String, Map[String, String])]) = {
     val candid = source2.map { l =>
       try {
-        val nf = NumberFinder2
+        val nf = PriceParcer
         val id = l._2.get("url").toString
         val h = l._2.get("price_prop1").toString
         val res = nf.find(id, h)
@@ -32,7 +32,7 @@ object Utils {
   def getCandidatesPatternsHtmlTrimed(source2: RDD[(String, Map[String, String])]): RDD[List[Map[String, String]]] = {
     val candid = source2.map { l =>
       try {
-        val nf = NumberFinder2
+        val nf = PriceParcer
         nf.snippetSize = 150
         val id = l._2.get("url").get
         val price=l._2.get("price_updated").get

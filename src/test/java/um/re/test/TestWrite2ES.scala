@@ -11,8 +11,8 @@ import org.apache.spark.rdd._
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.serializer.KryoRegistrator
 import com.esotericsoftware.kryo.Kryo
-import um.re.es.emr.MyRegistrator
-import um.re.es.emr.NumberFinder2
+import um.re.es.emr.URegistrator
+import um.re.es.emr.PriceParcer
 import scala.math
 import scala.collection.JavaConversions._
 import play.api.libs.json._
@@ -49,7 +49,7 @@ object TestWrite2ES {
 	 val source = sc.newAPIHadoopRDD(conf, classOf[EsInputFormat[Text, MapWritable]], classOf[Text], classOf[MapWritable])
   
 	 source.flatMap{r=>
-	 	val nf = NumberFinder2
+	 	val nf = PriceParcer
 	 	val doc = r._2.map{case (k, v) => (k.toString, v.toString) }.toMap
 	 	val url = doc.get("url").get
 	 	val html = doc.get("price_prop1").get

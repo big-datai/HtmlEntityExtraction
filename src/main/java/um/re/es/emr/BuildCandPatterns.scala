@@ -12,8 +12,8 @@ import org.apache.spark.rdd._
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.serializer.KryoRegistrator
 import com.esotericsoftware.kryo.Kryo
-import um.re.es.emr.MyRegistrator
-import um.re.es.emr.NumberFinder2
+import um.re.es.emr.URegistrator
+import um.re.es.emr.PriceParcer
 import scala.math
 import scala.collection.JavaConversions._
 import play.api.libs.json._
@@ -27,7 +27,7 @@ import org.elasticsearch.hadoop.mr.EsOutputFormat
 import um.re.utils.Utils
 import um.re.utils.EsUtils
 
-object Training extends App {
+object BuildCandPatterns extends App {
   val conf_s = new SparkConf().setAppName("es").setMaster("local[8]") //.set("spark.serializer", classOf[KryoSerializer].getName)
   conf_s.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
   conf_s.set("spark.kryo.registrator", "um.re.es.emr.MyRegistrator")

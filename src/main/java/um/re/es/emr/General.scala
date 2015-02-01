@@ -12,8 +12,8 @@ import org.apache.spark.rdd._
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.serializer.KryoRegistrator
 import com.esotericsoftware.kryo.Kryo
-import um.re.es.emr.MyRegistrator
-import um.re.es.emr.NumberFinder2
+import um.re.es.emr.URegistrator
+import um.re.es.emr.PriceParcer
 import scala.math
 import scala.collection.JavaConversions._
 import play.api.libs.json._
@@ -31,25 +31,23 @@ import um.re.utils.Utils
  * This class is supposed to read and write data to ES and analyse it on EMR cluster
  */
 
-object EmrSparkEs extends App {
+object General extends App {
 
 
+
+  val reg = new URegistrator
 
   //val conf = new Configuration()
-  val reg = new MyRegistrator
-
   val conf = new JobConf()
   conf.set("es.resource", "htmls/data")
   conf.set("es.query", "?q=prod_id:23799864")
   conf.set("es.nodes", "ec2-54-167-216-26.compute-1.amazonaws.com")
 
-  // conf.set("es.query", "{\"query\":{\"bool\":{\"must\":[{\"query_string\":{\"default_field\":\"data.price_prop1\",\"query\":\" xml:lang=\"en\"\"}},{\"query_string\":{\"default_field\":\"data.price_patterns\",\"query\":\"price \"}}],\"must_not\":[],\"should\":[]}},\"from\":0,\"size\":50,\"sort\":[],\"facets\":{}}")
-  //{"query":{"bool":{"must":[{"query_string":{"default_field":"data.price_prop1","query":"<?xml version=\"1.0\""}}],"must_not":[],"should":[]}},"from":0,"size":10,"sort":[],"facets":{}}
-  //{"query":{"bool":{"must":[{"query_string":{"default_field":"data.price_prop1","query":" xml:lang=\"en\""}},{"query_string":{"default_field":"data.price_patterns","query":"price "}}],"must_not":[],"should":[]}},"from":0,"size":10,"sort":[],"facets":{}}
-
   //val conf_s = new SparkConf().setAppName("es").set("master", "yarn-cluster").set("spark.serializer", classOf[KryoSerializer].getName)
   //val sc = new SparkContext(conf_s)
 
+  
+  //Run a query
   val conf_s = new SparkConf().setAppName("es").setMaster("local[8]").set("spark.serializer", classOf[KryoSerializer].getName)
   conf_s.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
   conf_s.set("spark.kryo.registrator", "um.re.es.emr.MyRegistrator")
@@ -61,8 +59,6 @@ object EmrSparkEs extends App {
 
   val source = sc.newAPIHadoopRDD(conf, classOf[EsInputFormat[Text, MapWritable]], classOf[Text], classOf[MapWritable])
   
-  
-  
   val source2 = source.map { l => (l._1.toString(), l._2.map { case (k, v) => (k.toString, v.toString) }.toMap) }.repartition(100)
   source2.partitions.size
 
@@ -71,7 +67,7 @@ object EmrSparkEs extends App {
   val source15 = sc.makeRDD(source2.take(15))
   val candid15 = source15.map { l =>
     try {
-      val nf = NumberFinder2
+      val nf = PriceParcer
       val id = l._2.get("url").toString
       val h = l._2.get("price_prop1").toString
       val res = nf.find(id, h)

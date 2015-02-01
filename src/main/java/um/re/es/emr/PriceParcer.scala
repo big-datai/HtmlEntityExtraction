@@ -6,13 +6,8 @@ import scala.util.matching.Regex
 import play.api.libs.json.{ Json, JsValue, JsObject, JsArray }
 import scala.io.Codec
 
-/*class NumberFinder2(val CURRENCY_SYMBOLS :Regex = "\\p{Sc}".r,
-  				   val TEXT_NEAR_PRICE :Regex = "(price)|(Price)|(PRICE)".r,
-  				   val NUM_PATTERN :Regex = "([0-9,\\.]*[0-9])(?:[^0-9,\\.])".r,
-  				   val snippetSize :Int = 50) extends Serializable {
-  
-  */
-object NumberFinder2 extends Serializable {
+
+object PriceParcer extends Serializable {
 
   val CURRENCY_SYMBOLS: Regex = "\\p{Sc}".r
   val TEXT_NEAR_PRICE: Regex = "(price)|(Price)|(PRICE)".r

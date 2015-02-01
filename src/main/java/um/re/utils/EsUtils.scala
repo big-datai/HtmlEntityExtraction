@@ -11,8 +11,8 @@ import org.apache.spark.rdd._
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.serializer.KryoRegistrator
 import com.esotericsoftware.kryo.Kryo
-import um.re.es.emr.MyRegistrator
-import um.re.es.emr.NumberFinder2
+import um.re.es.emr.URegistrator
+import um.re.es.emr.PriceParcer
 import scala.math
 import scala.collection.JavaConversions._
 import play.api.libs.json._
@@ -23,7 +23,6 @@ import org.elasticsearch.spark.rdd.EsSpark
 import org.apache.spark.SparkContext
 import org.apache.hadoop.io.NullWritable
 import org.elasticsearch.hadoop.mr.EsOutputFormat
-import scala.util.parsing.json.JSONObject
 
 object EsUtils {
 
@@ -75,12 +74,13 @@ object EsUtils {
     conf3.set("es.resource", esName+"/data")
     conf3.set("es.nodes", "ec2-54-167-216-26.compute-1.amazonaws.com")
 
-    val source7 = sc.newAPIHadoopRDD(conf3, classOf[EsInputFormat[Text, MapWritable]], classOf[Text], classOf[MapWritable])
+    val source7 = sc.newAPIHadoopRDD(conf3, classOf[EsInputFormat[Text, MapWritable]], classOf[Text], classOf[MapWritable]).cache
+   
     source7.map{l => 
       val map=Utils.mapWritableToInput(l._2)
-      val asJson=new JSONObject(map)
-      asJson.toString(l=>l.toString) +","+System.lineSeparator()
-    }.coalesce(1, true).saveAsTextFile("s3://pavlovout/"+esName)
+      val asJson= Json.toJson(map)
+      Json.stringify(asJson)+ "," +System.lineSeparator()     
+    }.coalesce(4, true).saveAsTextFile("s3://pavlovout/"+esName)
     
   }
 }

@@ -60,7 +60,9 @@ bash configure-spark.bash spark.default.parallelism=$PARALLEL
 fi
 
 echo "spark.serializer        org.apache.spark.serializer.KryoSerializer" >>~/spark/conf/spark-defaults.conf
-echo "spark.kryo.registrator        um.re.es.emr.MyRegistrator" >>~/spark/conf/spark-defaults.conf
+echo "spark.kryo.registrator        um.re.es.emr.URegistrator" >>~/spark/conf/spark-defaults.conf
+echo "es.nodes        ec2-54-167-216-26.compute-1.amazonaws.com" >>~/spark/conf/spark-defaults.conf
+echo "es.index.auto.create        true" >>~/spark/conf/spark-defaults.conf
 
 #MISSING  JARS
 wget http://www.java2s.com/Code/JarDownload/play/play_2.10.jar.zip

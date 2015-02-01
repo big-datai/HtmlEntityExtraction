@@ -30,18 +30,21 @@ object EsUtils {
   conf.set("es.resource", "process_count/counter")
   conf.set("es.query", "?q=updatePriceCount")
   conf.set("es.nodes", "ec2-54-167-216-26.compute-1.amazonaws.com")
+  conf.set("es.index.auto.create", "true")
+
   /**
-   * This method should write to ES using elasticsearch.spark
+   * This method writes to ES using elasticsearch.spark
+   * this method get rdd of map object and saves them into specified index
    */
-  def write2ES(exit: RDD[String], sc: SparkContext) {
-    //Writing back to ES
-    val json1 = "{\"job\" : \"my job 1\", \"process_count\" : \"5\"}"
-    val json2 = "{\"job\" : \"my job 2\", \"process_count\" : \"20\"}"
-    val source = sc.newAPIHadoopRDD(conf, classOf[EsInputFormat[Text, MapWritable]], classOf[Text], classOf[MapWritable])
-
-    EsSpark.saveToEs(sc.makeRDD(Seq(json1, json2)), "process_count/counter")
-    EsSpark.saveToEs(source, "process_count/counter")
-
+  def write2ES(exit: RDD[Map[String, String]], index: String) {
+    val ind = index + "/data"
+    val cfg = Map("es.nodes" -> "ec2-54-167-216-26.compute-1.amazonaws.com", "es.resource" -> ind,
+      "es.index.auto.create" -> "true", "spark.serializer" -> "org.apache.spark.serializer.KryoSerializer")
+    // sample how it works
+    //val numbers = Map("one" -> 1, "two" -> 2, "three" -> 3)
+    //val airports = Map("arrival" -> "Otopeni", "SFO" -> "San Fransco")    
+    // EsSpark.saveToEs(sc.makeRDD(Seq(numbers, airports)), cfg)
+    EsSpark.saveToEs(exit, cfg)
   }
 
   def copyData(index_source: String, index_dest: String, sc: SparkContext) {
@@ -71,16 +74,16 @@ object EsUtils {
   }
   def es2s3(esName: String, sc: SparkContext) {
     val conf3 = new JobConf()
-    conf3.set("es.resource", esName+"/data")
+    conf3.set("es.resource", esName + "/data")
     conf3.set("es.nodes", "ec2-54-167-216-26.compute-1.amazonaws.com")
 
     val source7 = sc.newAPIHadoopRDD(conf3, classOf[EsInputFormat[Text, MapWritable]], classOf[Text], classOf[MapWritable]).cache
-   
-    source7.map{l => 
-      val map=Utils.mapWritableToInput(l._2)
-      val asJson= Json.toJson(map)
-      Json.stringify(asJson)+ "," +System.lineSeparator()     
-    }.coalesce(4, true).saveAsTextFile("s3://pavlovout/"+esName)
-    
+
+    source7.map { l =>
+      val map = Utils.mapWritableToInput(l._2)
+      val asJson = Json.toJson(map)
+      Json.stringify(asJson) + "," + System.lineSeparator()
+    }.coalesce(4, true).saveAsTextFile("s3://pavlovout/" + esName)
+
   }
 }

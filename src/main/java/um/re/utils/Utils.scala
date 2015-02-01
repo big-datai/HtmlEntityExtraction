@@ -12,6 +12,11 @@ import um.re.es.emr.PriceParcer
 
 object Utils {
 
+  
+  def map2JsonString(map:Map[String,String])={
+    val asJson= Json.toJson(map)
+      Json.stringify(asJson)
+  }
   /**
    * This function takes ES source and transforms it to format of R candidates
    */

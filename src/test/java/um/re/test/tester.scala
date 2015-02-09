@@ -6,6 +6,9 @@ import um.re.es.emr.PriceParcer
 
 object tester {
 	def main(args:Array[String]){
+	  
+	   println( math.abs("hellol".hashCode).toInt % 500000)
+	   
 		val nf =  PriceParcer
 		val jsonStr = scala.io.Source.fromFile("C:\\test\\jsonArray.txt")("ISO_8859-1").getLines.toList.filter{l=>
 		  l.startsWith("""			"url": """)||

@@ -45,13 +45,13 @@ MAX_YARN_MEMORY=$(grep /home/hadoop/conf/yarn-site.xml -e "yarn\.scheduler\.maxi
 EXEC_MEMORY=$(echo "($MAX_YARN_MEMORY - 1024 - 384) - ($MAX_YARN_MEMORY - 1024 - 384) * 0.07 " | bc | cut -d'.' -f1)
 EXEC_MEMORY+="M"
 
-PARALLEL=$(expr $NUM_VCORES \*2 \* $NUM_NODES)
+PARALLEL=$(expr $NUM_VCORES \* $NUM_NODES)
 
 #--- Now use configure-spark.bash to set values
 
 wget $CONFIGURESPARK
 
-bash configure-spark.bash spark.executor.instances=$NUM_NODES spark.executor.cores=$NUM_VCORES spark.executor.memory=$EXEC_MEMORY
+bash configure-spark.bash spark.executor.instances=$NUM_NODES spark.executor.cores=$NUM_VCORES spark.executor.memory=$EXEC_MEMORY spark.serializer=org.apache.spark.serializer.KryoSerializer #spark.kryo.registrator=um.re.es.emr.URegistrator
 
 if [ $PARALLEL -gt 2 ]
 then
@@ -59,10 +59,9 @@ then
 bash configure-spark.bash spark.default.parallelism=$PARALLEL
 fi
 
-echo "spark.serializer        org.apache.spark.serializer.KryoSerializer" >>~/spark/conf/spark-defaults.conf
-echo "spark.kryo.registrator        um.re.es.emr.URegistrator" >>~/spark/conf/spark-defaults.conf
-echo "es.nodes        ec2-54-167-216-26.compute-1.amazonaws.com" >>~/spark/conf/spark-defaults.conf
-echo "es.index.auto.create        true" >>~/spark/conf/spark-defaults.conf
+#echo "spark.serializer        org.apache.spark.serializer.KryoSerializer" >>~/spark/conf/spark-defaults.conf
+#echo "spark.kryo.registrator        um.re.es.emr.URegistrator" >>~/spark/conf/spark-defaults.conf
+
 
 #MISSING  JARS
 wget http://www.java2s.com/Code/JarDownload/play/play_2.10.jar.zip

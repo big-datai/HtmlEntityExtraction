@@ -24,12 +24,52 @@ import org.apache.spark.SparkContext
 import org.apache.hadoop.io.NullWritable
 import org.elasticsearch.hadoop.mr.EsOutputFormat
 import org.apache.hadoop.io.compress.CompressionCodecFactory
+import org.apache.hadoop.io.compress.GzipCodec
 
 object PrepareData {
+
+  def map2JsonString(map: Map[String, String]) = {
+    val asJson = Json.toJson(map)
+    Json.stringify(asJson)
+  }
+
+  def string2Json(jsonString: String) = {
+    Json.parse(jsonString)
+  }
   val conf_s = new SparkConf().setAppName("ginger").set("master", "yarn-cluster").set("spark.serializer", classOf[KryoSerializer].getName)
   val sc = new SparkContext(conf_s)
-  val source = sc.textFile("s3://touchbeam-datascience/12_6_2014")
-  val counts = source.flatMap { l => l.split(" ") }.map(word => (word, 1)).reduceByKey(_ + _)
-  val source4 = sc.textFile("s3://touchbeam-datascience/archivefile3.zip")
+
+  // val source = sc.textFile("s3://touchbeam-datascience/trFromFrontEndServers_1_10_2015_1_gz/trFromFrontEndServers_1_10_2015_1")
+
+  val source = sc.textFile("s3://touchbeam-datascience/trFromFrontEndServers*2015")
+  //PREPARE DATA FOR SQL
+  val data = source.map { l =>
+    try {
+      string2Json(l).toString
+    } catch { case _: Exception => null }
+  }.filter(l => (l != null && l.contains("Android"))).cache
+
+  val events = sc.makeRDD(data.take(1)).map { l =>
+    try {
+      val json = string2Json(l)
+      json.apply(0)
+    } catch { case _: Exception => null }
+  }.filter(l => (l != null))
+
+  data.saveAsTextFile("s3://rawd/gingercompressed", classOf[GzipCodec])
+
+  val sqlContext = new org.apache.spark.sql.SQLContext(sc)
+  import sqlContext._
+  // createSchemaRDD is used to implicitly convert an RDD to a SchemaRDD.
+  import sqlContext.createSchemaRDD
+  val data_sql = sqlContext.jsonRDD(data)
+  data_sql.printSchema()
+
+  data_sql.registerTempTable("raw1")
+  sqlContext.cacheTable("raw1")
+
+  val s = sqlContext.sql("SELECT distinct source FROM raw1 limit 10")
+
+  // val counts = source.flatMap { l => l.split(" ") }.map(word => (word, 1)).reduceByKey(_ + _)
 }
 

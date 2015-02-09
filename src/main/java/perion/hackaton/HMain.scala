@@ -108,14 +108,6 @@ object HMain {
 
     val parsedData = only_num.filter(l => if (l != null) { true } else { false }).map { line =>
       val parts = line.split(',')
-      parts.map { v =>
-        if (isNumber(v) == false) {
-          println(v + "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-        }
-      }
-      if (line == null) {
-        println("line is null:!!!!" + line)
-      }
       if (line.contains(dic.apply("com.sgiggle.production").toString()))
         LabeledPoint(1, Vectors.sparse(size, parts.map(l => l.toInt), parts.map(l => 1.0 / math.log(size / wordIdf.apply(l.toLong)))))
       else

@@ -9,13 +9,45 @@ import play.api.libs.json._
 import java.util.regex.Pattern
 import scala.util.control.Exception
 import um.re.es.emr.PriceParcer
-
+import java.net.URI
 object Utils {
 
-  
-  def map2JsonString(map:Map[String,String])={
-    val asJson= Json.toJson(map)
-      Json.stringify(asJson)
+  def getDomain(input: String) = {
+    var url = input
+    try {
+      if (url.startsWith("http:/")) {
+        if (!url.contains("http://")) {
+          url = url.replaceAll("http:/", "http://")
+        }
+      } else {
+        url = "http://" + url
+      }
+      var uri: URI = new URI(url)
+      var domain = uri.getHost();
+      if (domain.startsWith("www.")) domain.substring(4) else domain
+    } catch { case _: Exception => "www.failed.com" }
+  }
+  /**
+   * this function replaces all characters and number with space and trip multiple spaces
+   */
+  def textOnly(text: String) = {
+    text.replaceAll("[^A-Za-z]+", " ").replaceAll("[\\p{Blank}]{1,}?", " ")
+  }
+  /**
+   * Tokenazer
+   */
+  def tokenazer(text: String) = {
+    textOnly(text).split(" ").toSeq
+  }
+
+  def map2JsonString(map: Map[String, String]) = {
+    val asJson = Json.toJson(map)
+    Json.stringify(asJson)
+  }
+
+  def json2Map(map: Map[String, String]) = {
+    val asJson = Json.toJson(map)
+    Json.stringify(asJson)
   }
   /**
    * This function takes ES source and transforms it to format of R candidates
@@ -40,11 +72,11 @@ object Utils {
         val nf = PriceParcer
         nf.snippetSize = 150
         val id = l._2.get("url").get
-        val price=l._2.get("price_updated").get
+        val price = l._2.get("price_updated").get
         val html = shrinkString(l._2.get("price_prop1").get)
         val patterns = shrinkString(l._2.get("price_patterns").get)
         val res = nf.findM(id, html)
-        val p_h = Map("patterns" -> patterns, "html" -> html, "price" ->price)
+        val p_h = Map("patterns" -> patterns, "html" -> html, "price" -> price)
         p_h :: res
       } catch {
         case _: Exception => Nil
@@ -62,6 +94,9 @@ object Utils {
     }.toMap
   }
 
+  def string2Json(jsonString: String) = {
+    Json.parse(jsonString)
+  }
   /**
    * extPatternLocationPair this method returns a pair (pattern location, extended pattern)
    *

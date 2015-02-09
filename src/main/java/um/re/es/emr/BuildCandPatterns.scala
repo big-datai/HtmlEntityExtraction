@@ -28,9 +28,9 @@ import um.re.utils.Utils
 import um.re.utils.EsUtils
 
 object BuildCandPatterns extends App {
-  val conf_s = new SparkConf().setAppName("es").setMaster("local[8]").set("spark.serializer", classOf[KryoSerializer].getName)
+  val conf_s = new SparkConf().setAppName("es").setMaster("yarn-cluster").set("spark.serializer", classOf[KryoSerializer].getName)
   conf_s.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
-  conf_s.set("spark.kryo.registrator", "um.re.es.emr.MyRegistrator")
+  conf_s.set("spark.kryo.registrator", "um.re.es.emr.URegistrator")
   val sc = new SparkContext(conf_s)
 
   val conf = new JobConf()
@@ -39,11 +39,8 @@ object BuildCandPatterns extends App {
   conf.set("es.nodes", "ec2-54-167-216-26.compute-1.amazonaws.com")
 
   val source = sc.newAPIHadoopRDD(conf, classOf[EsInputFormat[Text, MapWritable]], classOf[Text], classOf[MapWritable])
-
   val source2 = source.map { l => (l._1.toString(), l._2.map { case (k, v) => (k.toString, v.toString) }.toMap) }.repartition(100)
-
   val res = Utils.getCandidatesPatternsHtmlTrimed(source2)
-
   val db = res.filter(l => l != null).map { l =>
     try {
       val map_pat = l.head
@@ -62,9 +59,9 @@ object BuildCandPatterns extends App {
   }.filter(l => l != null)
 
   val fin = db.flatMap(l => l)
-
+  
   val conf2 = new JobConf()
-  conf2.set("es.resource", "candid/data")
+  conf2.set("es.resource", "candidl/data")
   //conf.set("es.query", "?q=price_prop1:xml") //"?q=prod_id:23799864") //
   conf2.set("es.nodes", "ec2-54-167-216-26.compute-1.amazonaws.com")
   EsUtils.write2ESHadoopMap(fin, conf2)

@@ -17,12 +17,11 @@ object GradientBoostedF extends App {
 
   // Load and parse the data file.
   val data =
-    MLUtils.loadLibSVMFile(sc, "hdfs:///pavlovout/points")
+    MLUtils.loadLibSVMFile(sc, "hdfs:///pavlovout/pointsst").repartition(200)
   // Split data into training/test sets
   val splits = data.randomSplit(Array(0.7, 0.3))
-
   val (trainingData, test) = (splits(0), splits(1))
-  val testData = sc.makeRDD(test.take(10000))
+  val testData = test//sc.makeRDD(test.take(1000))
   trainingData.cache
   testData.cache
   // Train a GradientBoostedTrees model.
@@ -33,18 +32,47 @@ object GradientBoostedF extends App {
     GradientBoostedTrees.train(trainingData, boostingStrategy)
 
   // Evaluate model on test instances and compute test error
-  val testErr = testData.map { point =>
+  val labelAndPreds = testData.map { point =>
     val prediction = model.predict(point.features)
-    println("real value :" + point.label + " prediction " + prediction)
-    if (point.label == prediction) 1.0 else 0.0
-  }.mean()
-  
-   val real_predic = testData.map { point =>
-    val prediction = model.predict(point.features)
-    if(point.label !=prediction)
-    	(point.label, prediction) 
+    (point.label, prediction)
   }
+
+  val testSuccess = labelAndPreds.map { point =>
+    if (point._1 == point._2) 1.0 else 0.0
+  }.mean()
+
+  val real_predic = labelAndPreds.map { point =>
+    if (point._1 != point._2 && point._1 == 0.0) {
+      (point._1, point._2)
+    } else
+      null
+  } filter { l => l != null }
+
   real_predic.take(10000).foreach(println)
-  println("Test Precision = " + testErr)
+
+  println("Precision = " + testSuccess)
   println("Learned GBT model:\n" + model.toDebugString)
+  
+  
+  def saveModel(path:String, model:GradientBoostedTrees){
+  //save model 
+  import java.io.FileOutputStream 
+  import java.io.ObjectOutputStream 
+  val fos = new FileOutputStream("/home/hadoop/modelst") 
+  val oos = new ObjectOutputStream(fos)   
+  oos.writeObject(model)   
+  oos.close
+  }
+  
+  def loadModel(){
+  import java.io.FileInputStream 
+  import java.io.ObjectInputStream 
+  var model:org.apache.spark.mllib.tree.model.GradientBoostedTreesModel=null
+  val fos = new FileInputStream("/home/hadoop/model") 
+  val oos = new ObjectInputStream(fos) 
+   model = oos.readObject().asInstanceOf[org.apache.spark.mllib.tree.model.GradientBoostedTreesModel]
+
+  }
+  
+  
 }

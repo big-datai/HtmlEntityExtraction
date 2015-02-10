@@ -1,15 +1,15 @@
-package com.streaming
+package um.re.utils
 import org.jets3t.service.impl.rest.httpclient.RestS3Service
 import org.jets3t.service.security.AWSCredentials
-object BacketStat extends App {
+object S3Utils extends App {
 
   //val inputStream = IOUtils.toInputStream(source, "UTF-8");
-  val awsAccessKey = "AKIAIWRROHVN7YNY6DSQ"
-  val awsSecretKey = "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"
+  val awsAccessKey = ""
+  val awsSecretKey = ""
   
   val awsCredentials = new AWSCredentials(awsAccessKey, awsSecretKey)
   val s3Service = new RestS3Service(awsCredentials)
-  val bucketName = "pavlov-ml"
+  val bucketName = "pavlovout"
   val bucket = s3Service.getOrCreateBucket(bucketName)
   val buckets = s3Service.listAllBuckets();
 
@@ -28,7 +28,7 @@ object BacketStat extends App {
     if (a.getKey() == "20-Sep-2014-12-36-52-GMT.txt")
       println("  file name " + a + "   file size :" + a.getContentLength)
   }
-  println(" number of files  " + files.length + " sizw of files  " + size / 1000000000 + " GB ")
+  println(" number of files  " + files.length + " size of files  " + size / 1000000000 + " GB ")
 
   println(" nutch size = " + nutchSize / 1000000000 + " GB " + " number of nutch files = " + numbNutchFile)
 }

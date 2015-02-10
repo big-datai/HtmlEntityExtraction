@@ -29,7 +29,7 @@ import org.apache.spark.mllib.tree.GradientBoostedTrees
 import org.apache.spark.mllib.util.MLUtils
 import org.apache.spark.mllib.classification.SVMWithSGD
 
-object MakeLP extends App {
+object MakeLPST extends App {
 
   val conf_s = new SparkConf().setAppName("es").set("master", "yarn-client").set("spark.serializer", classOf[KryoSerializer].getName)
   val sc = new SparkContext(conf_s)
@@ -46,9 +46,18 @@ object MakeLP extends App {
     val after = Utils.tokenazer(l._2.apply("text_after"))
     val domain = Utils.getDomain(l._2.apply("url"))
     val location = l._2.apply("location")
-    val parts = before ++ after ++ Array(domain) //, location) 
-    // unfiltered 0.8660498668302498
-    val parts_embedded = parts//.filter { w => (!w.isEmpty() && w.length > 3) }.map { w => w.toLowerCase }
+    val d1 = before ++ after
+    //TF CALCULATION
+    val d_tf: TrieMap[String, Double] = new TrieMap
+    d1.foreach { ll =>
+      if (d_tf.putIfAbsent(ll, 1) != None) {
+        d_tf.update(ll, d_tf.apply(ll) + 1)
+      }
+    }
+
+    val parts = d1 ++ Array(domain) //, location)
+    //Precision = 0.8691345120351838
+    val parts_embedded = parts.filter { w => (!w.isEmpty() && w.length > 3) && w.length < 20 && d_tf.lookup(w) > 0 && (d_tf.apply(w) == 1 || d_tf.apply(w) > 4) }.map { w => w.toLowerCase }
     if ((l._2.get("priceCandidate").get.toString.contains(l._2.get("price").get.toString)))
       (1, parts_embedded)
     else
@@ -81,6 +90,6 @@ object MakeLP extends App {
   //ALL TOGETHER
   val points = positive ++ negat
   //SAVE TO FILE ALL DATA
-  MLUtils.saveAsLibSVMFile(points, "hdfs:///pavlovout/points")
+  MLUtils.saveAsLibSVMFile(points, "hdfs:///pavlovout/pointsst")
 
 }

@@ -22,6 +22,7 @@ object RandomF extends App {
   trainingData.cache
   testData.cache
   // Train a RandomForest model.
+  //val categoricalFeaturesInfo = Map[Int, Int]()  category_name number of values 2 {0/1} 
   val treeStrategy = Strategy.defaultStrategy("Classification")
   val numTrees = 3 // Use more in practice.
   val featureSubsetStrategy = "auto" // Let the algorithm choose.

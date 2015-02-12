@@ -48,7 +48,7 @@ object MakeLP extends App {
     val location = l._2.apply("location")
     val parts = before ++ after ++ Array(domain) //, location) 
     // unfiltered 0.8660498668302498
-    val parts_embedded = parts//.filter { w => (!w.isEmpty() && w.length > 3) }.map { w => w.toLowerCase }
+    val parts_embedded = parts //.filter { w => (!w.isEmpty() && w.length > 3) }.map { w => w.toLowerCase }
     if ((l._2.get("priceCandidate").get.toString.contains(l._2.get("price").get.toString)))
       (1, parts_embedded)
     else
@@ -58,7 +58,10 @@ object MakeLP extends App {
 
   val docs = parsedData.map(l => l._2).flatMap(f => f)
 
-  val documents_p: RDD[Seq[String]] = parsedData.filter(l => l._1 == 1).map(l => l._2)
+    val splits = parsedData.randomSplit(Array(0.7, 0.3))
+  val (trainingData, test) = (splits(0), splits(1))
+  
+  val documents_p: RDD[Seq[String]] = trainingData.filter(l => l._1 == 1).map(l => l._2)
   //POSITIVE
   val hashingTF = new HashingTF(50000)
   val tf: RDD[Vector] = hashingTF.transform(documents_p)
@@ -68,7 +71,7 @@ object MakeLP extends App {
   val idf = (new IDF(minDocFreq = 10)).fit(tf)
   val tfidf: RDD[Vector] = idf.transform(tf)
   //NEGATIVE
-  val documents_n: RDD[Seq[String]] = parsedData.filter(l => l._1 == 0).map(l => l._2)
+  val documents_n: RDD[Seq[String]] = trainingData.filter(l => l._1 == 0).map(l => l._2)
 
   val hashingTFn = new HashingTF(50000)
   val tfn: RDD[Vector] = hashingTFn.transform(documents_n)
@@ -83,4 +86,16 @@ object MakeLP extends App {
   //SAVE TO FILE ALL DATA
   MLUtils.saveAsLibSVMFile(points, "hdfs:///pavlovout/points")
 
+ // val tf_ppoints = tf.map { l => LabeledPoint(1, l) } ++ tfn.map { l => LabeledPoint(0, l) }
+  //SAVE TO FILE ALL DATA
+  MLUtils.saveAsLibSVMFile(points, "hdfs:///pavlovout/points")
+
+  //test data
+  
+ val test_p= test.filter(l => l._1 == 1).map(l => l._2)
+ val test_n= test.filter(l => l._1 == 0).map(l => l._2)
+  
+  
+  //var conf:org.apache.hadoop.mapred.JobConf=null
+  //var source:org.apache.spark.rdd.RDD[(Text, MapWritable)]=null
 }

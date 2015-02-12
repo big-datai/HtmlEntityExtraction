@@ -25,7 +25,7 @@ import org.apache.hadoop.io.NullWritable
 import org.elasticsearch.hadoop.mr.EsOutputFormat
 import org.apache.hadoop.io.compress.CompressionCodecFactory
 import org.apache.hadoop.io.compress.GzipCodec
-
+import org.apache.spark.sql.{ Row, SQLContext }
 object PrepareData {
 
   def map2JsonString(map: Map[String, String]) = {
@@ -68,7 +68,12 @@ object PrepareData {
   data_sql.registerTempTable("raw1")
   sqlContext.cacheTable("raw1")
 
-  val s = sqlContext.sql("SELECT distinct source FROM raw1 limit 10")
+  val s = sqlContext.sql("SELECT * FROM raw1 limit 10")
+  
+  val fin=data_sql.select('source , 'version , 'Country ).take(10).foreach {
+      case Row(source: String, version: String, country : String) =>
+        println(source)
+    }
 
   // val counts = source.flatMap { l => l.split(" ") }.map(word => (word, 1)).reduceByKey(_ + _)
 }

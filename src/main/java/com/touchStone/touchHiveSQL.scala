@@ -1,5 +1,5 @@
 package com.touchStone
-/*
+
 import org.apache.spark.SparkConf
 import org.apache.spark.SparkContext
 
@@ -22,4 +22,3 @@ object touchHiveSQL {
   }
 
 }
-*/

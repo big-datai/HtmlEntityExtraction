@@ -16,15 +16,18 @@ object GradientBoostedF extends App {
   val sc = new SparkContext(conf_s)
 
   // Load and parse the data file.
-  val data =
-    MLUtils.loadLibSVMFile(sc, "hdfs:///pavlovout/pointsst").repartition(200)
-  // Split data into training/test sets
-  val splits = data.randomSplit(Array(0.7, 0.3))
-  val (trainingData, test) = (splits(0), splits(1))
+  val trainingData =
+    MLUtils.loadLibSVMFile(sc, "hdfs:///pavlovout/pointsALL")
+    val test =
+    MLUtils.loadLibSVMFile(sc, "hdfs:///pavlovout/testALL")
+    // Split data into training/test sets
+ // val splits = data.randomSplit(Array(0.7, 0.3))
+ // val (trainingData, test) = (splits(0), splits(1))
   val testData = test//sc.makeRDD(test.take(1000))
   trainingData.cache
   testData.cache
   // Train a GradientBoostedTrees model.
+  //categoricalFeaturesInfo  Map(0 -> 2, 4 -> 10) specifies that feature 0 is binary (taking values 0 or 1) and that feature 4 has 10 categories (values {0, 1
   val boostingStrategy =
     BoostingStrategy.defaultParams("Classification")
   boostingStrategy.numIterations = 3 // Note: Use more in practice
@@ -58,7 +61,7 @@ object GradientBoostedF extends App {
   //save model 
   import java.io.FileOutputStream 
   import java.io.ObjectOutputStream 
-  val fos = new FileOutputStream("/home/hadoop/modelst") 
+  val fos = new FileOutputStream("/home/hadoop/modelAll") 
   val oos = new ObjectOutputStream(fos)   
   oos.writeObject(model)   
   oos.close
@@ -68,7 +71,7 @@ object GradientBoostedF extends App {
   import java.io.FileInputStream 
   import java.io.ObjectInputStream 
   var model:org.apache.spark.mllib.tree.model.GradientBoostedTreesModel=null
-  val fos = new FileInputStream("/home/hadoop/model") 
+  val fos = new FileInputStream("/home/hadoop/modelAll") 
   val oos = new ObjectInputStream(fos) 
    model = oos.readObject().asInstanceOf[org.apache.spark.mllib.tree.model.GradientBoostedTreesModel]
 

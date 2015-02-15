@@ -31,7 +31,7 @@ object Pipe extends App {
     .setInputCol("text")
     .setOutputCol("words")
   val hashingTF = new HashingTF()
-    .setNumFeatures(1000)
+    .setNumFeatures(50000)
     .setInputCol(tokenizer.getOutputCol)
     .setOutputCol("features")
   val lr = new LogisticRegression()

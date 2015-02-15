@@ -47,9 +47,8 @@ object MakeLP extends App {
     val domain = Utils.getDomain(l._2.apply("url"))
     val location = l._2.apply("location")
     val parts = before ++ after ++ Array(domain) //, location) 
-    // unfiltered 0.8660498668302498
     val parts_embedded = parts //.filter { w => (!w.isEmpty() && w.length > 3) }.map { w => w.toLowerCase }
-    if ((l._2.get("priceCandidate").get.toString.contains(l._2.get("price").get.toString)))
+    if ((l._2.apply("priceCandidate").contains(l._2.apply("price"))))
       (1, parts_embedded)
     else
       (0, parts_embedded)
@@ -58,9 +57,9 @@ object MakeLP extends App {
 
   val docs = parsedData.map(l => l._2).flatMap(f => f)
 
-    val splits = parsedData.randomSplit(Array(0.7, 0.3))
+  val splits = parsedData.randomSplit(Array(0.7, 0.3))
   val (trainingData, test) = (splits(0), splits(1))
-  
+
   val documents_p: RDD[Seq[String]] = trainingData.filter(l => l._1 == 1).map(l => l._2)
   //POSITIVE
   val hashingTF = new HashingTF(50000)
@@ -85,16 +84,23 @@ object MakeLP extends App {
   val points = positive ++ negat
   //SAVE TO FILE ALL DATA
   MLUtils.saveAsLibSVMFile(points, "hdfs:///pavlovout/points")
-
- // val tf_ppoints = tf.map { l => LabeledPoint(1, l) } ++ tfn.map { l => LabeledPoint(0, l) }
+  MLUtils.saveAsLibSVMFile(points, "s3://pavlovout/points")
+  // val tf_ppoints = tf.map { l => LabeledPoint(1, l) } ++ tfn.map { l => LabeledPoint(0, l) }
   //SAVE TO FILE ALL DATA
   MLUtils.saveAsLibSVMFile(points, "hdfs:///pavlovout/points")
-
+  test.saveAsTextFile("hdfs:///pavlovout/test_text")
+  test.saveAsObjectFile("hdfs:///pavlovout/test_obj")
+  val l = sc.textFile("hdfs:///pavlovout/test_text")
+  val ll = sc.objectFile("hdfs:///pavlovout/test_obj")
   //test data
-  
- val test_p= test.filter(l => l._1 == 1).map(l => l._2)
- val test_n= test.filter(l => l._1 == 0).map(l => l._2)
-  
+  val test_p = test.filter(l => l._1 == 1).map(l => l._2)
+  val test_n = test.filter(l => l._1 == 0).map(l => l._2)
+
+  val test2: RDD[Seq[String]] = test.map(l => l._2)
+  val hashingTFtest = new HashingTF(50000)
+  val tftest: RDD[Vector] = hashingTFtest.transform(test2)
+  val idft = (new IDF(minDocFreq = 10)).fit(tftest)
+  val tfidft: RDD[Vector] = idft.transform(tftest)
   
   //var conf:org.apache.hadoop.mapred.JobConf=null
   //var source:org.apache.spark.rdd.RDD[(Text, MapWritable)]=null

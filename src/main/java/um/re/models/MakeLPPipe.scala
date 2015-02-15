@@ -113,8 +113,8 @@ object MakeLPPipe extends App {
       null
   }.filter { l => l != null }
 
-  ftest = MLUtils.loadLibSVMFile(sc, "hdfs:///pavlovout/testLabel")
-  ftestf = MLUtils.loadLibSVMFile(sc, "hdfs:///pavlovout/testNotLabel")
+   ftest = MLUtils.loadLibSVMFile(sc, "hdfs:///pavlovout/testLabel")
+   ftestf = MLUtils.loadLibSVMFile(sc, "hdfs:///pavlovout/testNotLabel")
 
   val res = ftestf.map { lp =>
     val v1 = lp.features.toString

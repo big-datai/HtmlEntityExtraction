@@ -39,7 +39,7 @@ object MakeLPMike extends App {
 
   val conf = new JobConf()
   conf.set("es.resource", "candidl/data")
-  conf.set("es.nodes", "ec2-54-167-216-26.compute-1.amazonaws.com")
+  conf.set("es.nodes", "ec2-54-145-93-208.compute-1.amazonaws.com")
   val source = sc.newAPIHadoopRDD(conf, classOf[EsInputFormat[Text, MapWritable]], classOf[Text], classOf[MapWritable])
   val all = source.map { l => (l._1.toString(), l._2.map { case (k, v) => (k.toString, v.toString()) }.toMap) }.repartition(100)
   //merge text before and after
@@ -72,7 +72,9 @@ object MakeLPMike extends App {
     val idf_vals = idf_vector
     rdd.map{tf_vals => 
       		val tfidfArr = (tf_vals.toArray,idf_vals).zipped.map((d1,d2)=>d1*d2)
-      		Vectors.dense(tfidfArr)}
+      		val values = tfidfArr.filter{l=>l!=0}
+      		val index = tfidfArr.zipWithIndex.filter{l=> l._1!=0 }.map{l=>l._2}
+      		Vectors.sparse(50000,index, values)}
   }
   
   //training tfidf
@@ -101,7 +103,7 @@ object MakeLPMike extends App {
   val negat = tfidf_test_n.map { l => LabeledPoint(0, l) }
   //ALL TOGETHER
   val points_test = positive ++ negat
-  
+  points_train.repartition(192)
   // train model
   val boostingStrategy =
     BoostingStrategy.defaultParams("Classification")

@@ -69,12 +69,11 @@ object PrepareData {
   sqlContext.cacheTable("raw1")
 
   val s = sqlContext.sql("SELECT * FROM raw1 limit 10")
-  
-  val fin=data_sql.select('source , 'version , 'Country ).take(10).foreach {
-      case Row(source: String, version: String, country : String) =>
-        println(source)
-    }
 
-  // val counts = source.flatMap { l => l.split(" ") }.map(word => (word, 1)).reduceByKey(_ + _)
+  val fin = data_sql.select('source, 'version, 'Country).take(10).foreach {
+    case Row(source: String, version: String, country: String) =>
+      println(source)
+  }
+
 }
 

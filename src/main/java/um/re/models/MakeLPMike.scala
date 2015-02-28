@@ -41,7 +41,7 @@ object MakeLPMike extends App {
   conf.set("es.resource", "candidl/data")
   conf.set("es.nodes", "ec2-54-145-93-208.compute-1.amazonaws.com")
   val source = sc.newAPIHadoopRDD(conf, classOf[EsInputFormat[Text, MapWritable]], classOf[Text], classOf[MapWritable])
-  val all = source.map { l => (l._1.toString(), l._2.map { case (k, v) => (k.toString, v.toString()) }.toMap) }.repartition(100)
+  val all = source.map { l => (l._1.toString(), l._2.map { case (k, v) => (k.toString, v.toString()) }.toMap) }.repartition(600)
   //merge text before and after
 
   val parsedData = all.map { l =>
@@ -89,7 +89,7 @@ object MakeLPMike extends App {
   //ALL TOGETHER
   val points_train = positive_train ++ negat_train
   
-  
+  points_train.partitions.size
   //test tfidf
   
   val tf_test_p: RDD[Vector] = hashingTF.transform(test.filter(t=> t._1==1).map(l => l._2))
@@ -103,7 +103,7 @@ object MakeLPMike extends App {
   val negat = tfidf_test_n.map { l => LabeledPoint(0, l) }
   //ALL TOGETHER
   val points_test = positive ++ negat
-  points_train.repartition(192)
+  //points_train.repartition(192)
   // train model
   val boostingStrategy =
     BoostingStrategy.defaultParams("Classification")
@@ -112,17 +112,20 @@ object MakeLPMike extends App {
     GradientBoostedTrees.train(points_train, boostingStrategy)
 
   // Evaluate model on test instances and compute test error
-  val labelAndPreds = points_test.map { point =>
-    val prediction = model.predict(point.features)
-    (point.label, prediction)
+ def labelAndPred(input_points:RDD[LabeledPoint])={
+    val local_model = model
+	  val labelAndPreds = input_points.map { point =>
+	  val prediction = local_model.predict(point.features)
+	  (point.label, prediction)
+	  }
+   labelAndPreds
+    
   }
-
+  val labelAndPreds = labelAndPred(points_test)
   val tp = labelAndPreds.filter{case (l,p) => (l==1)&&(p==1) }.count
   val tn = labelAndPreds.filter{case (l,p) => (l==0)&&(p==0) }.count
   val fn = labelAndPreds.filter{case (l,p) => (l==0)&&(p==1) }.count
   val fp = labelAndPreds.filter{case (l,p) => (l==1)&&(p==0) }.count
-  
-  
   
   //SAVE TO FILE ALL DATA
   /*MLUtils.saveAsLibSVMFile(points, "hdfs:///pavlovout/points")

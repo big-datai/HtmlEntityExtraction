@@ -32,7 +32,7 @@ import org.apache.spark.mllib.linalg.SparseVector
 import org.apache.spark.mllib.feature.IDF
 
 
-object GBTLocation extends App {
+object GBT extends App {
 
   val conf_s = new SparkConf().setAppName("es").set("master", "yarn-client").set("spark.serializer", classOf[KryoSerializer].getName)
   val sc = new SparkContext(conf_s)

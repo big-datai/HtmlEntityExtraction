@@ -1,5 +1,6 @@
 package um.re.models
 
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.SparkContext
 import org.apache.spark.mllib.feature.HashingTF
@@ -30,18 +31,18 @@ import org.apache.spark.mllib.util.MLUtils
 import org.apache.spark.mllib.classification.SVMWithSGD
 import org.apache.spark.mllib.linalg.SparseVector
 import org.apache.spark.mllib.feature.IDF
+import org.apache.spark.mllib.stat.{MultivariateStatisticalSummary, Statistics}
 
+object GBTLocationFeatureSelection {
 
-object GBTLocation extends App {
-
-  val conf_s = new SparkConf().setAppName("es").set("master", "yarn-client").set("spark.serializer", classOf[KryoSerializer].getName)
+    val conf_s = new SparkConf().setAppName("es").set("master", "yarn-client").set("spark.serializer", classOf[KryoSerializer].getName)
   val sc = new SparkContext(conf_s)
 
   val conf = new JobConf()
   conf.set("es.resource", "candidl/data")
   conf.set("es.nodes", "ec2-54-145-93-208.compute-1.amazonaws.com")
   val source = sc.newAPIHadoopRDD(conf, classOf[EsInputFormat[Text, MapWritable]], classOf[Text], classOf[MapWritable])
-  val all = source.map { l => (l._1.toString(), l._2.map { case (k, v) => (k.toString, v.toString()) }.toMap) }.repartition(1000)
+  val all = source.map { l => (l._1.toString(), l._2.map { case (k, v) => (k.toString, v.toString()) }.toMap) }.repartition(600)
   //merge text before and after
 
   val parsedData = all.map { l =>
@@ -63,16 +64,28 @@ object GBTLocation extends App {
   //trainng idf
   val hashingTF = new HashingTF(50000)
   val tf: RDD[Vector] = hashingTF.transform(trainingData.map(l => l._2))
-
   val idf = (new IDF(minDocFreq = 10)).fit(tf)
-  //val tfidf = idf.transform(tf)
   val idf_vector  = idf.idf.toArray
   
+  val k = 100 //number of tdudf features
+  val tfidf_stats = Statistics.colStats(idf.transform(tf))
+  val tfidf_avg = tfidf_stats.mean.toArray
+  val tfidf_avg_sorted = tfidf_stats.mean.toArray
+  java.util.Arrays.sort(tfidf_avg_sorted)
+  val top_k_value = tfidf_avg_sorted.takeRight(k)(0)
+  val selected_indices = (for(i <- tfidf_avg.indices if tfidf_avg(i) >= top_k_value ) yield i).toArray
+  
+  val idf_vector_filtered = selected_indices.map(i => idf_vector(i)) 
+  
+  
+  
   def data_to_points(data:RDD[(Int,Seq[String],Double)]) = {
-    val idf_vals = idf_vector
+    val idf_vals = idf_vector_filtered
     val tf_model = hashingTF
+    val selected_ind_vals = selected_indices 
     data.map{case(lable,txt,location)=>
-      val tf_vals = tf_model.transform(txt).toArray
+      val tf_vals_full = tf_model.transform(txt).toArray
+      val tf_vals = selected_ind_vals.map(i=> tf_vals_full(i))
       val tfidf_vals = (tf_vals,idf_vals).zipped.map((d1,d2)=>d1*d2)
       val features = tfidf_vals++Array(location)
       val values = features.filter{l=>l!=0}
@@ -87,8 +100,8 @@ object GBTLocation extends App {
   
   val boostingStrategy =
     BoostingStrategy.defaultParams("Classification")
-  boostingStrategy.numIterations = 3 // Note: Use more in practice
-  //boostingStrategy.treeStrategy.maxDepth = 2
+  boostingStrategy.numIterations = 40 // Note: Use more in practice
+  boostingStrategy.treeStrategy.maxDepth = 2
   val model =
     GradientBoostedTrees.train(training_points, boostingStrategy)
 
@@ -107,8 +120,7 @@ object GBTLocation extends App {
   val tn = labelAndPreds.filter{case (l,p) => (l==0)&&(p==0) }.count
   val fp = labelAndPreds.filter{case (l,p) => (l==0)&&(p==1) }.count
   val fn = labelAndPreds.filter{case (l,p) => (l==1)&&(p==0) }.count
-
+  
   println("tp : " + tp + ", tn : " + tn + ", fp : " + fp + ", fn : " + fn)
   println("sensitivity : " + tp / (tp + fn).toDouble + " specificity : " + tn / (fp + tn).toDouble + " precision : " + tp / (tp + fp).toDouble)
-  
 }

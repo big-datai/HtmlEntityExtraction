@@ -38,9 +38,6 @@ object PrepareData {
   }
   val conf_s = new SparkConf().setAppName("ginger").set("master", "yarn-cluster").set("spark.serializer", classOf[KryoSerializer].getName)
   val sc = new SparkContext(conf_s)
-
-  // val source = sc.textFile("s3://touchbeam-datascience/trFromFrontEndServers_1_10_2015_1_gz/trFromFrontEndServers_1_10_2015_1")
-
   val source = sc.textFile("s3://touchbeam-datascience/trFromFrontEndServers*2015")
   //PREPARE DATA FOR SQL
   val data = source.map { l =>
@@ -65,10 +62,10 @@ object PrepareData {
   val data_sql = sqlContext.jsonRDD(data)
   data_sql.printSchema()
 
-  data_sql.registerTempTable("raw1")
-  sqlContext.cacheTable("raw1")
+  data_sql.registerTempTable("raw")
+  sqlContext.cacheTable("raw")
 
-  val s = sqlContext.sql("SELECT * FROM raw1 limit 10")
+  val s = sqlContext.sql("SELECT * FROM raw limit 10")
 
   val fin = data_sql.select('source, 'version, 'Country).take(10).foreach {
     case Row(source: String, version: String, country: String) =>

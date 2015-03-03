@@ -53,7 +53,7 @@ object MakeLP extends App {
     else
       (0, parts_embedded)
   }.filter(l => l._2.length > 1)
-  parsedData.take(10).foreach(println)
+  //parsedData.take(10).foreach(println)
 
   val docs = parsedData.map(l => l._2).flatMap(f => f)
 

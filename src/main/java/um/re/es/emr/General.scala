@@ -26,6 +26,7 @@ import org.apache.hadoop.io.NullWritable
 import org.elasticsearch.hadoop.mr.EsOutputFormat
 import um.re.utils
 import um.re.utils.Utils
+import um.re.utils.EsUtils
 
 /**
  * This class is supposed to read and write data to ES and analyse it on EMR cluster
@@ -41,7 +42,7 @@ object General extends App {
   val conf = new JobConf()
   conf.set("es.resource", "htmls/data")
   conf.set("es.query", "?q=prod_id:23799864")
-  conf.set("es.nodes", "ec2-54-167-216-26.compute-1.amazonaws.com")
+  conf.set("es.nodes", EsUtils.ESIP)
 
   val conf_s = new SparkConf().setAppName("es").set("master", "yarn-client").set("spark.serializer", classOf[KryoSerializer].getName)
   //val sc = new SparkContext(conf_s)
@@ -53,15 +54,11 @@ object General extends App {
   conf_s.set("es.index.auto.create", "true")
   conf_s.set("es.resource", "htmls/data")
   conf_s.set("es.query", "?q=prod_id:23799864")
-  conf_s.set("es.nodes", "ec2-54-167-216-26.compute-1.amazonaws.com")
+  conf_s.set("es.nodes", EsUtils.ESIP)
   
   
   val sc = new SparkContext(conf_s)
-  /*
-  sc.hadoopConfiguration.set("es.nodes", "ec2-54-167-216-26.compute-1.amazonaws.com")
-  sc.hadoopConfiguration.set("es.query", "?q=price_prop1:xml")
-  sc.hadoopConfiguration.set("es.resource", "htmls/data")
-*/
+
   val source = sc.newAPIHadoopRDD(conf, classOf[EsInputFormat[Text, MapWritable]], classOf[Text], classOf[MapWritable])
   
   val source2 = source.map { l => (l._1.toString(), l._2.map { case (k, v) => (k.toString, v.toString) }.toMap) }.repartition(100)

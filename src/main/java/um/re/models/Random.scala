@@ -78,7 +78,6 @@ object Random extends App {
         val values = features.filter { l => l != 0 }
         val index = features.zipWithIndex.filter { l => l._1 != 0 }.map { l => l._2 }
         LabeledPoint(lable, Vectors.sparse(features.length, index, values))
-
     }
   }
 

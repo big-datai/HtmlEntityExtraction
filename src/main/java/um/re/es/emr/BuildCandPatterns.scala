@@ -36,7 +36,7 @@ object BuildCandPatterns extends App {
   val conf = new JobConf()
   conf.set("es.resource", "htmls/data")
   conf.set("es.query", "?q=price_prop1:xml") //"?q=prod_id:23799864") //
-  conf.set("es.nodes", "ec2-54-167-216-26.compute-1.amazonaws.com")
+  conf.set("es.nodes", EsUtils.ESIP)
 
   val source = sc.newAPIHadoopRDD(conf, classOf[EsInputFormat[Text, MapWritable]], classOf[Text], classOf[MapWritable])
   val source2 = source.map { l => (l._1.toString(), l._2.map { case (k, v) => (k.toString, v.toString) }.toMap) }.repartition(100)
@@ -63,7 +63,7 @@ object BuildCandPatterns extends App {
   val conf2 = new JobConf()
   conf2.set("es.resource", "candidl/data")
   //conf.set("es.query", "?q=price_prop1:xml") //"?q=prod_id:23799864") //
-  conf2.set("es.nodes", "ec2-54-167-216-26.compute-1.amazonaws.com")
+  conf2.set("es.nodes", EsUtils.ESIP)
   EsUtils.write2ESHadoopMap(fin, conf2)
 
   fin.take(1).foreach(println)

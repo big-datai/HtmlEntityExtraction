@@ -25,11 +25,12 @@ import org.apache.hadoop.io.NullWritable
 import org.elasticsearch.hadoop.mr.EsOutputFormat
 
 object EsUtils {
+  val ESIP = "ec2-54-145-93-208.compute-1.amazonaws.com"
 
   val conf = new JobConf()
   conf.set("es.resource", "process_count/counter")
   conf.set("es.query", "?q=updatePriceCount")
-  conf.set("es.nodes", "ec2-54-167-216-26.compute-1.amazonaws.com")
+  conf.set("es.nodes", "ec2-54-145-93-208.compute-1.amazonaws.com")
   conf.set("es.index.auto.create", "true")
 
   /**
@@ -75,7 +76,7 @@ object EsUtils {
   def es2s3(esName: String, sc: SparkContext) {
     val conf3 = new JobConf()
     conf3.set("es.resource", esName + "/data")
-    conf3.set("es.nodes", "ec2-54-167-216-26.compute-1.amazonaws.com")
+    conf3.set("es.nodes", EsUtils.ESIP)
 
     val source7 = sc.newAPIHadoopRDD(conf3, classOf[EsInputFormat[Text, MapWritable]], classOf[Text], classOf[MapWritable]).cache
 

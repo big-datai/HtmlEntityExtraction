@@ -17,6 +17,7 @@ import org.apache.hadoop.io.MapWritable
 import org.apache.hadoop.io.Text
 import org.apache.spark.serializer.KryoSerializer
 import um.re.utils.Utils
+import um.re.utils.EsUtils
 //import org.elasticsearch.hadoop.mr.EsInputFormat[org.apache.hadoop.io.Text,org.apache.hadoop.io.{EsInputFormat => MapWritable]}
 
 object ESPatternAlgo {
@@ -26,7 +27,7 @@ object ESPatternAlgo {
 
   val conf = new JobConf()
   conf.set("es.resource", "candidl/data")
-  conf.set("es.nodes", "ec2-54-167-216-26.compute-1.amazonaws.com")
+  conf.set("es.nodes", EsUtils.ESIP)
   val source = sc.newAPIHadoopRDD(conf, classOf[EsInputFormat[Text, MapWritable]], classOf[Text], classOf[MapWritable])
   val source_map = source.map { l => (l._1.toString(), l._2.map { case (k, v) => (k.toString, v.toString) }.toMap) }.repartition(100)
 
@@ -51,7 +52,7 @@ object ESPatternAlgo {
       val price_o = l._2.get("price").get.toString
 
       val cnf = new JobConf()
-      cnf.set("es.nodes", "ec2-54-167-216-26.compute-1.amazonaws.com")
+      cnf.set("es.nodes", EsUtils.ESIP)
       cnf.set("es.query", "?q=text_before:" + query)
       val res = sc.newAPIHadoopRDD(cnf, classOf[EsInputFormat[Text, MapWritable]], classOf[Text], classOf[MapWritable])
       val res_map = res.map { l => (l._1.toString(), l._2.map { case (k, v) => (k.toString, v.toString) }.toMap) }
@@ -69,7 +70,7 @@ object ESPatternAlgo {
 
   val cnf = new JobConf()
   cnf.set("es.resource", "candidl/data")
-  cnf.set("es.nodes", "ec2-54-167-216-26.compute-1.amazonaws.com")
+  cnf.set("es.nodes", EsUtils.ESIP)
   cnf.set("es.query", "?q=" + "xml")
   arr_patterns.foreach { l =>
     val query = l._1

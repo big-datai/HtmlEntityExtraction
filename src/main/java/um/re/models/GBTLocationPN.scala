@@ -1,5 +1,5 @@
 package um.re.models
-import org.apache.spark.SparkContext._ 
+import org.apache.spark.SparkContext._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.SparkContext
 import org.apache.spark.mllib.feature.HashingTF
@@ -91,24 +91,23 @@ object GBT extends App {
   val training_pointsn = data_to_points(idf_vectorn, trainN)
   val training_points = training_pointsp ++ training_pointsn
 
-  
   val tf: RDD[Vector] = hashingTF.transform(trainingData.map(l => l._2))
 
   val idf = (new IDF(minDocFreq = 10)).fit(tf)
   //val tfidf = idf.transform(tf)
   val idf_vector = idf.idf.toArray
-  
+
   val all_points = data_to_points(idf_vector, trainingData)
-  
- val f= all_points.map(ll=>ll.features.toArray)
-  
- //new DoubleRDDFunctions(all_points)
-//  new org.apache.spark.rdd.DoubleRDDFunctions(all_points)
-  
+
+  val f = all_points.map(ll => ll.features.toArray)
+
+  //new DoubleRDDFunctions(all_points)
+  //  new org.apache.spark.rdd.DoubleRDDFunctions(all_points)
+
   val test_points = data_to_points(idf_vector, test)
   val boostingStrategy =
     BoostingStrategy.defaultParams("Classification")
-    
+
   boostingStrategy.numIterations = 3 // Note: Use more in practice
   //boostingStrategy.treeStrategy.maxDepth = 2
   val model =

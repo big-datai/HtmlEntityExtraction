@@ -1,6 +1,5 @@
 package um.re.models
 
-
 import org.apache.spark.rdd.RDD
 import org.apache.spark.SparkContext
 import org.apache.spark.mllib.feature.HashingTF
@@ -56,13 +55,13 @@ object GBTLocationFeatureSelection {
       (1, parts_embedded,location)
     else
       (0, parts_embedded,location)
-  }.filter(l => l._2.length > 1)
+  }.filter(l => l._2.length > 1).repartition(1000)
 
   val splits = parsedData.randomSplit(Array(0.7, 0.3))
   val (trainingData, test) = (splits(0), splits(1))
 
   //trainng idf
-  val hashingTF = new HashingTF(50000)
+  val hashingTF = new HashingTF(300000)
   val tf: RDD[Vector] = hashingTF.transform(trainingData.map(l => l._2))
   val idf = (new IDF(minDocFreq = 10)).fit(tf)
   val idf_vector  = idf.idf.toArray
@@ -100,8 +99,8 @@ object GBTLocationFeatureSelection {
   
   val boostingStrategy =
     BoostingStrategy.defaultParams("Classification")
-  boostingStrategy.numIterations = 40 // Note: Use more in practice
-  boostingStrategy.treeStrategy.maxDepth = 2
+  boostingStrategy.numIterations = 100 // Note: Use more in practice
+  boostingStrategy.treeStrategy.maxDepth = 5
   val model =
     GradientBoostedTrees.train(training_points, boostingStrategy)
 

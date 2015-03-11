@@ -1,4 +1,4 @@
-package um.re.es.emr
+package um.re.emr
 
 import org.apache.hadoop.mapred.JobConf
 import org.apache.spark.SparkConf

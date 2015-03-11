@@ -1,5 +1,5 @@
 
-package com.streaming
+package um.re.streaming
 
 import scala.io.Source
 import java.io._

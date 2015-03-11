@@ -1,4 +1,4 @@
-package com.streaming
+package um.re.streaming
 
 object Streaming {
 

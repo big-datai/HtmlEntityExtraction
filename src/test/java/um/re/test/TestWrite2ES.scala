@@ -25,24 +25,25 @@ import org.elasticsearch.hadoop.mr.EsOutputFormat
 import um.re.utils
 import um.re.utils.Utils
 import um.re.utils.PriceParcer
+import um.re.utils.EsUtils
 
 
 object TestWrite2ES {
  def main(args: Array[String]) {
 	 val conf_w = new JobConf()
 	 conf_w.set("es.resource", "process_count/candid")
-	 conf_w.set("es.nodes", "ec2-54-167-216-26.compute-1.amazonaws.com")
+	 conf_w.set("es.nodes", EsUtils.ESIP)
 	 
 	 val conf = new JobConf()
 	 conf.set("es.resource", "htmls/data")
 	 conf.set("es.query", "?q=prod_id:23799864")
-	 conf.set("es.nodes", "ec2-54-167-216-26.compute-1.amazonaws.com")
+	 conf.set("es.nodes", EsUtils.ESIP)
   
 	 val conf_s = new SparkConf().setAppName("es").setMaster("local[8]").set("spark.serializer", classOf[KryoSerializer].getName)
 	 conf_s.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
 	 conf_s.set("spark.kryo.registrator", "um.re.es.emr.MyRegistrator")
 	 val sc = new SparkContext(conf_s)
-	 sc.hadoopConfiguration.set("es.nodes", "ec2-54-167-216-26.compute-1.amazonaws.com")
+	 sc.hadoopConfiguration.set("es.nodes", EsUtils.ESIP)
 	 sc.hadoopConfiguration.set("es.query", "?q=price_prop1:xml")
 	 sc.hadoopConfiguration.set("es.resource", "htmls/data")
 

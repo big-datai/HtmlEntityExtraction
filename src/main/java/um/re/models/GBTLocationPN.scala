@@ -30,6 +30,7 @@ import org.apache.spark.mllib.util.MLUtils
 import org.apache.spark.mllib.classification.SVMWithSGD
 import org.apache.spark.mllib.linalg.SparseVector
 import org.apache.spark.mllib.feature.IDF
+import um.re.utils.EsUtils
 
 object GBT extends App {
 
@@ -37,8 +38,8 @@ object GBT extends App {
   val sc = new SparkContext(conf_s)
 
   val conf = new JobConf()
-  conf.set("es.resource", "candidl/data")
-  conf.set("es.nodes", "ec2-54-145-93-208.compute-1.amazonaws.com")
+  conf.set("es.resource", EsUtils.ESINDEX)
+  conf.set("es.nodes", EsUtils.ESIP)
   val source = sc.newAPIHadoopRDD(conf, classOf[EsInputFormat[Text, MapWritable]], classOf[Text], classOf[MapWritable])
   val sp = source.map { l => (l._1.toString(), l._2.map { case (k, v) => (k.toString, v.toString()) }.toMap) }.repartition(2000).randomSplit(Array(0.1, 0.9), 1234)
   val (all, rest) = (sp(0), sp(1))

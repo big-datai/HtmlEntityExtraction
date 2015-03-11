@@ -24,11 +24,11 @@ import org.elasticsearch.hadoop.mr.EsOutputFormat
 
 object EsUtils {
   val ESIP = "ec2-54-145-93-208.compute-1.amazonaws.com"
-
+  val ESINDEX="candidl/data"
   val conf = new JobConf()
   conf.set("es.resource", "process_count/counter")
   conf.set("es.query", "?q=updatePriceCount")
-  conf.set("es.nodes", "ec2-54-145-93-208.compute-1.amazonaws.com")
+  conf.set("es.nodes", ESIP)
   conf.set("es.index.auto.create", "true")
 
   /**
@@ -37,7 +37,7 @@ object EsUtils {
    */
   def write2ES(exit: RDD[Map[String, String]], index: String) {
     val ind = index + "/data"
-    val cfg = Map("es.nodes" -> "ec2-54-167-216-26.compute-1.amazonaws.com", "es.resource" -> ind,
+    val cfg = Map("es.nodes" -> EsUtils.ESIP, "es.resource" -> ind,
       "es.index.auto.create" -> "true", "spark.serializer" -> "org.apache.spark.serializer.KryoSerializer")
     // sample how it works
     //val numbers = Map("one" -> 1, "two" -> 2, "three" -> 3)
@@ -49,12 +49,12 @@ object EsUtils {
   def copyData(index_source: String, index_dest: String, sc: SparkContext) {
     val conf1 = new JobConf()
     conf1.set("es.resource", index_source + "/" + "data")
-    conf1.set("es.nodes", "ec2-54-167-216-26.compute-1.amazonaws.com")
+    conf1.set("es.nodes", EsUtils.ESIP)
 
     val source = sc.newAPIHadoopRDD(conf1, classOf[EsInputFormat[Text, MapWritable]], classOf[Text], classOf[MapWritable])
     val conf2 = new JobConf()
     conf2.set("es.resource", index_dest + "/" + "data")
-    conf2.set("es.nodes", "ec2-54-167-216-26.compute-1.amazonaws.com")
+    conf2.set("es.nodes", EsUtils.ESIP)
 
     source.saveAsNewAPIHadoopFile("-", classOf[NullWritable], classOf[MapWritable], classOf[EsOutputFormat], conf2)
   }

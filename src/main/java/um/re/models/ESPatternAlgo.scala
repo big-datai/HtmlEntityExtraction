@@ -26,7 +26,7 @@ object ESPatternAlgo {
   val sc = new SparkContext(conf_s)
 
   val conf = new JobConf()
-  conf.set("es.resource", "candidl/data")
+  conf.set("es.resource", EsUtils.ESINDEX)
   conf.set("es.nodes", EsUtils.ESIP)
   val source = sc.newAPIHadoopRDD(conf, classOf[EsInputFormat[Text, MapWritable]], classOf[Text], classOf[MapWritable])
   val source_map = source.map { l => (l._1.toString(), l._2.map { case (k, v) => (k.toString, v.toString) }.toMap) }.repartition(100)
@@ -69,7 +69,7 @@ object ESPatternAlgo {
   val arr_patterns = patterns.take(10) //toArray
 
   val cnf = new JobConf()
-  cnf.set("es.resource", "candidl/data")
+  cnf.set("es.resource", EsUtils.ESINDEX)
   cnf.set("es.nodes", EsUtils.ESIP)
   cnf.set("es.query", "?q=" + "xml")
   arr_patterns.foreach { l =>

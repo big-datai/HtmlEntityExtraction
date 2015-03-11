@@ -30,6 +30,7 @@ import org.apache.spark.mllib.util.MLUtils
 import org.apache.spark.mllib.classification.SVMWithSGD
 import org.apache.spark.mllib.linalg.SparseVector
 import org.apache.spark.mllib.feature.IDF
+import um.re.utils.EsUtils
 
 object Random extends App {
 
@@ -37,8 +38,8 @@ object Random extends App {
   val sc = new SparkContext(conf_s)
 
   val conf = new JobConf()
-  conf.set("es.resource", "candidl/data")
-  conf.set("es.nodes", "ec2-54-145-93-208.compute-1.amazonaws.com")
+  conf.set("es.resource", "candidl5/data")
+  conf.set("es.nodes", EsUtils.ESIP)
   val source = sc.newAPIHadoopRDD(conf, classOf[EsInputFormat[Text, MapWritable]], classOf[Text], classOf[MapWritable])
   val all = source.map { l => (l._1.toString(), l._2.map { case (k, v) => (k.toString, v.toString()) }.toMap) }.repartition(2000)
   //merge text before and after
@@ -47,9 +48,11 @@ object Random extends App {
     val before = Utils.tokenazer(l._2.apply("text_before"))
     val after = Utils.tokenazer(l._2.apply("text_after"))
     val domain = Utils.getDomain(l._2.apply("url"))
-    val location = Integer.valueOf(l._2.apply("location")).toDouble
+    val length = Integer.valueOf(l._2.apply("length")).toDouble
+
+    val location = Integer.valueOf(l._2.apply("location")).toDouble / length
     val parts = before ++ after ++ Seq(domain)
-    val parts_embedded = parts //.filter { w => (!w.isEmpty() && w.length > 3) }.map { w => w.toLowerCase }
+    val parts_embedded = parts
     if ((l._2.apply("priceCandidate").contains(l._2.apply("price"))))
       (1, parts_embedded, location)
     else
@@ -105,8 +108,8 @@ object Random extends App {
   val tn = labelAndPreds.filter { case (l, p) => (l == 0) && (p == 0) }.count
   val fp = labelAndPreds.filter { case (l, p) => (l == 0) && (p == 1) }.count
   val fn = labelAndPreds.filter { case (l, p) => (l == 1) && (p == 0) }.count
-  
+
   println("tp : " + tp + ", tn : " + tn + ", fp : " + fp + ", fn : " + fn)
-  println("sensitivity : "+tp/(tp+fn).toDouble+" specificity : "+tn/(fp+tn).toDouble+" precision : "+tp/(tp+fp).toDouble)
-  
+  println("sensitivity : " + tp / (tp + fn).toDouble + " specificity : " + tn / (fp + tn).toDouble + " precision : " + tp / (tp + fp).toDouble)
+
 }

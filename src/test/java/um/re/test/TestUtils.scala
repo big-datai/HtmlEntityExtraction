@@ -42,7 +42,7 @@ object TestUtils extends App {
   val conf = new JobConf()
   conf.set("es.resource", "htmls/data")
   conf.set("es.query", "?q=prod_id:23799864")
-  conf.set("es.nodes", "ec2-54-167-216-26.compute-1.amazonaws.com")
+  conf.set("es.nodes", EsUtils.ESIP)
 
   val source = sc.newAPIHadoopRDD(conf, classOf[EsInputFormat[Text, MapWritable]], classOf[Text], classOf[MapWritable])
   val source2 = source.map { l => (l._1.toString(), l._2.map { case (k, v) => (k.toString, v.toString) }.toMap) }

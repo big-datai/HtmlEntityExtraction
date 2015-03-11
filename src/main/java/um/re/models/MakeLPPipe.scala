@@ -29,6 +29,7 @@ import org.apache.spark.mllib.tree.GradientBoostedTrees
 import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.mllib.feature.IDF
 import org.apache.spark.ml.feature.HashingTF
+import um.re.utils.EsUtils
 
 object MakeLPPipe extends App {
 
@@ -40,8 +41,8 @@ object MakeLPPipe extends App {
 
   case class LabeledDocument(label: Int, text: String, d: String)
   val conf = new JobConf()
-  conf.set("es.resource", "candidl/data")
-  conf.set("es.nodes", "ec2-54-167-216-26.compute-1.amazonaws.com")
+  conf.set("es.resource", EsUtils.ESINDEX)
+  conf.set("es.nodes", EsUtils.ESIP)
   val source = sc.newAPIHadoopRDD(conf, classOf[EsInputFormat[Text, MapWritable]], classOf[Text], classOf[MapWritable])
   val all = source.map { l => (l._1.toString(), l._2.map { case (k, v) => (k.toString, v.toString()) }.toMap) }.repartition(200)
   //merge text before and after

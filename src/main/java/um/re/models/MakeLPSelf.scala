@@ -21,6 +21,7 @@ import org.apache.spark.mllib.tree.GradientBoostedTrees
 import org.apache.spark.mllib.util.MLUtils
 import play.api.libs.json.JsObject
 import play.api.libs.json._
+import um.re.utils.EsUtils
 
 object MakeLPSelf extends App {
 
@@ -31,8 +32,8 @@ object MakeLPSelf extends App {
     math.abs(term.hashCode).toInt % size
   }
   val conf = new JobConf()
-  conf.set("es.resource", "candidl/data")
-  conf.set("es.nodes", "ec2-54-167-216-26.compute-1.amazonaws.com")
+  conf.set("es.resource", EsUtils.ESINDEX)
+  conf.set("es.nodes", EsUtils.ESIP)
   val source = sc.newAPIHadoopRDD(conf, classOf[EsInputFormat[Text, MapWritable]], classOf[Text], classOf[MapWritable])
 
   val all =source.map { l => (l._1.toString(), l._2.map { case (k, v) => (k.toString, v.toString()) }.toMap) }.repartition(100)

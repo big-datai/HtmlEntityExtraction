@@ -15,7 +15,7 @@ object ES2S3 extends App {
   val conf_s = new SparkConf().setAppName("es").set("master", "yarn-client").set("spark.serializer", classOf[KryoSerializer].getName)
   val sc = new SparkContext(conf_s)
   val conf = new JobConf()
-  conf.set("es.resource", "candidl/data")
+  conf.set("es.resource", EsUtils.ESINDEX)
   conf.set("es.nodes", EsUtils.ESIP)
   EsUtils.es2s3("candidl", sc)
 

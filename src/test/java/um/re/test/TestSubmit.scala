@@ -12,6 +12,7 @@ import play.api.libs.json._
 import org.elasticsearch.spark.rdd.EsSpark
 import org.apache.spark.SparkContext
 import org.apache.spark.serializer.KryoSerializer
+import um.re.utils.EsUtils
 object TestSubmit extends App {
 
   println("Hello from submit")
@@ -22,7 +23,7 @@ object TestSubmit extends App {
   val conf = new JobConf()
   conf.set("es.resource", "htmls/data")
   conf.set("es.query", "?q=prod_id:23799864")
-  conf.set("es.nodes", "ec2-54-167-216-26.compute-1.amazonaws.com")
+  conf.set("es.nodes", EsUtils.ESIP)
 
   val conf_s = new SparkConf().setAppName("es").set("master", "yarn-client").set("spark.serializer", classOf[KryoSerializer].getName)
   //val sc = new SparkContext(conf_s)
@@ -39,7 +40,7 @@ object TestSubmit extends App {
 
   //val source3 = source.map { l => (l._1.toString(), l._2.toString) }.repartition(100)
 
-  val cfg = Map("es.nodes" -> "ec2-54-167-216-26.compute-1.amazonaws.com", "es.resource" -> "aaa/data", "es.index.auto.create" -> "true", "spark.serializer" -> "org.apache.spark.serializer.KryoSerializer")
+  val cfg = Map("es.nodes" -> EsUtils.ESIP, "es.resource" -> "aaa/data", "es.index.auto.create" -> "true", "spark.serializer" -> "org.apache.spark.serializer.KryoSerializer")
   val numbers = Map("one" -> 1, "two" -> 2, "three" -> 3)
   val airports = Map("arrival" -> "Otopeni", "SFO" -> "san fransco")
   EsSpark.saveToEs(sc.makeRDD(Seq(numbers, airports)), cfg)

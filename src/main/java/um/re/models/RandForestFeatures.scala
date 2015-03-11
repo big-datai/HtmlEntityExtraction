@@ -35,27 +35,26 @@ import org.apache.spark.mllib.feature.HashingTF
 import org.apache.spark.mllib.stat.{ MultivariateStatisticalSummary, Statistics }
 import um.re.utils.EsUtils
 
-object ModelR extends App {
+object RandForestFeatures extends App {
 
   val conf_s = new SparkConf().setAppName("es").set("master", "yarn-client").set("spark.serializer", classOf[KryoSerializer].getName)
   val sc = new SparkContext(conf_s)
-  
-  def data_to_points(data: RDD[(Int, Seq[String], Double)],idf_vector:Array[Double], hashingTF:HashingTF) = {
+
+  def data2points(data: RDD[(Int, Seq[String], Double)], idf_vector: Array[Double], hashingTF: HashingTF) = {
     val idf_vals = idf_vector
     val tf_model = hashingTF
     data.map {
       case (lable, txt, location) =>
         val tf_vals = tf_model.transform(txt).toArray
-        val features = tf_vals 
+        val features = tf_vals
         val values = features.filter { l => l != 0 }
         val index = features.zipWithIndex.filter { l => l._1 != 0 }.map { l => l._2 }
         LabeledPoint(lable, Vectors.sparse(features.length, index, values))
 
     }
   }
-  
-  
-  def filterData(data: RDD[LabeledPoint],unified_indx_idf:(Array[Int],Array[Double])) = {
+
+  def filterData(data: RDD[LabeledPoint], unified_indx_idf: (Array[Int], Array[Double])) = {
     val idf_vals = unified_indx_idf._2
     val unified_indx = unified_indx_idf._1
     data.map { point =>
@@ -65,18 +64,28 @@ object ModelR extends App {
       val tfidf_vals = (tf_vals_uniq, idf_vals).zipped.map((d1, d2) => d1 * d2)
       val features = tfidf_vals
       val values = features.filter { l => l != 0 }
-      val index = features.zipWithIndex.filter{l=> l._1!=0 }.map { l => l._2 }
+      val index = features.zipWithIndex.filter { l => l._1 != 0 }.map { l => l._2 }
       LabeledPoint(label1, Vectors.sparse(features.length, index, values))
     }
   }
-  
-  
+  def selectTopK(k: Int, tf: RDD[Vector], idf_vector: Array[Double], idf_model: IDFModel) = {
+	  //k is number of tdudf features
+	  val tfidf_stats = Statistics.colStats(idf_model.transform(tf))
+			  val tfidf_avg = tfidf_stats.mean.toArray
+			  val tfidf_avg_sorted = tfidf_avg.clone
+			  //  val tfidf_avg_sorted = tfidf_stats.mean.toArray
+			  java.util.Arrays.sort(tfidf_avg_sorted)
+			  val top_k_value = tfidf_avg_sorted.takeRight(k)(0)
+			  val selected_indices = (for (i <- tfidf_avg.indices if tfidf_avg(i) >= top_k_value) yield i).toArray
+			  (selected_indices, selected_indices.map(i => idf_vector(i)))
+  }
+
   val conf = new JobConf()
   conf.set("es.resource", EsUtils.ESINDEX)
   conf.set("es.nodes", EsUtils.ESIP)
   val source = sc.newAPIHadoopRDD(conf, classOf[EsInputFormat[Text, MapWritable]], classOf[Text], classOf[MapWritable])
-  val all_all = source.map { l => (l._1.toString(), l._2.map { case (k, v) => (k.toString, v.toString()) }.toMap) }.repartition(600)
-  
+  val all_all = source.map { l => (l._1.toString(), l._2.map { case (k, v) => (k.toString, v.toString()) }.toMap) }.repartition(300)
+
   //merge text before and after
   //Split data for testing
   val sp = all_all.randomSplit(Array(0.9, 0.1), seed = 1234)
@@ -88,15 +97,15 @@ object ModelR extends App {
     val before = Utils.tokenazer(l._2.apply("text_before"))
     val after = Utils.tokenazer(l._2.apply("text_after"))
     val domain = Utils.getDomain(l._2.apply("url"))
-    val location = Integer.valueOf(l._2.apply("location")).toDouble
+    val location = Integer.valueOf(l._2.apply("location")).toDouble/(Integer.valueOf(l._2.apply("length")).toDouble)
     val parts = before ++ after ++ Array(domain) //, location) 
-    val parts_embedded = parts //.filter { w => (!w.isEmpty() && w.length > 3) }.map { w => w.toLowerCase }
+    val parts_embedded = parts 
     if ((l._2.apply("priceCandidate").contains(l._2.apply("price"))))
       (1, parts_embedded, location)
     else
       (0, parts_embedded, location)
   }.filter(l => l._2.length > 1)
- 
+
   val splits = parsedData.randomSplit(Array(0.7, 0.3))
   val (trainingData, test) = (splits(0), splits(1))
 
@@ -109,24 +118,10 @@ object ModelR extends App {
   val idf_neg = (new IDF(minDocFreq = 10)).fit(tf_neg)
   val idf_vector_neg = idf_neg.idf.toArray
 
-  
-  
   val tf: RDD[Vector] = hashingTF.transform(trainingData.map(l => l._2))
   val idf = (new IDF(minDocFreq = 10)).fit(tf)
-  val idf_vector  = idf.idf.toArray
+  val idf_vector = idf.idf.toArray
 
-
-  def selectTopK(k: Int, tf: RDD[Vector], idf_vector: Array[Double], idf_model: IDFModel) = {
-    //k is number of tdudf features
-    val tfidf_stats = Statistics.colStats(idf_model.transform(tf))
-    val tfidf_avg = tfidf_stats.mean.toArray
-    val tfidf_avg_sorted=tfidf_avg.clone
-  //  val tfidf_avg_sorted = tfidf_stats.mean.toArray
-    java.util.Arrays.sort(tfidf_avg_sorted)
-    val top_k_value = tfidf_avg_sorted.takeRight(k)(0)
-    val selected_indices = (for (i <- tfidf_avg.indices if tfidf_avg(i) >= top_k_value) yield i).toArray
-    (selected_indices, selected_indices.map(i => idf_vector(i)))
-  }
 
   val tf_plus_idf_pos = selectTopK(100, tf_pos, idf_vector_pos, idf_pos)
   val tf_plus_idf_neg = selectTopK(100, tf_neg, idf_vector_neg, idf_neg)
@@ -137,28 +132,18 @@ object ModelR extends App {
   val uniq_ind_val_neg = (uniq_ind_neg, uniq_val_neg)
   val unified_indx_idf = (tf_plus_idf_pos._1 ++ uniq_ind_neg, tf_plus_idf_pos._2 ++ uniq_val_neg)
   val tf_tarin: RDD[Vector] = hashingTF.transform(trainingData.map(l => l._2))
-  val data = data_to_points(trainingData,idf_vector,hashingTF)
-  val training_points = filterData(data,unified_indx_idf)
+  val data = data2points(trainingData, idf_vector, hashingTF)
+  val training_points = filterData(data, unified_indx_idf)
 
   //Building test set
-    val data_test = data_to_points(test,idf_vector,hashingTF)
-  val test_points = filterData(data_test,unified_indx_idf)
-
-  //Gradient Boosted Trees
- /* val boostingStrategy =
-    BoostingStrategy.defaultParams("Classification")
-  boostingStrategy.numIterations = 3 // Note: Use more in practice
-  boostingStrategy.treeStrategy.maxDepth = 5
-  val model =
-    GradientBoostedTrees.train(training_points, boostingStrategy)
-*/
+  val data_test = data2points(test, idf_vector, hashingTF)
+  val test_points = filterData(data_test, unified_indx_idf)
 
   val treeStrategy = Strategy.defaultStrategy("Classification")
   val numTrees = 3 // Use more in practice.
   val featureSubsetStrategy = "auto" // Let the algorithm choose.
   val model = RandomForest.trainClassifier(training_points,
     treeStrategy, numTrees, featureSubsetStrategy, seed = 12345)
-
 
   // Evaluate model on test instances and compute test error
   def labelAndPred(input_points: RDD[LabeledPoint]) = {

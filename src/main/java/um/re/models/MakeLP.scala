@@ -28,6 +28,7 @@ import org.apache.spark.mllib.tree.configuration.BoostingStrategy
 import org.apache.spark.mllib.tree.GradientBoostedTrees
 import org.apache.spark.mllib.util.MLUtils
 import org.apache.spark.mllib.classification.SVMWithSGD
+import um.re.utils.EsUtils
 
 object MakeLP extends App {
 
@@ -35,8 +36,8 @@ object MakeLP extends App {
   val sc = new SparkContext(conf_s)
 
   val conf = new JobConf()
-  conf.set("es.resource", "candidl/data")
-  conf.set("es.nodes", "ec2-54-167-216-26.compute-1.amazonaws.com")
+  conf.set("es.resource", EsUtils.ESINDEX)
+  conf.set("es.nodes", EsUtils.ESIP)
   val source = sc.newAPIHadoopRDD(conf, classOf[EsInputFormat[Text, MapWritable]], classOf[Text], classOf[MapWritable])
   val all = source.map { l => (l._1.toString(), l._2.map { case (k, v) => (k.toString, v.toString()) }.toMap) }.repartition(100)
   //merge text before and after

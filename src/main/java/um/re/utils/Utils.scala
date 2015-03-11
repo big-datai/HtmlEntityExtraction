@@ -8,7 +8,6 @@ import scala.collection.JavaConversions._
 import play.api.libs.json._
 import java.util.regex.Pattern
 import scala.util.control.Exception
-import um.re.es.emr.PriceParcer
 import java.net.URI
 object Utils {
 

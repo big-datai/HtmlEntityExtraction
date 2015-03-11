@@ -6,7 +6,7 @@ import org.apache.spark.SparkContext
 import org.apache.spark.SparkContext._
 import org.apache.spark.rdd._
 import org.apache.spark.serializer.KryoSerializer
-import um.re.es.emr.URegistrator
+import um.re.utils.URegistrator
 import scala.collection.JavaConversions._
 import play.api.libs.json._
 import org.elasticsearch.spark.rdd.EsSpark

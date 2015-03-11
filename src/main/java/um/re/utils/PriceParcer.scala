@@ -1,10 +1,7 @@
-package um.re.es.emr;
-
-import scala.math
+package um.re.utils
 import scala.io.Source
 import scala.util.matching.Regex
-import play.api.libs.json.{ Json, JsValue, JsObject, JsArray }
-import scala.io.Codec
+import play.api.libs.json.{Json, JsValue, JsObject}
 
 
 object PriceParcer extends Serializable {

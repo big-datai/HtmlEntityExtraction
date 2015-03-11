@@ -12,8 +12,7 @@ import org.apache.spark.rdd._
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.serializer.KryoRegistrator
 import com.esotericsoftware.kryo.Kryo
-import um.re.es.emr.URegistrator
-import um.re.es.emr.PriceParcer
+import um.re.utils.URegistrator
 import scala.math
 import scala.collection.JavaConversions._
 import play.api.libs.json._

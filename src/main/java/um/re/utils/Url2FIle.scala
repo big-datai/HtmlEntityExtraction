@@ -1,13 +1,11 @@
-package mllib.analytics
+package um.re.utils
 import scala.io.Source
-import org.apache.spark.SparkContext
 import java.io._
-import java.net.URL
 import sys.process._
-import java.net.URL
 import java.io.File
 import scala.io.Source
 import scala.util.Try
+import scala.Array.canBuildFrom
 
 object Url2FIle {
 

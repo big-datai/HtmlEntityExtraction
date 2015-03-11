@@ -2,7 +2,7 @@ package um.re.test
 
 
 import scala.io.Codec.string2codec
-import um.re.es.emr.PriceParcer
+import um.re.utils.PriceParcer
 
 object tester {
 	def main(args:Array[String]){

@@ -35,7 +35,7 @@ import um.re.transform.Transformer
 import um.re.utils.UConf
 
 object GBTLocation extends App {
-  val conf_s = new SparkConf().setAppName("es").set("master", "yarn-client").set("spark.serializer", classOf[KryoSerializer].getName)
+  val conf_s = new SparkConf().setAppName("es").setMaster("yarn-cluster").set("spark.serializer", classOf[KryoSerializer].getName)
   val sc = new SparkContext(conf_s)
 
   val data = new UConf(sc, 200)

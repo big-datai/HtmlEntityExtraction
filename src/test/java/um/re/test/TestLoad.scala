@@ -8,7 +8,7 @@ import org.apache.spark.SparkContext
 	
 	def main(args : Array[String]) {
 	    val logFile = "s3://pavlovP/*" 
-	    val conf = new SparkConf().setAppName("es").set("master", "yarn-cluster")
+	    val conf = new SparkConf().setAppName("es").set("master", "yarn-client")
 	    
 	    val sc = new SparkContext(conf)
 	    val logData = sc.textFile(logFile)

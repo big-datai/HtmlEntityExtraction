@@ -1,15 +1,18 @@
-package um.re.models
+package um.re.bin
 
 import org.apache.spark.SparkConf
 import org.apache.spark.SparkContext
 import org.apache.spark.SparkContext.doubleRDDToDoubleRDDFunctions
-import org.apache.spark.mllib.tree.RandomForest
-import org.apache.spark.mllib.tree.configuration.Strategy
 import org.apache.spark.mllib.util.MLUtils
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.mllib.tree.GradientBoostedTrees
 import org.apache.spark.mllib.tree.configuration.BoostingStrategy
 import org.apache.spark.mllib.util.MLUtils
+import java.io.FileInputStream
+import java.io.FileOutputStream
+import java.io.ObjectInputStream
+import java.io.ObjectOutputStream
+import org.apache.spark.serializer.KryoSerializer
 
 object GradientBoostedF extends App {
   val conf_s = new SparkConf().setAppName("es").set("master", "yarn-client").set("spark.serializer", classOf[KryoSerializer].getName)

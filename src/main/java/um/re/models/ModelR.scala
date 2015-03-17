@@ -40,8 +40,7 @@ object ModelR extends App {
   val conf_s = new SparkConf().setAppName("es").set("master", "yarn-client").set("spark.serializer", classOf[KryoSerializer].getName)
   val sc = new SparkContext(conf_s)
   
-  def data_to_points(data: RDD[(Int, Seq[String], Double)],idf_vector:Array[Double], hashingTF:HashingTF) = {
-    val idf_vals = idf_vector
+  def data2TFLabeledPoints(data: RDD[(Int, Seq[String], Double)], idf_vector:Array[Double], hashingTF:HashingTF) = {
     val tf_model = hashingTF
     data.map {
       case (lable, txt, location) =>
@@ -135,13 +134,15 @@ object ModelR extends App {
   val uniq_ind_neg = (ind_neg -- ind_pos).toArray
   val uniq_val_neg = uniq_ind_neg.map(i => idf_vector_neg(i))
   val uniq_ind_val_neg = (uniq_ind_neg, uniq_val_neg)
+  //                       ind of pos          ind of neg    idf val of pos terms       idf val of neg terms
   val unified_indx_idf = (tf_plus_idf_pos._1 ++ uniq_ind_neg, tf_plus_idf_pos._2 ++ uniq_val_neg)
   val tf_tarin: RDD[Vector] = hashingTF.transform(trainingData.map(l => l._2))
-  val data = data_to_points(trainingData,idf_vector,hashingTF)
+ 
+  val data = data2TFLabeledPoints(trainingData,idf_vector,hashingTF)
   val training_points = filterData(data,unified_indx_idf)
 
   //Building test set
-    val data_test = data_to_points(test,idf_vector,hashingTF)
+    val data_test = data2TFLabeledPoints(test,idf_vector,hashingTF)
   val test_points = filterData(data_test,unified_indx_idf)
 
   //Gradient Boosted Trees

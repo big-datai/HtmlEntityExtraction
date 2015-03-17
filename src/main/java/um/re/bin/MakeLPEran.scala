@@ -1,38 +1,23 @@
-package um.re.models
-
-import org.apache.spark.rdd.RDD
-import org.apache.spark.SparkContext
-import org.apache.spark.mllib.feature.HashingTF
-import org.apache.spark.mllib.linalg.Vector
-import org.apache.hadoop.io.MapWritable
-import org.apache.spark.SparkConf
-import org.apache.hadoop.mapred.JobConf
-import org.elasticsearch.hadoop.mr.EsInputFormat
-import scala.Array.canBuildFrom
-import scala.collection.JavaConversions.mapAsScalaMap
+package um.re.bin
 import org.apache.hadoop.io.MapWritable
 import org.apache.hadoop.io.Text
 import org.apache.hadoop.mapred.JobConf
+import org.apache.spark._
 import org.apache.spark.SparkConf
 import org.apache.spark.SparkContext
-import org.apache.spark.SparkContext.doubleRDDToDoubleRDDFunctions
-import org.apache.spark.mllib.linalg.Vectors
-import org.apache.spark.mllib.regression.LabeledPoint
-import org.apache.spark.mllib.tree.RandomForest
-import org.apache.spark.mllib.tree.configuration.Strategy
+import org.apache.spark.SparkContext._
+import org.apache.spark.rdd._
+import org.apache.spark.serializer.KryoSerializer
+import scala.collection.JavaConversions._
+import play.api.libs.json._
+import org.elasticsearch.hadoop.mr.EsInputFormat
+import org.apache.spark.SparkContext
+import org.apache.hadoop.io.MapWritable
+import org.apache.hadoop.io.Text
 import org.apache.spark.serializer.KryoSerializer
 import um.re.utils.Utils
-import org.elasticsearch.hadoop.mr.EsInputFormat
-import scala.collection.concurrent.TrieMap
-import org.apache.spark.mllib.tree.configuration.BoostingStrategy
-import org.apache.spark.mllib.tree.GradientBoostedTrees
-import org.apache.spark.mllib.util.MLUtils
-import org.apache.spark.mllib.classification.SVMWithSGD
-import org.apache.spark.mllib.linalg.SparseVector
-import org.apache.spark.mllib.feature.IDF
 import um.re.utils.EsUtils
-
-
+/*
 object MakeLPEran extends App {
 
   val conf_s = new SparkConf().setAppName("es").set("master", "yarn-client").set("spark.serializer", classOf[KryoSerializer].getName)
@@ -251,3 +236,4 @@ object MakeLPEran extends App {
 */
   
 }
+*/

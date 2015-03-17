@@ -125,6 +125,4 @@ object GBTPerDomain {
   for (i <- 0 to scoresMap.size - 1)
     println("numTrees : " + i + " -- " + scoresMap.apply(i))
 
-  //  val overAllPerformance = performancePerDomain.map(p=>p._2).fold((0,0,0,0))((r,c)=>(r._1+c._1,r._2+c._2,r._3+c._3,r._4+c._4))
-
 }

@@ -158,6 +158,7 @@ object Utils {
     val p = new java.io.PrintWriter(f)
     try { op(p) } finally { p.close() }
   }
+
   // helper function to convert Map to a Writable
   //http://loads.pickle.me.uk/2013/11/12/spark-and-elasticsearch.html
   def toWritable(map: Map[String, String]) = {

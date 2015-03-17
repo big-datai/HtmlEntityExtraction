@@ -1,14 +1,15 @@
 package um.re.transform
 
 import scala.Array.canBuildFrom
-
 import org.apache.spark.mllib.feature.HashingTF
 import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.mllib.tree.model.GradientBoostedTreesModel
 import org.apache.spark.rdd.RDD
-
 import um.re.utils.Utils
+import org.apache.spark.mllib.tree.model.RandomForestModel
+import java.io.PrintWriter
+import java.io.File
 
 object Transformer {
 
@@ -29,7 +30,7 @@ object Transformer {
   def data2points(data: RDD[(Int, Seq[String], Double)], idf_vector: Array[Double], hashingTF: HashingTF) = {
     val idf_vals = idf_vector
     val tf_model = hashingTF
-   data.map {
+    data.map {
       case (lable, txt, location) =>
         val tf_vals = tf_model.transform(txt).toArray
         val tfidf_vals = (tf_vals, idf_vals).zipped.map((d1, d2) => d1 * d2)
@@ -53,9 +54,9 @@ object Transformer {
       LabeledPoint(label1, Vectors.sparse(features.length, index, values))
     }
   }
-  def dataSample(percent:Double,parsedData: RDD[(Int,Seq[String],Double)] )={   
-  val splits = parsedData.randomSplit(Array(1-percent, percent))
-  splits(1)
+  def dataSample(percent: Double, parsedData: RDD[(Int, Seq[String], Double)]) = {
+    val splits = parsedData.randomSplit(Array(1 - percent, percent))
+    splits(1)
   }
   def labelAndPred(inputPoints: RDD[LabeledPoint], model: GradientBoostedTreesModel) = {
     val local_model = model
@@ -69,6 +70,24 @@ object Transformer {
     val fn = labelAndPreds.filter { case (l, p) => (l == 1) && (p == 0) }.count
     println("tp : " + tp + ", tn : " + tn + ", fp : " + fp + ", fn : " + fn)
     println("sensitivity : " + tp / (tp + fn).toDouble + " specificity : " + tn / (fp + tn).toDouble + " precision : " + tp / (tp + fp).toDouble)
+    labelAndPreds
+  }
+  def labelAndPred(inputPoints: RDD[LabeledPoint], model: RandomForestModel, fileName: String) = {
+    val local_model = model
+    val labelAndPreds = inputPoints.map { point =>
+      val prediction = local_model.predict(point.features)
+      (point.label, prediction)
+    }
+    val tp = labelAndPreds.filter { case (l, p) => (l == 1) && (p == 1) }.count
+    val tn = labelAndPreds.filter { case (l, p) => (l == 0) && (p == 0) }.count
+    val fp = labelAndPreds.filter { case (l, p) => (l == 0) && (p == 1) }.count
+    val fn = labelAndPreds.filter { case (l, p) => (l == 1) && (p == 0) }.count
+    println("tp : " + tp + ", tn : " + tn + ", fp : " + fp + ", fn : " + fn)
+    val res = "sensitivity : " + tp / (tp + fn).toDouble + " specificity : " + tn / (fp + tn).toDouble + " precision : " + tp / (tp + fp).toDouble
+    val writer = new PrintWriter(new File("hdfs:///user/"+fileName))
+    writer.write(res)
+    writer.close()
+    println(res)
     labelAndPreds
   }
 }

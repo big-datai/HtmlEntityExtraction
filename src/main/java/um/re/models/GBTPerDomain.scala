@@ -44,14 +44,13 @@ object GBTPerDomain {
   val all = data.getData
 
   def parseData(raw: RDD[(String, Map[String, String])]) = {
-    //val domain_map = domains
     raw.map { l =>
       val before = Utils.tokenazer(l._2.apply("text_before"))
       val after = Utils.tokenazer(l._2.apply("text_after"))
       val domain = Utils.getDomain(l._2.apply("url"))
       val location = Integer.valueOf(l._2.apply("location")).toDouble
-      val parts = before ++ after //, location) 
-      val parts_embedded = parts //.filter { w => (!w.isEmpty() && w.length > 3) }.map { w => w.toLowerCase }
+      val parts = before ++ after  
+      val parts_embedded = parts 
       if ((l._2.apply("priceCandidate").contains(l._2.apply("price"))))
         (1, parts_embedded, location, domain)
       else

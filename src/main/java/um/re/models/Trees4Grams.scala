@@ -13,6 +13,6 @@ object Trees4Grams {
 
   val data = new UConf(sc, 200)
   val all = data.getData
-  val parsedData = Transformer.parseData(all)
+  val parsedData = Transformer.parseDataNGram(all)
   
 }

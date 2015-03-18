@@ -53,15 +53,10 @@ object GBTLocationFeatureSelection extends App{
   val idf = (new IDF(minDocFreq = 10)).fit(tf)
   val idf_vector = idf.idf.toArray
 
-  val k = 100 //number of tdudf features
-  val tfidf_stats = Statistics.colStats(idf.transform(tf))
-  val tfidf_avg = tfidf_stats.mean.toArray
-  val tfidf_avg_sorted = tfidf_stats.mean.toArray
-  val top_k_value = tfidf_avg_sorted.sorted.takeRight(k)(0)
-  val selected_indices = (for (i <- tfidf_avg.indices if tfidf_avg(i) >= top_k_value) yield i).toArray
-
-  val idf_vector_filtered = selected_indices.map(i => idf_vector(i))
-
+  val tfidf_avg = Statistics.colStats(idf.transform(tf)).mean.toArray
+  val selected_indices = Transformer.getTopTFIDFIndices(100,tfidf_avg)
+  val idf_vector_filtered = Transformer.projectByIndices(idf_vector, selected_indices) 
+  
   val training_points = Transformer.data2points(trainingData, idf_vector_filtered, hashingTF)
   val test_points = Transformer.data2points(test, idf_vector_filtered, hashingTF)
 

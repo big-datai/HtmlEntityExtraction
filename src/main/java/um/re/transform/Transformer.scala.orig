@@ -69,9 +69,6 @@ object Transformer {
     else
       (0, parts_embedded, location)
   }
-    def parseDataNGram(all: RDD[(String, Map[String, String])]): RDD[(Int, Seq[String], Double)] = {
-    all.map(gramsParser).filter(l => l._2.length > 1)
-  }
   def parseData(all: RDD[(String, Map[String, String])]): RDD[(Int, Seq[String], Double)] = {
     all.map(parseDataRow).filter(l => l._2.length > 1)
   }

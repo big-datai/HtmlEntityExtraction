@@ -3,39 +3,22 @@ package um.re.models
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.SparkContext
-import org.apache.spark.mllib.feature.HashingTF
-import org.apache.spark.mllib.linalg.Vector
-import org.apache.hadoop.io.MapWritable
 import org.apache.spark.SparkConf
-import org.apache.hadoop.mapred.JobConf
-import org.elasticsearch.hadoop.mr.EsInputFormat
-import scala.Array.canBuildFrom
-import scala.collection.JavaConversions.mapAsScalaMap
-import org.apache.hadoop.io.MapWritable
-import org.apache.hadoop.io.Text
-import org.apache.hadoop.mapred.JobConf
-import org.apache.spark.SparkConf
-import org.apache.spark.SparkContext
 import org.apache.spark.SparkContext._
-import org.apache.spark.mllib.linalg.Vectors
-import org.apache.spark.mllib.regression.LabeledPoint
-import org.apache.spark.mllib.tree.RandomForest
-import org.apache.spark.mllib.tree.configuration.Strategy
 import org.apache.spark.serializer.KryoSerializer
-import um.re.utils.Utils
-import org.elasticsearch.hadoop.mr.EsInputFormat
-import scala.collection.concurrent.TrieMap
+
+import org.apache.spark.mllib.feature.{HashingTF,IDF}
+import org.apache.spark.mllib.linalg.{Vector,Vectors}
+import org.apache.spark.mllib.regression.LabeledPoint
+
 import org.apache.spark.mllib.tree.configuration.BoostingStrategy
 import org.apache.spark.mllib.tree.GradientBoostedTrees
-import org.apache.spark.mllib.util.MLUtils
-import org.apache.spark.mllib.classification.SVMWithSGD
-import org.apache.spark.mllib.linalg.SparseVector
-import org.apache.spark.mllib.feature.IDF
-import org.apache.spark.mllib.stat.{MultivariateStatisticalSummary, Statistics}
+import org.apache.spark.mllib.stat.Statistics
 import org.apache.spark.mllib.tree.model.GradientBoostedTreesModel
-import org.elasticsearch.hadoop.mr.EsInputFormat
-import um.re.transform.Transformer._
+
+import um.re.transform.Transformer
 import um.re.utils.{UConf}
+import um.re.utils.Utils
 
 object GBTPerDomain {
  def main(args:Array[String]){ 
@@ -46,6 +29,7 @@ object GBTPerDomain {
   val all = data.getData
 
   //val list = List("richtonemusic.co.uk","wholesalesupplements.shop.rakuten.com","shop.everythingbuttheweddingdress.com","DiscountCleaningProducts.com","yesss.co.uk","idsecurityonline.com","janitorialequipmentsupply.com","sanddollarlifestyles.com","protoolsdirect.co.uk","educationalinsights.com","faucet-warehouse.com","rexart.com","chronostore.com","racks-for-all.shop.rakuten.com","musicdirect.com","budgetpackaging.com","americanblinds.com","overthehill.com","thesupplementstore.co.uk","intheholegolf.com","alldesignerglasses.com","nitetimetoys.com","instrumentalley.com","ergonomic-chairs.officechairs.com","piratescave.co.uk")
+  //val list = List("richtonemusic.co.uk")
   val list = args(0).split(",").filter(s=> !s.equals(""))
   
   /*val domains = all.map{l=> Utils.getDomain(l._2.apply("url"))}.groupBy(d=>d).map(d=>(d._1,d._2.size)).filter(l=> l._2 >80).map(l=>l._1).take(1000)
@@ -54,8 +38,7 @@ object GBTPerDomain {
   var domain2ScoreMap : Map[String,IndexedSeq[(Int,(Long,Long,Long,Long,Double,Double,Double))]] = Map.empty 
   for(d <- list){
   
-      
-  val parsedDataPerURL : RDD[(String,(Int,Seq[String],Double,String))] = parseDataPerURL(all).filter(l => l._2._4.equals(d))
+  val parsedDataPerURL : RDD[(String,(Int,Seq[String],Double,String))] = Transformer.parseDataPerURL(all).filter(l => l._2._4.equals(d))
   //domains.unpersist()
   val urls = parsedDataPerURL.map(l=> l._1).distinct
   val splits = urls.randomSplit(Array(0.7, 0.3))
@@ -70,19 +53,19 @@ object GBTPerDomain {
   val idf_vector  = idf.idf.toArray
        
   val tfidf_avg = Statistics.colStats(idf.transform(tf)).mean.toArray
-  val selected_indices = getTopTFIDFIndices(100,tfidf_avg)
-  val idf_vector_filtered = projectByIndices(idf_vector, selected_indices) 
+  val selected_indices = Transformer.getTopTFIDFIndices(100,tfidf_avg)
+  val idf_vector_filtered = Transformer.projectByIndices(idf_vector, selected_indices) 
   
-  val training_points = data2pointsPerURL(training,idf_vector_filtered,selected_indices,hashingTF).map(p=> p._2).repartition(10)
-  val test_points = data2pointsPerURL(test,idf_vector_filtered,selected_indices,hashingTF).repartition(10)
+  val training_points = Transformer.data2pointsPerURL(training,idf_vector_filtered,selected_indices,hashingTF).map(p=> p._2).repartition(10)
+  val test_points = Transformer.data2pointsPerURL(test,idf_vector_filtered,selected_indices,hashingTF).repartition(10)
   
   val boostingStrategy = BoostingStrategy.defaultParams("Classification")
   boostingStrategy.numIterations = 1 
   //boostingStrategy.treeStrategy.maxDepth = 5
   val model = GradientBoostedTrees.train(training_points, boostingStrategy)
  
-  val subModels = buildTreeSubModels(model)
-  val scoresMap = subModels.map(m=>evaluateModel(labelAndPredPerURL(m,test_points),m))
+  val subModels = Transformer.buildTreeSubModels(model)
+  val scoresMap = subModels.map(m=>Transformer.evaluateModel(Transformer.labelAndPredPerURL(m,test_points),m))
   domain2ScoreMap = domain2ScoreMap.updated(d, scoresMap)   
  
   }

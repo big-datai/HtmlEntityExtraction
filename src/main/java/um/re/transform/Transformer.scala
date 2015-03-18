@@ -30,7 +30,7 @@ object Transformer {
     _indices
   }
 
-  def parseDataRow(row: (String, Map[String, String])): (Int, Seq[String], Double) = {
+  def parseDataRow(row: (String, Map[String, String])): (Int, Seq[String], Double) = { 
     val before = Utils.tokenazer(row._2.apply("text_before"))
     val after = Utils.tokenazer(row._2.apply("text_after"))
     val domain = Utils.getDomain(row._2.apply("url"))
@@ -46,6 +46,18 @@ object Transformer {
   def parseData(all: RDD[(String, Map[String, String])]): RDD[(Int, Seq[String], Double)] = {
     all.map(parseDataRow).filter(l => l._2.length > 1)
   }
+  def parseData4Test(raw: RDD[(String, Map[String, String])]): RDD[(String, (Int,String,String, Double,Seq[String], String))] = {
+    raw.map { l =>
+      val url = l._2.apply("url")
+      val priceCandidate = l._2.apply("priceCandidate")
+      val price = l._2.apply("price")
+      val domain = Utils.getDomain(url)
+      val (label, parts_embedded, normalizedLocation) = parseDataRow(l)
+      (url, (label,price,priceCandidate, normalizedLocation,parts_embedded, domain))
+
+    }.filter(l => l._2._5.length > 1)
+  }
+
   def parseDataPerURL(raw: RDD[(String, Map[String, String])]): RDD[(String, (Int, Seq[String], Double, String))] = {
     raw.map { l =>
       val url = l._2.apply("url")
@@ -55,6 +67,8 @@ object Transformer {
 
     }.filter(l => l._2._2.length > 1)
   }
+  
+  
   def data2points(data: RDD[(Int, Seq[String], Double)], idf_vals: Array[Double], tf_model: HashingTF): RDD[LabeledPoint] = {
     data.map {
       case (lable, txt, location) =>

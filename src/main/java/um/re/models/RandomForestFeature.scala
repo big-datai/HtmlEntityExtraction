@@ -41,13 +41,13 @@ object RandomForestFeature extends App {
   val selected_indices = Transformer.getTopTFIDFIndices(100,tfidf_avg)
   val idf_vector_filtered = Transformer.projectByIndices(idf_vector, selected_indices) 
   
-  val training_points = Transformer.data2points(trainingData, idf_vector_filtered, hashingTF)
-  val test_points = Transformer.data2points(test, idf_vector_filtered, hashingTF)
+  val training_points = Transformer.data2points(trainingData, idf_vector_filtered, hashingTF).repartition(600)
+  val test_points = Transformer.data2points(test, idf_vector_filtered, hashingTF).repartition(600)
 
   // Train a RandomForest model.
   val treeStrategy = Strategy.defaultStrategy("Classification")
   val numTrees = 3 // Use more in practice.
-  val featureSubsetStrategy = "log2" // Let the algorithm choose.
+  val featureSubsetStrategy = "auto" // Let the algorithm choose.
   val model = RandomForest.trainClassifier(training_points, treeStrategy, numTrees, featureSubsetStrategy, seed = 12345)
 
   // Evaluate model on test instances and compute test error

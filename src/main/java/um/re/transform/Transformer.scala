@@ -43,7 +43,36 @@ object Transformer {
       (0, parts_embedded, location)
 
   }
+
+  def gramsByN(data: String, number: Int): List[String] = {
+    val chrData = data.toCharArray
+    var i = 0
+    var grams: List[String] = List()
+    val lenght = chrData.length
+    for (i <- 1 until lenght) {
+      if (i + number < lenght) {
+        val str = data.substring(i, i + number)
+        grams = str :: grams
+      }
+    }
+    grams
+  }
+  def gramsParser(row: (String, Map[String, String])): (Int, Seq[String], Double) = {
+    val before = row._2.apply("text_before")
+    val after = row._2.apply("text_after")
+    val domain = Utils.getDomain(row._2.apply("url"))
+    val data = before + after + domain
+    val location = Integer.valueOf(row._2.apply("location")).toDouble / (Integer.valueOf(row._2.apply("length")).toDouble)
+    val parts_embedded = gramsByN(data, 4).toSeq
+    if ((row._2.apply("priceCandidate").contains(row._2.apply("price"))))
+      (1, parts_embedded, location)
+    else
+      (0, parts_embedded, location)
+  }
   def parseData(all: RDD[(String, Map[String, String])]): RDD[(Int, Seq[String], Double)] = {
+    all.map(parseDataRow).filter(l => l._2.length > 1)
+  }
+  def gramsParseData(all: RDD[(String, Map[String, String])]): RDD[(Int, Seq[String], Double)] = {
     all.map(parseDataRow).filter(l => l._2.length > 1)
   }
   def parseDataPerURL(raw: RDD[(String, Map[String, String])]): RDD[(String, (Int, Seq[String], Double, String))] = {

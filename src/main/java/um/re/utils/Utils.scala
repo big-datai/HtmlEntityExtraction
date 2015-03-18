@@ -27,6 +27,22 @@ object Utils {
     } catch { case _: Exception => "www.failed.com" }
   }
   /**
+   * This function splits data into n-grams strings
+   */
+  def gramsByN(data: String, number: Int): List[String] = {
+    val chrData = data.toCharArray
+    var i = 0
+    var grams: List[String] = List()
+    val lenght = chrData.length
+    for (i <- 1 until lenght) {
+      if (i + number < lenght) {
+        val str = data.substring(i, i + number)
+        grams = str :: grams
+      }
+    }
+    grams
+  }
+  /**
    * this function replaces all characters and number with space and trip multiple spaces
    */
   def textOnly(text: String) = {

@@ -57,6 +57,13 @@ object Transformer {
     }
     grams
   }
+  def filterByPrice(row: (String, Map[String, String])):Boolean ={
+    val before = row._2.apply("text_before")
+    val after = row._2.apply("text_after")
+    val price=row._2.apply("price")
+    
+    true
+  }
   def gramsParser(row: (String, Map[String, String])): (Int, Seq[String], Double) = {
     val before = row._2.apply("text_before")
     val after = row._2.apply("text_after")

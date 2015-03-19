@@ -61,8 +61,8 @@ object GBTLocationFeatureSelection extends App{
   val test_points = Transformer.data2points(test, idf_vector_filtered, hashingTF)
 
   val boostingStrategy =BoostingStrategy.defaultParams("Classification")
-  boostingStrategy.numIterations = 2
-  boostingStrategy.treeStrategy.maxDepth = 5
+  boostingStrategy.numIterations = 3
+  boostingStrategy.treeStrategy.maxDepth = 5 ///4-8
   val model =GradientBoostedTrees.train(training_points, boostingStrategy)
 
   // Evaluate model on test instances and compute test error

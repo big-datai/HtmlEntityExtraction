@@ -45,32 +45,38 @@ object BuildCandPatterns extends App {
     val map_pat = l.head
     var count = 0;
     l.tail.map { cand =>
-        if (cand.get("priceCandidate").get.toString.contains(map_pat.get("price").get.toString))
-          count = count + 1;
+      if (map_pat.get("price") != None && map_pat.get("price_updated") != None && cand.get("priceCandidate") != None &&
+        Utils.parseDouble(cand.get("priceCandidate").get.toString) != None  &&
+        Utils.parseDouble(map_pat.get("price_updated").get.toString) != None && Utils.parseDouble(map_pat.get("price").get.toString) != None &&
+        Utils.parseDouble(cand.get("priceCandidate").get.toString).get == Utils.parseDouble((map_pat.get("price").get.toString)).get &&
+        Utils.parseDouble(map_pat.get("price_updated").get.toString).get == Utils.parseDouble(map_pat.get("price").get.toString).get) {
+        count = count + 1;
       }
+    }
     l != null && count > 0
   }.map { l =>
-      try {
-        val map_pat = l.head
-        val pat = map_pat.get("patterns").get.toString
-        val html = map_pat.get("html").get.toString
-        val length=html.size
-        val location_pattern = Utils.allPatterns(pat, html, 150)
-        //add to each candidate pattern
-        l.tail.map { cand =>
-          // cand + ("patterns" -> location_pattern.mkString("|||")) + ("price" -> map_pat.get("price").get.toString)
-          cand + ("price" -> map_pat.get("price").get.toString) + ("patterns" -> Utils.map2JsonString(location_pattern))+("length"->length.toString)
-          //cand  + ("price" -> map_pat.get("price").get.toString)+ ("patterns" -> location_pattern.toSeq)
-        }
-      } catch {
-        case _: Exception => null
+    try {
+      val map_pat = l.head
+      val pat = map_pat.get("patterns").get.toString
+      val html = map_pat.get("html").get.toString
+      val length = html.size
+      val location_pattern = Utils.allPatterns(pat, html, 150)
+      //add to each candidate pattern
+      l.tail.map { cand =>
+        // cand + ("patterns" -> location_pattern.mkString("|||")) + ("price" -> map_pat.get("price").get.toString)
+        cand + ("price_updated" -> map_pat.get("price").get.toString) + ("price" -> map_pat.get("price").get.toString) +
+          ("patterns" -> Utils.map2JsonString(location_pattern)) + ("length" -> length.toString)
+        //cand  + ("price" -> map_pat.get("price").get.toString)+ ("patterns" -> location_pattern.toSeq)
       }
-    }.filter(l => l != null)
+    } catch {
+      case _: Exception => null
+    }
+  }.filter(l => l != null)
 
   val fin = db.flatMap(l => l)
 
   val conf2 = new JobConf()
-  conf2.set("es.resource", "candidl5/data")
+  conf2.set("es.resource", "candidl/data")
   conf2.set("es.nodes", EsUtils.ESIP)
   EsUtils.write2ESHadoopMap(fin, conf2)
 

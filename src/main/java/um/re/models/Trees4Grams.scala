@@ -11,7 +11,7 @@ object Trees4Grams {
   val conf_s = new SparkConf().setAppName("es").setMaster("yarn-cluster").set("spark.serializer", classOf[KryoSerializer].getName)
   val sc = new SparkContext(conf_s)
 
-  val data = new UConf(sc, 200)
+  val data = new UConf(sc, 1000)
   val all = data.getData
   val parsedData = Transformer.parseDataNGram(all)
   

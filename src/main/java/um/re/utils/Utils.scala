@@ -91,11 +91,12 @@ object Utils {
         val nf = PriceParcer
         nf.snippetSize = 150
         val id = l._2.get("url").get
-        val price = l._2.get("price_updated").get
+        val price = l._2.get("price").get
+        val price_updated = l._2.get("price_updated").get
         val html = shrinkString(l._2.get("price_prop1").get)
         val patterns = shrinkString(l._2.get("price_patterns").get)
         val res = nf.findM(id, html)
-        val p_h = Map("patterns" -> patterns, "html" -> html, "price" -> price)
+        val p_h = Map("patterns" -> patterns, "html" -> html, "price" -> price,"price_updated" -> price_updated )
         p_h :: res
       } catch {
         case _: Exception => Nil

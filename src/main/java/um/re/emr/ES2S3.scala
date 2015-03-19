@@ -17,6 +17,6 @@ object ES2S3 extends App {
   val conf = new JobConf()
   conf.set("es.resource", EsUtils.ESINDEX)
   conf.set("es.nodes", EsUtils.ESIP)
-  EsUtils.es2s3("candidl5", sc)
+  EsUtils.es2s3("candidl", sc)
 
 }

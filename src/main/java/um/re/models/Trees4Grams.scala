@@ -46,7 +46,7 @@ object Trees4Grams {
 
   val data = new UConf(sc, 1000)
   val all = data.getData
-  val parsedData = Transformer.parseDataNGram(all)
+  val parsedData = Transformer.parseDataNGram(all,5)
   
    val d = Transformer.dataSample(0.1, parsedData)
   val splits = d.randomSplit(Array(0.7, 0.3))
@@ -66,7 +66,7 @@ object Trees4Grams {
   val test_points = Transformer.data2points(test, idf_vector_filtered, hashingTF)
 
   val boostingStrategy =BoostingStrategy.defaultParams("Classification")
-  boostingStrategy.numIterations = 20
+  boostingStrategy.numIterations = 300
   boostingStrategy.treeStrategy.maxDepth = 5 ///4-8
   val model =GradientBoostedTrees.train(training_points, boostingStrategy)
 

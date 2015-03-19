@@ -38,21 +38,14 @@ object BuildCandPatterns extends App {
   conf.set("es.nodes", EsUtils.ESIP)
 
   val source = sc.newAPIHadoopRDD(conf, classOf[EsInputFormat[Text, MapWritable]], classOf[Text], classOf[MapWritable])
-  val source2 = source.map { l => (l._1.toString(), l._2.map { case (k, v) => (k.toString, v.toString) }.toMap) }.repartition(300)
+  val source2 = source.map { l => (l._1.toString(), l._2.map { case (k, v) => (k.toString, v.toString) }.toMap) }.sample(false, 0.001, 12345)//repartition(300)
   val res = Utils.getCandidatesPatternsHtmlTrimed(source2)
 
-  val db = res.filter { l =>
+  val db = res.filter { l => 
     val map_pat = l.head
-    var count = 0;
-    l.tail.map { cand =>
-      if (map_pat.get("price") != None && map_pat.get("price_updated") != None && cand.get("priceCandidate") != None &&
-        Utils.parseDouble(cand.get("priceCandidate").get.toString) != None  &&
-        Utils.parseDouble(map_pat.get("price_updated").get.toString) != None && Utils.parseDouble(map_pat.get("price").get.toString) != None &&
-        Utils.parseDouble(cand.get("priceCandidate").get.toString).get == Utils.parseDouble((map_pat.get("price").get.toString)).get &&
-        Utils.parseDouble(map_pat.get("price_updated").get.toString).get == Utils.parseDouble(map_pat.get("price").get.toString).get) {
-        count = count + 1;
-      }
-    }
+    val count = l.tail.filter{ cand =>
+       (Utils.isTrueCandid(map_pat, cand)) 
+    }.size
     l != null && count > 0
   }.map { l =>
     try {
@@ -64,7 +57,7 @@ object BuildCandPatterns extends App {
       //add to each candidate pattern
       l.tail.map { cand =>
         // cand + ("patterns" -> location_pattern.mkString("|||")) + ("price" -> map_pat.get("price").get.toString)
-        cand + ("price_updated" -> map_pat.get("price").get.toString) + ("price" -> map_pat.get("price").get.toString) +
+        cand + ("price_updated" -> map_pat.get("price_updated").get.toString) + ("price" -> map_pat.get("price").get.toString) +
           ("patterns" -> Utils.map2JsonString(location_pattern)) + ("length" -> length.toString)
         //cand  + ("price" -> map_pat.get("price").get.toString)+ ("patterns" -> location_pattern.toSeq)
       }

@@ -26,7 +26,11 @@ object Utils {
       if (domain.startsWith("www.")) domain.substring(4) else domain
     } catch { case _: Exception => "www.failed.com" }
   }
-  def parseDouble(s: String) = try { Some(s.toDouble) } catch { case _: Throwable => None }
+  def parseDouble(s: String, language: String = "en", country: String = "US"): Option[Double] = try {
+    val locale = new java.util.Locale(language, country)
+    val formatter = java.text.NumberFormat.getNumberInstance(locale)
+    Some(formatter.parse(s).doubleValue())
+  } catch { case _: Throwable => None }
   /**
    * This function splits data into n-grams strings
    */
@@ -43,6 +47,7 @@ object Utils {
     }
     grams
   }
+
   /**
    * this function replaces all characters and number with space and trip multiple spaces
    */
@@ -64,9 +69,9 @@ object Utils {
   def tokenazerSpace(text: String) = {
     bySpace(text).split(" ").toSeq
   }
- 
-  def getTags(data:String):Seq[String]={
-    
+
+  def getTags(data: String): Seq[String] = {
+
     null
   }
   def map2JsonString(map: Map[String, String]) = {
@@ -95,17 +100,28 @@ object Utils {
     }
     candid
   }
+  /**
+   * This method checks if candidate is true and 
+   */
+  def isTrueCandid(map_pat: Map[String, String], cand: Map[String, String]): Boolean = {
+    (map_pat.get("price") != None && map_pat.get("price_updated") != None && cand.get("priceCandidate") != None &&
+      Utils.parseDouble(cand.get("priceCandidate").get.toString) != None && Utils.parseDouble(map_pat.get("price_updated").get.toString) != None &&
+      Utils.parseDouble(map_pat.get("price").get.toString) != None &&
+      Utils.parseDouble(cand.get("priceCandidate").get.toString).get == Utils.parseDouble((map_pat.get("price").get.toString)).get &&
+      Utils.parseDouble(map_pat.get("price_updated").get.toString).get == Utils.parseDouble(map_pat.get("price").get.toString).get)
+  }
   def getCandidatesPatternsHtmlTrimed(source2: RDD[(String, Map[String, String])]): RDD[List[Map[String, String]]] = {
     val candid = source2.map { l =>
       try {
         val nf = PriceParcer
         nf.snippetSize = 150
         val id = l._2.get("url").get
-        val price = l._2.get("price_updated").get
+        val price = l._2.get("price").get
+        val price_updated = l._2.get("price_updated").get
         val html = shrinkString(l._2.get("price_prop1").get)
         val patterns = shrinkString(l._2.get("price_patterns").get)
         val res = nf.findM(id, html)
-        val p_h = Map("patterns" -> patterns, "html" -> html, "price" -> price)
+        val p_h = Map("patterns" -> patterns, "html" -> html, "price" -> price, "price_updated" -> price_updated)
         p_h :: res
       } catch {
         case _: Exception => Nil

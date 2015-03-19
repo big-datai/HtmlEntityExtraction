@@ -57,7 +57,7 @@ object Transformer {
     }
     grams
   }
-    def gramsByNTokens(data: String, number: Int): List[String] = {
+  def gramsByNTokens(data: String, number: Int): List[String] = {
     val chrData = data.toCharArray
     var i = 0
     var grams: List[String] = List()
@@ -77,7 +77,8 @@ object Transformer {
 
     true
   }
-  def gramsParser(row: (String, Map[String, String])): (Int, Seq[String], Double) = {
+
+  def gramsParser(row: (String, Map[String, String]), grams: Int): (Int, Seq[String], Double) = {
     val before = row._2.apply("text_before")
     val after = row._2.apply("text_after")
     val domain = Utils.getDomain(row._2.apply("url"))
@@ -89,8 +90,8 @@ object Transformer {
     else
       (0, partsEmbedded, location)
   }
-  def parseDataNGram(all: RDD[(String, Map[String, String])]): RDD[(Int, Seq[String], Double)] = {
-    all.map(gramsParser).filter(l => l._2.length > 1)
+  def parseDataNGram(all: RDD[(String, Map[String, String])], grams: Int): RDD[(Int, Seq[String], Double)] = {
+    all.map(l => gramsParser(l, grams)).filter(l => l._2.length > 1)
   }
   def parseData(all: RDD[(String, Map[String, String])]): RDD[(Int, Seq[String], Double)] = {
     all.map(parseDataRow).filter(l => l._2.length > 1)

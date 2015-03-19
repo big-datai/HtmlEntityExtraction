@@ -14,8 +14,13 @@ object DataTester extends App {
   val sc = new SparkContext(conf)
   val data = new UConf(sc, 600)
   val all = data.getData
-  val parsedData = Transformer.parseData4Test(all)
+  val parsedData = Transformer.parseData4Test(all).filter(c => c._2._6.equals("nitetimetoys.com")).map{
+    case (url, (label,price,priceCandidate, normalizedLocation,parts_embedded, domain)) =>
+    	(label,price,priceCandidate, normalizedLocation,domain,url)}
+  val pos = parsedData.filter(c => c._1 == 1)
+  val neg = parsedData.filter(c => c._1 == 0)
   
-  
+  val l = new java.util.Locale("de","DE")
+  val p = java.text.NumberFormat.getNumberInstance(l).parse("1,99")
 
 }

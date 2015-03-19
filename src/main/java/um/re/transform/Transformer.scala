@@ -30,17 +30,17 @@ object Transformer {
     _indices
   }
 
-  def parseDataRow(row: (String, Map[String, String])): (Int, Seq[String], Double) = { 
+  def parseDataRow(row: (String, Map[String, String])): (Int, Seq[String], Double) = {
     val before = Utils.tokenazer(row._2.apply("text_before"))
     val after = Utils.tokenazer(row._2.apply("text_after"))
     val domain = Utils.getDomain(row._2.apply("url"))
     val location = Integer.valueOf(row._2.apply("location")).toDouble / (Integer.valueOf(row._2.apply("length")).toDouble)
     val parts = before ++ after
-    val parts_embedded = parts
+    val partsEmbedded = parts
     if ((row._2.apply("priceCandidate").contains(row._2.apply("price"))))
-      (1, parts_embedded, location)
+      (1, partsEmbedded, location)
     else
-      (0, parts_embedded, location)
+      (0, partsEmbedded, location)
 
   }
 
@@ -57,11 +57,24 @@ object Transformer {
     }
     grams
   }
-  def filterByPrice(row: (String, Map[String, String])):Boolean ={
+    def gramsByNTokens(data: String, number: Int): List[String] = {
+    val chrData = data.toCharArray
+    var i = 0
+    var grams: List[String] = List()
+    val lenght = chrData.length
+    for (i <- 1 until lenght) {
+      if (i + number < lenght) {
+        val str = data.substring(i, i + number)
+        grams = str :: grams
+      }
+    }
+    grams
+  }
+  def filterByPrice(row: (String, Map[String, String])): Boolean = {
     val before = row._2.apply("text_before")
     val after = row._2.apply("text_after")
-    val price=row._2.apply("price")
-    
+    val price = row._2.apply("price")
+
     true
   }
   def gramsParser(row: (String, Map[String, String])): (Int, Seq[String], Double) = {
@@ -70,13 +83,13 @@ object Transformer {
     val domain = Utils.getDomain(row._2.apply("url"))
     val data = before + after + domain
     val location = Integer.valueOf(row._2.apply("location")).toDouble / (Integer.valueOf(row._2.apply("length")).toDouble)
-    val parts_embedded = gramsByN(data, 4).toSeq
+    val partsEmbedded = gramsByN(data, 5).toSeq
     if ((row._2.apply("priceCandidate").contains(row._2.apply("price"))))
-      (1, parts_embedded, location)
+      (1, partsEmbedded, location)
     else
-      (0, parts_embedded, location)
+      (0, partsEmbedded, location)
   }
-    def parseDataNGram(all: RDD[(String, Map[String, String])]): RDD[(Int, Seq[String], Double)] = {
+  def parseDataNGram(all: RDD[(String, Map[String, String])]): RDD[(Int, Seq[String], Double)] = {
     all.map(gramsParser).filter(l => l._2.length > 1)
   }
   def parseData(all: RDD[(String, Map[String, String])]): RDD[(Int, Seq[String], Double)] = {
@@ -85,14 +98,14 @@ object Transformer {
   def gramsParseData(all: RDD[(String, Map[String, String])]): RDD[(Int, Seq[String], Double)] = {
     all.map(parseDataRow).filter(l => l._2.length > 1)
   }
-  def parseData4Test(raw: RDD[(String, Map[String, String])]): RDD[(String, (Int,String,String, Double,Seq[String], String))] = {
+  def parseData4Test(raw: RDD[(String, Map[String, String])]): RDD[(String, (Int, String, String, Double, Seq[String], String))] = {
     raw.map { l =>
       val url = l._2.apply("url")
       val priceCandidate = l._2.apply("priceCandidate")
       val price = l._2.apply("price")
       val domain = Utils.getDomain(url)
-      val (label, parts_embedded, normalizedLocation) = parseDataRow(l)
-      (url, (label,price,priceCandidate, normalizedLocation,parts_embedded, domain))
+      val (label, partsEmbedded, normalizedLocation) = parseDataRow(l)
+      (url, (label, price, priceCandidate, normalizedLocation, partsEmbedded, domain))
 
     }.filter(l => l._2._5.length > 1)
   }
@@ -101,13 +114,12 @@ object Transformer {
     raw.map { l =>
       val url = l._2.apply("url")
       val domain = Utils.getDomain(url)
-      val (label, parts_embedded, normalizedLocation) = parseDataRow(l)
-      (url, (label, parts_embedded, normalizedLocation, domain))
+      val (label, partsEmbedded, normalizedLocation) = parseDataRow(l)
+      (url, (label, partsEmbedded, normalizedLocation, domain))
 
     }.filter(l => l._2._2.length > 1)
   }
-  
-  
+
   def data2points(data: RDD[(Int, Seq[String], Double)], idf_vals: Array[Double], tf_model: HashingTF): RDD[LabeledPoint] = {
     data.map {
       case (lable, txt, location) =>

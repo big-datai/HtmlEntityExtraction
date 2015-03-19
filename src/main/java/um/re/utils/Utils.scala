@@ -26,7 +26,7 @@ object Utils {
       if (domain.startsWith("www.")) domain.substring(4) else domain
     } catch { case _: Exception => "www.failed.com" }
   }
-  def parseDouble(s: String) = try { Some(s.toDouble) } catch { case _ => None }
+  def parseDouble(s: String) = try { Some(s.toDouble) } catch { case _: Throwable => None }
   /**
    * This function splits data into n-grams strings
    */
@@ -55,7 +55,20 @@ object Utils {
   def tokenazer(text: String) = {
     textOnly(text).split(" ").toSeq
   }
-
+  def bySpace(text: String) = {
+    text.replaceAll("[\\p{Blank}]{1,}?", " ")
+  }
+  /**
+   * Tokenazer by space
+   */
+  def tokenazerSpace(text: String) = {
+    bySpace(text).split(" ").toSeq
+  }
+ 
+  def getTags(data:String):Seq[String]={
+    
+    null
+  }
   def map2JsonString(map: Map[String, String]) = {
     val asJson = Json.toJson(map)
     Json.stringify(asJson)

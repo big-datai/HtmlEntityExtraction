@@ -37,7 +37,7 @@ object Transformer {
     val location = Integer.valueOf(row._2.apply("location")).toDouble / (Integer.valueOf(row._2.apply("length")).toDouble)
     val parts = before ++ after
     val partsEmbedded = parts
-    if ((row._2.apply("priceCandidate").contains(row._2.apply("price"))))
+    if (Utils.isTrueCandid(row._2,row._2))
       (1, partsEmbedded, location)
     else
       (0, partsEmbedded, location)
@@ -85,7 +85,7 @@ object Transformer {
     val data = before + after + domain
     val location = Integer.valueOf(row._2.apply("location")).toDouble / (Integer.valueOf(row._2.apply("length")).toDouble)
     val partsEmbedded = gramsByN(data, 5).toSeq
-    if ((row._2.apply("priceCandidate").contains(row._2.apply("price"))))
+    if (Utils.isTrueCandid(row._2,row._2))
       (1, partsEmbedded, location)
     else
       (0, partsEmbedded, location)

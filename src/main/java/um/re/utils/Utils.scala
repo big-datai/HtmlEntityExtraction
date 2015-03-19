@@ -26,7 +26,10 @@ object Utils {
       if (domain.startsWith("www.")) domain.substring(4) else domain
     } catch { case _: Exception => "www.failed.com" }
   }
-  def parseDouble(s: String) = try { Some(s.toDouble) } catch { case _ => None }
+  def parseDouble(s: String,language:String = "en" ,country:String = "US" ) :Option[Double]= try {
+    val locale = new java.util.Locale(language, country)
+    val formatter = java.text.NumberFormat.getNumberInstance(locale)
+    Some(formatter.parse(s).doubleValue())} catch { case _ => None }
   /**
    * This function splits data into n-grams strings
    */

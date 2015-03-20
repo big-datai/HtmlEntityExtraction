@@ -9,6 +9,8 @@ import play.api.libs.json._
 import java.util.regex.Pattern
 import scala.util.control.Exception
 import java.net.URI
+import java.io.PrintWriter
+import java.io.File
 object Utils {
 
   def getDomain(input: String) = {
@@ -205,6 +207,11 @@ object Utils {
     try { op(p) } finally { p.close() }
   }
 
+  def write2File(text:String, pathFileName:String){
+     val writer = new PrintWriter(new File(pathFileName))
+      writer.write(text)
+      writer.close()
+  }
   // helper function to convert Map to a Writable
   //http://loads.pickle.me.uk/2013/11/12/spark-and-elasticsearch.html
   def toWritable(map: Map[String, String]) = {
@@ -213,6 +220,7 @@ object Utils {
       m.put(new Text(k), new Text(v))
     m
   }
+ 
 
   def mapWritableToInput(in: MapWritable): Map[String, String] = {
     in.map { case (k, v) => (k.toString, v.toString) }.toMap

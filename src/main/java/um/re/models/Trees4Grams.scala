@@ -54,12 +54,13 @@ object Trees4Grams {
     val fetures = Integer.parseInt(args.apply(2)) //10000
     val depth = 5
     println("+++++++++++++++++++++++++++++++++++++ trees : " + trees + "     grams:        " + grams + "     fetures :      " + fetures)
-    val parsedData = Transformer.parseDataNGram(all, grams)
-
-    val d = Transformer.dataSample(0.1, parsedData)
-    val splits = d.randomSplit(Array(0.7, 0.3))
-    val (trainingData, test) = (splits(0), splits(1))
-
+    
+    val allSampled = all.sample(false, 0.1, 12345)
+    
+    val (trainingAll,testAll) = Transformer.splitRawDataByURL(allSampled)
+    val trainingData = Transformer.parseDataNGram(trainingAll, grams)
+    val test = Transformer.parseDataNGram(testAll, grams)
+    
     //trainng idf
     val hashingTF = new HashingTF(300000)
     val tf: RDD[Vector] = hashingTF.transform(trainingData.map(l => l._2))

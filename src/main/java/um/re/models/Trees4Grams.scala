@@ -42,7 +42,8 @@ import um.re.transform.Transformer
 object Trees4Grams {
 
   def main(args: Array[String]) {
-    println("+++++++++++++++++++++++++++++++++++++       0:" + Integer.parseInt(args.apply(0))+"_"+Integer.parseInt(args.apply(1))+"_"+Integer.parseInt(args.apply(2)))
+    println("+++++++++++++++++++++++++++++++++++++       0:" + Integer.parseInt(args.apply(0)) + "_" + Integer.parseInt(args.apply(1)) + "_" + Integer.parseInt(args.apply(2)))
+
     val conf_s = new SparkConf().setAppName("es").setMaster("yarn-cluster").set("spark.serializer", classOf[KryoSerializer].getName)
     val sc = new SparkContext(conf_s)
 
@@ -51,16 +52,17 @@ object Trees4Grams {
 
     val trees = Integer.parseInt(args.apply(0)) //50
     val grams = Integer.parseInt(args.apply(1))
+    val grams2 = 0
     val fetures = Integer.parseInt(args.apply(2)) //10000
     val depth = 5
     println("+++++++++++++++++++++++++++++++++++++ trees : " + trees + "     grams:        " + grams + "     fetures :      " + fetures)
-    
+
     val allSampled = all.sample(false, 0.1, 12345)
-    
-    val (trainingAll,testAll) = Transformer.splitRawDataByURL(allSampled)
-    val trainingData = Transformer.parseDataNGram(trainingAll, grams)
-    val test = Transformer.parseDataNGram(testAll, grams)
-    
+
+    val (trainingAll, testAll) = Transformer.splitRawDataByURL(allSampled)
+    val trainingData = Transformer.parseData(trainingAll, grams, grams2)
+    val test = Transformer.parseData(testAll, grams, grams2)
+
     //trainng idf
     val hashingTF = new HashingTF(300000)
     val tf: RDD[Vector] = hashingTF.transform(trainingData.map(l => l._2))
@@ -81,7 +83,8 @@ object Trees4Grams {
 
     // Evaluate model on test instances and compute test error
     val res = Transformer.labelAndPredRes(test_points, model)
-    sc.makeRDD(Seq(res)).saveAsTextFile("/user/res/"+ trees + "_grams_" + grams + "_fetures_" + fetures + "_res_" + res)
+    val rddRes=sc.makeRDD(Seq(res))
+    rddRes.saveAsTextFile("/user/res/" + trees + "_grams_" + grams + "_fetures_" + fetures + "_res_" + res)
     //Utils.write2File(res, "file:/home/hadoop/res/" + trees + "_grams_" + grams + "_fetures_" + fetures + "_res_" + res)
   }
 }

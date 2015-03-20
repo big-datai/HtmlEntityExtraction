@@ -26,6 +26,7 @@ import org.elasticsearch.hadoop.mr.EsOutputFormat
 import um.re.utils.Utils
 import um.re.utils.EsUtils
 
+
 object BuildCandPatterns extends App {
   val conf_s = new SparkConf().setAppName("es").setMaster("yarn-cluster").set("spark.serializer", classOf[KryoSerializer].getName)
   conf_s.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")

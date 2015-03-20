@@ -6,11 +6,22 @@ import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.mllib.tree.model.GradientBoostedTreesModel
 import org.apache.spark.rdd.RDD
+import org.apache.spark.rdd.PairRDDFunctions
 import um.re.utils.Utils
 import org.apache.spark.mllib.tree.model.RandomForestModel
 
 object Transformer {
 
+  def splitRawDataByURL(data : RDD[(String,Map[String,String])]):(RDD[(String,Map[String,String])],RDD[(String,Map[String,String])]) = {
+    val dataByURL = data.map{r =>
+      val url = r._2.apply("url")
+      (url,r)
+      }.groupBy(_._1)
+    val splits = dataByURL.randomSplit(Array(0.7, 0.3))
+    val (training, test) = (splits(0).flatMap(l=>l._2).map(_._2), splits(1).flatMap(l=>l._2).map(_._2))
+    (training, test)
+  }
+  
   def findTopKThreshold(values: Array[Double], k: Int): Double = {
     val _k = math.min(k, values.filter(v => v != 0.0).length) //number of tdidf features
     values.sorted.takeRight(_k)(0)

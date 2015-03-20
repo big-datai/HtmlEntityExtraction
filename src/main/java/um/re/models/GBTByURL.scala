@@ -27,13 +27,9 @@ object GBTByURL extends App {
   val data = new UConf(sc, 200)
   val all = data.getData
   
-  val parsedDataPerURL : RDD[(String,(Int,Seq[String],Double,String))] = Transformer.parseDataPerURL(all)
-  val urls = parsedDataPerURL.map(l=> l._1).distinct
-  val splits = urls.randomSplit(Array(0.7, 0.3))
-  val (trainingUrls, testUrls) = (splits(0).map(l=>(l,1)), splits(1).map(l=>(l,1)))
-  
-  val training = parsedDataPerURL.join(trainingUrls).map(j=> (j._1,j._2._1))
-  val test = parsedDataPerURL.join(testUrls).map(j=> (j._1,j._2._1))
+  val parsedDataPerURL = Transformer.parseDataPerURL(all).groupBy(_._1)
+  val splits = parsedDataPerURL.randomSplit(Array(0.7, 0.3))
+  val (training, test) = (splits(0).flatMap(l=>l._2), splits(1).flatMap(l=>l._2))
   
   val hashingTF = new HashingTF(300000)
   val tf :RDD[Vector] = hashingTF.transform(training.map(l => l._2._2))
@@ -44,16 +40,20 @@ object GBTByURL extends App {
   val selected_indices = Transformer.getTopTFIDFIndices(100,tfidf_avg)
   val idf_vector_filtered = Transformer.projectByIndices(idf_vector, selected_indices) 
   
-  val training_points = Transformer.data2pointsPerURL(training,idf_vector_filtered,selected_indices,hashingTF).map(p=> p._2).repartition(10)
-  val test_points = Transformer.data2pointsPerURL(test,idf_vector_filtered,selected_indices,hashingTF).repartition(10)
+  val training_points = Transformer.data2pointsPerURL(training,idf_vector_filtered,selected_indices,hashingTF).map(p=> p._2).repartition(300)
+  val test_points = Transformer.data2pointsPerURL(test,idf_vector_filtered,selected_indices,hashingTF).repartition(300)
   
   val boostingStrategy = BoostingStrategy.defaultParams("Classification")
-  boostingStrategy.numIterations = 1 
+  boostingStrategy.numIterations = 20 
   //boostingStrategy.treeStrategy.maxDepth = 5
   val model = GradientBoostedTrees.train(training_points, boostingStrategy)
  
   val subModels = Transformer.buildTreeSubModels(model)
   val scoresMap = subModels.map(m=>Transformer.evaluateModel(Transformer.labelAndPredPerURL(m,test_points),m))
+  
+  val preds =  Transformer.labelAndPredPerURL(model,test_points).repartition(500).groupBy(_._1)
+  val url_count = preds.count
+  val possible_tp = preds.filter{ p=> p._2.toList.filter(l=> l._2==1 && l._3==1).size > 0}.count
   
 
 }

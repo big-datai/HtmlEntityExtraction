@@ -215,10 +215,9 @@ object Utils {
     try { op(p) } finally { p.close() }
   }
 
-  def write2File(text:String, pathFileName:String){
-     val writer = new PrintWriter(new File(pathFileName))
-      writer.write(text)
-      writer.close()
+  def write2File(text:String, sc:SparkContext){
+    val rddRes = sc.makeRDD(Seq(text))
+    rddRes.saveAsTextFile("hdfs:///user/res/" + text)
   }
   // helper function to convert Map to a Writable
   //http://loads.pickle.me.uk/2013/11/12/spark-and-elasticsearch.html

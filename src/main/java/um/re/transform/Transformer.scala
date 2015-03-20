@@ -48,7 +48,7 @@ object Transformer {
     val location = Integer.valueOf(row._2.apply("location")).toDouble / (Integer.valueOf(row._2.apply("length")).toDouble)
     val parts = before ++ after
     val partsEmbedded = parts
-    if (Utils.isTrueCandid(row._2,row._2))
+    if (Utils.isTrueCandid(row._2, row._2))
       (1, partsEmbedded, location)
     else
       (0, partsEmbedded, location)
@@ -96,7 +96,7 @@ object Transformer {
     val data = before + after + domain
     val location = Integer.valueOf(row._2.apply("location")).toDouble / (Integer.valueOf(row._2.apply("length")).toDouble)
     val partsEmbedded = gramsByN(data, 5).toSeq
-    if (Utils.isTrueCandid(row._2,row._2))
+    if (Utils.isTrueCandid(row._2, row._2))
       (1, partsEmbedded, location)
     else
       (0, partsEmbedded, location)
@@ -223,8 +223,23 @@ object Transformer {
     val fp = labelAndPreds.filter { case (l, p) => (l == 0) && (p == 1) }.count
     val fn = labelAndPreds.filter { case (l, p) => (l == 1) && (p == 0) }.count
     println("tp : " + tp + ", tn : " + tn + ", fp : " + fp + ", fn : " + fn)
-    println("sensitivity : " + tp / (tp + fn).toDouble + " specificity : " + tn / (fp + tn).toDouble + " precision : " + tp / (tp + fp).toDouble)
+    val res = "sensitivity : " + tp / (tp + fn).toDouble + " specificity : " + tn / (fp + tn).toDouble + " precision : " + tp / (tp + fp).toDouble
+    println(res)
     labelAndPreds
+  }
+  def labelAndPredRes(inputPoints: RDD[LabeledPoint], model: GradientBoostedTreesModel): String = {
+    val local_model = model
+    val labelAndPreds = inputPoints.map { point =>
+      val prediction = local_model.predict(point.features)
+      (point.label, prediction)
+    }
+    val tp = labelAndPreds.filter { case (l, p) => (l == 1) && (p == 1) }.count
+    val tn = labelAndPreds.filter { case (l, p) => (l == 0) && (p == 0) }.count
+    val fp = labelAndPreds.filter { case (l, p) => (l == 0) && (p == 1) }.count
+    val fn = labelAndPreds.filter { case (l, p) => (l == 1) && (p == 0) }.count
+    println("tp : " + tp + ", tn : " + tn + ", fp : " + fp + ", fn : " + fn)
+    val res = "sensitivity : " + tp / (tp + fn).toDouble + " specificity : " + tn / (fp + tn).toDouble + " precision : " + tp / (tp + fp).toDouble
+    res
   }
   def labelAndPred(inputPoints: RDD[LabeledPoint], model: RandomForestModel): RDD[(Double, Double)] = {
     val local_model = model

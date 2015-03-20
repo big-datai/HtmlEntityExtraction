@@ -9,6 +9,10 @@ import play.api.libs.json._
 import java.util.regex.Pattern
 import scala.util.control.Exception
 import java.net.URI
+import java.io.PrintWriter
+import java.io.File
+import com.gargoylesoftware.htmlunit.WebClient;
+import com.gargoylesoftware.htmlunit.html.HtmlPage;
 object Utils {
 
   def getDomain(input: String) = {
@@ -119,6 +123,8 @@ object Utils {
         val price = l._2.get("price").get
         val price_updated = l._2.get("price_updated").get
         val html = shrinkString(l._2.get("price_prop1").get)
+        val html_to=l._2.get("price_prop1").get
+        val m_webClient = new WebClient();
         val patterns = shrinkString(l._2.get("price_patterns").get)
         val res = nf.findM(id, html)
         val p_h = Map("patterns" -> patterns, "html" -> html, "price" -> price, "price_updated" -> price_updated)
@@ -205,6 +211,11 @@ object Utils {
     try { op(p) } finally { p.close() }
   }
 
+  def write2File(text:String, pathFileName:String){
+     val writer = new PrintWriter(new File(pathFileName))
+      writer.write(text)
+      writer.close()
+  }
   // helper function to convert Map to a Writable
   //http://loads.pickle.me.uk/2013/11/12/spark-and-elasticsearch.html
   def toWritable(map: Map[String, String]) = {
@@ -213,6 +224,7 @@ object Utils {
       m.put(new Text(k), new Text(v))
     m
   }
+ 
 
   def mapWritableToInput(in: MapWritable): Map[String, String] = {
     in.map { case (k, v) => (k.toString, v.toString) }.toMap

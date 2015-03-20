@@ -29,7 +29,7 @@ object GBTPerDomain {
   val all = data.getData
 
   //val list = List("richtonemusic.co.uk","wholesalesupplements.shop.rakuten.com","shop.everythingbuttheweddingdress.com","DiscountCleaningProducts.com","yesss.co.uk","idsecurityonline.com","janitorialequipmentsupply.com","sanddollarlifestyles.com","protoolsdirect.co.uk","educationalinsights.com","faucet-warehouse.com","rexart.com","chronostore.com","racks-for-all.shop.rakuten.com","musicdirect.com","budgetpackaging.com","americanblinds.com","overthehill.com","thesupplementstore.co.uk","intheholegolf.com","alldesignerglasses.com","nitetimetoys.com","instrumentalley.com","ergonomic-chairs.officechairs.com","piratescave.co.uk")
-  //val list = List("richtonemusic.co.uk")
+  //val list = List("nitetimetoys.com")
   val list = args(0).split(",").filter(s=> !s.equals(""))
   
   var domain2ScoreMap : Map[String,IndexedSeq[(Int,(Long,Long,Long,Long,Double,Double,Double,Double,Double))]] = Map.empty 
@@ -53,7 +53,7 @@ object GBTPerDomain {
   val test_points = Transformer.data2pointsPerURL(test,idf_vector_filtered,selected_indices,hashingTF).repartition(10)
   
   val boostingStrategy = BoostingStrategy.defaultParams("Classification")
-  boostingStrategy.numIterations = 1 
+  boostingStrategy.numIterations = 30 
   //boostingStrategy.treeStrategy.maxDepth = 5
   val model = GradientBoostedTrees.train(training_points, boostingStrategy)
  
@@ -62,14 +62,17 @@ object GBTPerDomain {
   domain2ScoreMap = domain2ScoreMap.updated(d, scoresMap)   
   }
   
-  val domain2ScoreList = domain2ScoreMap.toList
+  val domain2ScoreList = domain2ScoreMap.toList.map{l=>
+    l._2.map{s=> l._1+" : "+s.toString }.mkString("\n")
+    }
+  
  
-  sc.parallelize(domain2ScoreList, 1).saveAsTextFile("hdfs:///pavlovout/dscores/")
+  sc.parallelize(domain2ScoreList, 1).saveAsTextFile("hdfs:///pavlovout/dscores/"+list(0))
  
   /*for(d <- domain2ScoreMap.keySet){
     val scores = domain2ScoreMap.apply(d)
-    for(i<- scala.collection.SortedSet[Int]() ++scores.keySet )
-        println(d+" : "+i+" -- "+ scores.apply(i))
+    for(i<- scores )
+        println(d+" : "+i)
   }*/
   
  } 

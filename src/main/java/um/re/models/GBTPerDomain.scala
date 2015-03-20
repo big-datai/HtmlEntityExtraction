@@ -32,20 +32,13 @@ object GBTPerDomain {
   //val list = List("richtonemusic.co.uk")
   val list = args(0).split(",").filter(s=> !s.equals(""))
   
-  /*val domains = all.map{l=> Utils.getDomain(l._2.apply("url"))}.groupBy(d=>d).map(d=>(d._1,d._2.size)).filter(l=> l._2 >80).map(l=>l._1).take(1000)
-  sc.parallelize(domains,1).saveAsTextFile("hdfs:///pavlovout/domains")
-  */
   var domain2ScoreMap : Map[String,IndexedSeq[(Int,(Long,Long,Long,Long,Double,Double,Double))]] = Map.empty 
   for(d <- list){
   
-  val parsedDataPerURL : RDD[(String,(Int,Seq[String],Double,String))] = Transformer.parseDataPerURL(all).filter(l => l._2._4.equals(d))
-  //domains.unpersist()
-  val urls = parsedDataPerURL.map(l=> l._1).distinct
-  val splits = urls.randomSplit(Array(0.7, 0.3))
-  val (trainingUrls, testUrls) = (splits(0).map(l=>(l,1)), splits(1).map(l=>(l,1)))
+  val parsedDataPerURL = Transformer.parseDataPerURL(all).filter(l => l._2._4.equals(d)).groupBy(_._1)
   
-  val training = parsedDataPerURL.join(trainingUrls).map(j=> (j._1,j._2._1))
-  val test = parsedDataPerURL.join(testUrls).map(j=> (j._1,j._2._1))
+  val splits = parsedDataPerURL.randomSplit(Array(0.7, 0.3))
+  val (training, test) = (splits(0).flatMap(l=>l._2), splits(1).flatMap(l=>l._2))
   
   val hashingTF = new HashingTF(300000)
   val tf :RDD[Vector] = hashingTF.transform(training.map(l => l._2._2))
@@ -67,12 +60,11 @@ object GBTPerDomain {
   val subModels = Transformer.buildTreeSubModels(model)
   val scoresMap = subModels.map(m=>Transformer.evaluateModel(Transformer.labelAndPredPerURL(m,test_points),m))
   domain2ScoreMap = domain2ScoreMap.updated(d, scoresMap)   
- 
   }
   
   val domain2ScoreList = domain2ScoreMap.toList
  
-  sc.parallelize(domain2ScoreList, 1).saveAsTextFile("hdfs:///pavlovout/dscores/"+list(0))
+  sc.parallelize(domain2ScoreList, 1).saveAsTextFile("hdfs:///pavlovout/dscores/")
  
   /*for(d <- domain2ScoreMap.keySet){
     val scores = domain2ScoreMap.apply(d)

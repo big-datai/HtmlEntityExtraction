@@ -12,12 +12,13 @@ import org.apache.spark.mllib.tree.model.RandomForestModel
 
 object Transformer {
 
-  def splitRawDataByURL(data : RDD[(String,Map[String,String])]):(RDD[(String,Map[String,String])],RDD[(String,Map[String,String])]) = {
+  def splitRawDataByURL(data : RDD[(String,Map[String,String])],trainingFraction:Double = 0.7):(RDD[(String,Map[String,String])],RDD[(String,Map[String,String])]) = {
+    val testFraction = 1-trainingFraction
     val dataByURL = data.map{r =>
       val url = r._2.apply("url")
       (url,r)
       }.groupBy(_._1)
-    val splits = dataByURL.randomSplit(Array(0.7, 0.3))
+    val splits = dataByURL.randomSplit(Array(trainingFraction, testFraction))
     val (training, test) = (splits(0).flatMap(l=>l._2).map(_._2), splits(1).flatMap(l=>l._2).map(_._2))
     (training, test)
   }

@@ -12,17 +12,17 @@ import org.apache.spark.mllib.tree.model.RandomForestModel
 
 object Transformer {
 
-  def splitRawDataByURL(data : RDD[(String,Map[String,String])],trainingFraction:Double = 0.7):(RDD[(String,Map[String,String])],RDD[(String,Map[String,String])]) = {
-    val testFraction = 1-trainingFraction
-    val dataByURL = data.map{r =>
+  def splitRawDataByURL(data: RDD[(String, Map[String, String])], trainingFraction: Double = 0.7): (RDD[(String, Map[String, String])], RDD[(String, Map[String, String])]) = {
+    val testFraction = 1 - trainingFraction
+    val dataByURL = data.map { r =>
       val url = r._2.apply("url")
-      (url,r)
-      }.groupBy(_._1)
+      (url, r)
+    }.groupBy(_._1)
     val splits = dataByURL.randomSplit(Array(trainingFraction, testFraction))
-    val (training, test) = (splits(0).flatMap(l=>l._2).map(_._2), splits(1).flatMap(l=>l._2).map(_._2))
+    val (training, test) = (splits(0).flatMap(l => l._2).map(_._2), splits(1).flatMap(l => l._2).map(_._2))
     (training, test)
   }
-  
+
   def findTopKThreshold(values: Array[Double], k: Int): Double = {
     val _k = math.min(k, values.filter(v => v != 0.0).length) //number of tdidf features
     values.sorted.takeRight(_k)(0)
@@ -96,14 +96,32 @@ object Transformer {
     val domain = Utils.getDomain(row._2.apply("url"))
     val data = before + after + domain
     val location = Integer.valueOf(row._2.apply("location")).toDouble / (Integer.valueOf(row._2.apply("length")).toDouble)
-    val partsEmbedded = gramsByN(data, 5).toSeq
+    val partsEmbedded = gramsByN(data, grams).toSeq
     if (Utils.isTrueCandid(row._2, row._2))
       (1, partsEmbedded, location)
     else
       (0, partsEmbedded, location)
   }
-  def parseDataNGram(all: RDD[(String, Map[String, String])], grams: Int): RDD[(Int, Seq[String], Double)] = {
-    all.map(l => gramsParser(l, grams)).filter(l => l._2.length > 1)
+  def gramsParser(row: (String, Map[String, String]), grams: Int, grams2: Int): (Int, Seq[String], Double) = {
+    val before = row._2.apply("text_before")
+    val after = row._2.apply("text_after")
+    val domain = Utils.getDomain(row._2.apply("url"))
+    val data = before + after + domain
+    val location = Integer.valueOf(row._2.apply("location")).toDouble / (Integer.valueOf(row._2.apply("length")).toDouble)
+    val parts = gramsByN(data, grams).toSeq
+    val parts2 = gramsByN(data, grams2).toSeq
+    val partsEmbedded = parts ++ parts2
+    if (Utils.isTrueCandid(row._2, row._2))
+      (1, partsEmbedded, location)
+    else
+      (0, partsEmbedded, location)
+  }
+
+  def parseData(all: RDD[(String, Map[String, String])], grams: Int, grams2: Int): RDD[(Int, Seq[String], Double)] = {
+    if (grams2 != 0)
+      all.map(l => gramsParser(l, grams, grams2)).filter(l => l._2.length > 1)
+    else
+      all.map(l => gramsParser(l, grams)).filter(l => l._2.length > 1)
   }
   def parseData(all: RDD[(String, Map[String, String])]): RDD[(Int, Seq[String], Double)] = {
     all.map(parseDataRow).filter(l => l._2.length > 1)

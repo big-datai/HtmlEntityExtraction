@@ -194,6 +194,7 @@ object Transformer {
   }
 
   def evaluateModel(labelAndPreds: RDD[(String, Double, Double)], model_i: GradientBoostedTreesModel) = {
+    val urlCount = labelAndPreds.distinct.count
     val tp = labelAndPreds.filter { case (url, l, p) => (l == 1) && (p == 1) }.count
     val tn = labelAndPreds.filter { case (url, l, p) => (l == 0) && (p == 0) }.count
     val fp = labelAndPreds.filter { case (url, l, p) => (l == 0) && (p == 1) }.count
@@ -201,7 +202,11 @@ object Transformer {
     val sen = tp / (tp + fn).toDouble
     val spec = tn / (fp + tn).toDouble
     val prec = tp / (tp + fp).toDouble
-    (model_i.trees.length, (tp, tn, fp, fn, sen, spec, prec))
+    val predsByURL = labelAndPreds.groupBy(_._1).cache
+    val upperBound = predsByURL.filter{ p=> p._2.toList.filter(l=> l._2==1 && l._3==1).size > 0}.count.toDouble/urlCount.toDouble
+    val lowerBound = predsByURL.filter{ p=> (p._2.size > 0 && p._2.size == p._2.toList.filter(l=> l._2==1 && l._3==1).size )}.count.toDouble/urlCount.toDouble
+    
+    (model_i.trees.length, (tp, tn, fp, fn, sen, spec, prec,upperBound,lowerBound))
   }
 
   def labelAndPredPerURL(model: RandomForestModel, input_points: RDD[(String, LabeledPoint)]): RDD[(String, Double, Double)] = {

@@ -32,7 +32,7 @@ object GBTPerDomain {
   //val list = List("richtonemusic.co.uk")
   val list = args(0).split(",").filter(s=> !s.equals(""))
   
-  var domain2ScoreMap : Map[String,IndexedSeq[(Int,(Long,Long,Long,Long,Double,Double,Double))]] = Map.empty 
+  var domain2ScoreMap : Map[String,IndexedSeq[(Int,(Long,Long,Long,Long,Double,Double,Double,Double,Double))]] = Map.empty 
   for(d <- list){
   
   val parsedDataPerURL = Transformer.parseDataPerURL(all).filter(l => l._2._4.equals(d)).groupBy(_._1)

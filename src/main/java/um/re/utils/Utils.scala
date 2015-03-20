@@ -11,8 +11,9 @@ import scala.util.control.Exception
 import java.net.URI
 import java.io.PrintWriter
 import java.io.File
-import com.gargoylesoftware.htmlunit.WebClient;
+import com.gargoylesoftware.htmlunit.WebClient
 import com.gargoylesoftware.htmlunit.html.HtmlPage;
+import com.gargoylesoftware.htmlunit.WebResponseData
 object Utils {
 
   def getDomain(input: String) = {
@@ -123,8 +124,11 @@ object Utils {
         val price = l._2.get("price").get
         val price_updated = l._2.get("price_updated").get
         val html = shrinkString(l._2.get("price_prop1").get)
+        /*
         val html_to=l._2.get("price_prop1").get
-        val m_webClient = new WebClient();
+        val m_webClient = new WebClient()
+        val p=m_webClient.getPage(id)
+        */
         val patterns = shrinkString(l._2.get("price_patterns").get)
         val res = nf.findM(id, html)
         val p_h = Map("patterns" -> patterns, "html" -> html, "price" -> price, "price_updated" -> price_updated)

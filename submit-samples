@@ -7,8 +7,8 @@ fetures=(100) # 50 100 500 1000 3000 6000 9000 12000 20000 50000)
     for t in ${trees[@]} ; do
         for g in ${grams[@]} ; do
            for f in ${fetures[@]};do
-	   echo ~/spark/bin/spark-submit --jars $(echo /home/hadoop/*.jar | tr ' ' ',') --class "um.re.models.Trees4Grams" --master yarn-client /home/hadoop/sparkmain/target/sparkmain-1.0-SNAPSHOT.jar $t $g $f
-
+	   echo ~/spark/bin/spark-submit --jars $(echo /home/hadoop/*.jar | tr ' ' ',') --class "um.re.models.Trees4Grams" --master yarn-cluster /home/hadoop/sparkmain/target/sparkmain-1.0-SNAPSHOT.jar $t $g $f
+sh ~/spark/bin/spark-submit --jars $(echo /home/hadoop/*.jar | tr ' ' ',') --class "um.re.models.Trees4Grams" --master yarn-cluster /home/hadoop/sparkmain/target/sparkmain-1.0-SNAPSHOT.jar $t $g $f
 	   done 
         done
     done

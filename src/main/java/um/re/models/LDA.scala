@@ -1,5 +1,5 @@
 package um.re.models
-
+/*
 import um.re.utils.UConf
 import org.apache.spark.SparkConf
 import org.apache.spark.SparkContext
@@ -38,9 +38,9 @@ import org.apache.spark.mllib.stat.{ MultivariateStatisticalSummary, Statistics 
 import um.re.utils.EsUtils
 import um.re.utils.UConf
 import um.re.transform.Transformer
-import org.apache.spark.mllib.evaluation.BinaryClassificationMetrics
+import org.apache.spark.mllib.clustering.LDAModel
 
-object Trees4Grams {
+object LDA {
 
   def main(args: Array[String]) {
 
@@ -53,24 +53,24 @@ object Trees4Grams {
     val data = new UConf(sc, parts)
     val all = data.getData
 
-    val trees =20// Integer.parseInt(args.apply(0)) //50
-    val grams = 5//Integer.parseInt(args.apply(1))
-    val grams2 = 4//Integer.parseInt(args.apply(2))
-    val fetures = 100//Integer.parseInt(args.apply(3)) //10000
+    val trees =2// Integer.parseInt(args.apply(0)) //50
+    val grams = 4//Integer.parseInt(args.apply(1))
+    val grams2 = 5//Integer.parseInt(args.apply(2))
+    val fetures = 500//Integer.parseInt(args.apply(3)) //10000
     val depth = 5
 
     val allSampled = all.sample(false, 0.1, 12345)
 
     allSampled.partitions.size				//parseGramsTFIDFData
     val (trainingAll, testAll) = Transformer.splitRawDataByURL(allSampled)
+    //val trainingData = Transformer.parseData(trainingAll, grams, grams2).repartition(parts)
     val trainingData = Transformer.parseGramsTFIDFData(trainingAll, grams, grams2).repartition(parts)
-    //val trainingData = Transformer.parseGramsTFIDFData(trainingAll, grams, grams2).repartition(parts)
-    val test = Transformer.parseGramsTFIDFData(testAll, grams, grams2).repartition(parts)
+    val test = Transformer.parseData(testAll, grams, grams2).repartition(parts)
 
     trainingData.partitions.size
     test.partitions.size
     //trainng idf
-    val hashingTF = new HashingTF(500000)
+    val hashingTF = new HashingTF(300000)
     val tf: RDD[Vector] = hashingTF.transform(trainingData.map(l => l._2))
     val idf = (new IDF(minDocFreq = 10)).fit(tf)
     val idf_vector = idf.idf.toArray
@@ -81,13 +81,30 @@ object Trees4Grams {
 
     val training_points = Transformer.data2points(trainingData, idf_vector_filtered, hashingTF).repartition(parts)
     val test_points = Transformer.data2points(test, idf_vector_filtered, hashingTF).repartition(parts)
+   
+//https://github.com/apache/spark/blob/master/docs/mllib-clustering.md    
+    import org.apache.spark.mllib.clustering.LDA 
+    import org.apache.spark.mllib.linalg.Vectors
+    // Index documents with unique IDs 
+    val corpus = trainingData.zipWithIndex.map(_.swap).cache()
+    // Cluster the documents into three topics using LDA 
+   // val ldaModel = new LDA().setK(3).run(corpus) 
+    // Output topics. Each is a distribution over words (matching word count vectors) 
+    println("Learned topics (as distributions over vocab of " + ldaModel.vocabSize + " words):") 
+    val topics = ldaModel.topicsMatrix 
+  
+      // Load and parse the data 
 
+    /*
     val boostingStrategy = BoostingStrategy.defaultParams("Classification")
     boostingStrategy.numIterations = trees
     boostingStrategy.treeStrategy.maxDepth = depth ///4-8
     val model = GradientBoostedTrees.train(training_points, boostingStrategy)
+    * 
+    */
     // Evaluate model on test instances and compute test error
     val res = Transformer.labelAndPredRes(test_points, model)
     Utils.write2File("trees_" + trees + "_grams_" + grams +"_grams2_" + grams2+ "_fetures_" + fetures + "_res_" + res, sc)
   }
 }
+*/

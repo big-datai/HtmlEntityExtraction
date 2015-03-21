@@ -1,4 +1,5 @@
 package um.re.bin
+/*
 import org.apache.hadoop.io.MapWritable
 import org.apache.hadoop.io.Text
 import org.apache.hadoop.mapred.JobConf
@@ -192,3 +193,4 @@ object MakeLPPipe extends App {
   println("Learned GBT model:\n" + model.toDebugString)
 
 }
+*/

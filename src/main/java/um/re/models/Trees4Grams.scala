@@ -42,27 +42,31 @@ import um.re.transform.Transformer
 object Trees4Grams {
 
   def main(args: Array[String]) {
-    println("+++++++++++++++++++++++++++++++++++++       0:" + Integer.parseInt(args.apply(0)) + "_" + Integer.parseInt(args.apply(1)) + "_" + Integer.parseInt(args.apply(2)))
 
     val conf_s = new SparkConf().setAppName("es").setMaster("yarn-cluster").set("spark.serializer", classOf[KryoSerializer].getName)
     val sc = new SparkContext(conf_s)
 
-    val data = new UConf(sc, 1000)
+    println("+++++++++++++++++++++++++++++++++++++       0:" + Integer.parseInt(args.apply(0)) + "_" + Integer.parseInt(args.apply(1)) + "_" + Integer.parseInt(args.apply(2)))
+
+    val parts=3000
+    val data = new UConf(sc, parts)
     val all = data.getData
 
-    val trees = Integer.parseInt(args.apply(0)) //50
-    val grams = Integer.parseInt(args.apply(1))
+    val trees = 200//Integer.parseInt(args.apply(0)) //50
+    val grams = 4//Integer.parseInt(args.apply(1))
     val grams2 = 0
-    val fetures = Integer.parseInt(args.apply(2)) //10000
+    val fetures = 100//Integer.parseInt(args.apply(2)) //10000
     val depth = 5
-    println("+++++++++++++++++++++++++++++++++++++ trees : " + trees + "     grams:        " + grams + "     fetures :      " + fetures)
 
     val allSampled = all.sample(false, 0.1, 12345)
 
+    allSampled.partitions.size
     val (trainingAll, testAll) = Transformer.splitRawDataByURL(allSampled)
-    val trainingData = Transformer.parseData(trainingAll, grams, grams2)
-    val test = Transformer.parseData(testAll, grams, grams2)
-
+    val trainingData = Transformer.parseData(trainingAll, grams, grams2).repartition(parts)
+    val test = Transformer.parseData(testAll, grams, grams2).repartition(parts)
+    
+    trainingData.partitions.size
+    test.partitions.size
     //trainng idf
     val hashingTF = new HashingTF(300000)
     val tf: RDD[Vector] = hashingTF.transform(trainingData.map(l => l._2))
@@ -73,8 +77,8 @@ object Trees4Grams {
     val selected_indices = Transformer.getTopTFIDFIndices(fetures, tfidf_avg)
     val idf_vector_filtered = Transformer.projectByIndices(idf_vector, selected_indices)
 
-    val training_points = Transformer.data2points(trainingData, idf_vector_filtered, hashingTF)
-    val test_points = Transformer.data2points(test, idf_vector_filtered, hashingTF)
+    val training_points = Transformer.data2points(trainingData, idf_vector_filtered, hashingTF).repartition(parts)
+    val test_points = Transformer.data2points(test, idf_vector_filtered, hashingTF).repartition(parts)
 
     val boostingStrategy = BoostingStrategy.defaultParams("Classification")
     boostingStrategy.numIterations = trees
@@ -83,8 +87,7 @@ object Trees4Grams {
 
     // Evaluate model on test instances and compute test error
     val res = Transformer.labelAndPredRes(test_points, model)
-    val rddRes=sc.makeRDD(Seq(res))
-    rddRes.saveAsTextFile("/user/res/" + trees + "_grams_" + grams + "_fetures_" + fetures + "_res_" + res)
-    //Utils.write2File(res, "file:/home/hadoop/res/" + trees + "_grams_" + grams + "_fetures_" + fetures + "_res_" + res)
+    //   val res="this is a true story"
+    Utils.write2File("trees_" + trees + "_grams_" + grams + "_fetures_" + fetures + "_res_" + res, sc) // + trees + "_grams_" + grams + "_fetures_" + fetures + "_res_" + res)
   }
 }

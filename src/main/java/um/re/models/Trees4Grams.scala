@@ -48,7 +48,7 @@ object Trees4Grams {
 
     println("+++++++++++++++++++++++++++++++++++++       0:" + Integer.parseInt(args.apply(0)) + "_" + Integer.parseInt(args.apply(1)) + "_" + Integer.parseInt(args.apply(2)))
 
-    val parts=300
+    val parts=3000
     val data = new UConf(sc, parts)
     val all = data.getData
 

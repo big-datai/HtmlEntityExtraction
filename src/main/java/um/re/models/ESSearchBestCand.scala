@@ -1,5 +1,5 @@
 package um.re.models
-
+/*
 import org.apache.hadoop.io.MapWritable
 import org.apache.hadoop.io.Text
 import org.apache.hadoop.mapred.JobConf
@@ -32,7 +32,6 @@ object ESPatternAlgo {
   val source_map = source.map { l => (l._1.toString(), l._2.map { case (k, v) => (k.toString, v.toString) }.toMap) }.repartition(100)
 
   source_map.saveAsObjectFile("hdfs:///user/obj")
-  var acc = sc.accumulable(0)
   val patterns = source_map.map { l =>
     try {
       val patterns = l._2.get("patterns").get.toString
@@ -59,7 +58,6 @@ object ESPatternAlgo {
       val price_cand = res_map.take(1).apply(0)._2.get("price").get.toString
 
       if (price_o == price_cand)
-        acc.add(1)
 
     } catch {
       case _: Exception => null
@@ -79,9 +77,10 @@ object ESPatternAlgo {
     val res_map = res.map { l => (l._1.toString(), l._2.map { case (k, v) => (k.toString, v.toString) }.toMap) }
     val price_cand = res_map.take(1).apply(0)._2.get("price").get.toString
     if (price_o == price_cand) {
-      acc.add(1)
     }
   }
 
-  acc.value
+
 }
+* 
+*/

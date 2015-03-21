@@ -9,6 +9,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.rdd.PairRDDFunctions
 import um.re.utils.Utils
 import org.apache.spark.mllib.tree.model.RandomForestModel
+import org.apache.spark.mllib.classification.SVMModel
 
 object Transformer {
 
@@ -116,7 +117,28 @@ object Transformer {
     else
       (0, partsEmbedded, location)
   }
-
+  /**
+   * grams2 must be greater then 0
+   */
+  def gramsTFIDFParser(row: (String, Map[String, String]), grams: Int, grams2: Int): (Int, Seq[String], Double) = {
+    val before = row._2.apply("text_before")
+    val after = row._2.apply("text_after")
+    val domain = Utils.getDomain(row._2.apply("url"))
+    val data = before + after + domain
+    val location = Integer.valueOf(row._2.apply("location")).toDouble / (Integer.valueOf(row._2.apply("length")).toDouble)
+    val parts = gramsByN(data, grams).toSeq
+    val parts2 = gramsByN(data, grams2).toSeq
+    val partsEmbedded = parts ++ parts2 ++ Utils.tokenazer(data)
+    if (Utils.isTrueCandid(row._2, row._2))
+      (1, partsEmbedded, location)
+    else
+      (0, partsEmbedded, location)
+  }
+  
+  def parseGramsTFIDFData(all: RDD[(String, Map[String, String])], grams: Int, grams2: Int): RDD[(Int, Seq[String], Double)] = {
+    all.map(l => gramsTFIDFParser(l, grams, grams2))
+  }
+  
   def parseData(all: RDD[(String, Map[String, String])], grams: Int, grams2: Int): RDD[(Int, Seq[String], Double)] = {
     if (grams2 != 0)
       all.map(l => gramsParser(l, grams, grams2)).filter(l => l._2.length > 1)
@@ -221,10 +243,10 @@ object Transformer {
     val prec = tp / (tp + fp).toDouble
     val predsByURL = labelAndPreds.groupBy(_._1).cache
     val urlCount = predsByURL.count
-    val upperBound = predsByURL.filter{ p=> p._2.toList.filter(l=> l._2==1 && l._3==1).size > 0}.count.toDouble/urlCount.toDouble
-    val lowerBound = predsByURL.filter{ p=> (p._2.size > 0 && p._2.toList.filter(l=> l._2==1 && l._3==1).size > 0  && p._2.size == p._2.toList.filterNot(l=> l._2==0 && l._3==1).size )}.count.toDouble/urlCount.toDouble
+    val upperBound = predsByURL.filter { p => p._2.toList.filter(l => l._2 == 1 && l._3 == 1).size > 0 }.count.toDouble / urlCount.toDouble
+    val lowerBound = predsByURL.filter { p => (p._2.size > 0 && p._2.toList.filter(l => l._2 == 1 && l._3 == 1).size > 0 && p._2.size == p._2.toList.filterNot(l => l._2 == 0 && l._3 == 1).size) }.count.toDouble / urlCount.toDouble
     predsByURL.unpersist()
-    (model_i.trees.length, (tp, tn, fp, fn, sen, spec, prec,upperBound,lowerBound))
+    (model_i.trees.length, (tp, tn, fp, fn, sen, spec, prec, upperBound, lowerBound))
   }
 
   def labelAndPredPerURL(model: RandomForestModel, input_points: RDD[(String, LabeledPoint)]): RDD[(String, Double, Double)] = {
@@ -252,6 +274,20 @@ object Transformer {
     labelAndPreds
   }
   def labelAndPredRes(inputPoints: RDD[LabeledPoint], model: GradientBoostedTreesModel): String = {
+    val local_model = model
+    val labelAndPreds = inputPoints.map { point =>
+      val prediction = local_model.predict(point.features)
+      (point.label, prediction)
+    }
+    val tp = labelAndPreds.filter { case (l, p) => (l == 1) && (p == 1) }.count
+    val tn = labelAndPreds.filter { case (l, p) => (l == 0) && (p == 0) }.count
+    val fp = labelAndPreds.filter { case (l, p) => (l == 0) && (p == 1) }.count
+    val fn = labelAndPreds.filter { case (l, p) => (l == 1) && (p == 0) }.count
+    println("tp : " + tp + ", tn : " + tn + ", fp : " + fp + ", fn : " + fn)
+    val res = "sensitivity : " + tp / (tp + fn).toDouble + " specificity : " + tn / (fp + tn).toDouble + " precision : " + tp / (tp + fp).toDouble
+    res
+  }
+    def labelAndPredRes(inputPoints: RDD[LabeledPoint], model: SVMModel): String = {
     val local_model = model
     val labelAndPreds = inputPoints.map { point =>
       val prediction = local_model.predict(point.features)

@@ -38,9 +38,10 @@ import org.apache.spark.mllib.stat.{ MultivariateStatisticalSummary, Statistics 
 import um.re.utils.EsUtils
 import um.re.utils.UConf
 import um.re.transform.Transformer
+import org.apache.spark.mllib.classification.{ SVMModel, SVMWithSGD }
 import org.apache.spark.mllib.evaluation.BinaryClassificationMetrics
 
-object Trees4Grams {
+object SVM {
 
   def main(args: Array[String]) {
 
@@ -53,18 +54,17 @@ object Trees4Grams {
     val data = new UConf(sc, parts)
     val all = data.getData
 
-    val trees =20// Integer.parseInt(args.apply(0)) //50
-    val grams = 5//Integer.parseInt(args.apply(1))
-    val grams2 = 4//Integer.parseInt(args.apply(2))
-    val fetures = 100//Integer.parseInt(args.apply(3)) //10000
+    val grams = 5 //Integer.parseInt(args.apply(1))
+    val grams2 = 4 //Integer.parseInt(args.apply(2))
+    val fetures = 10000 //Integer.parseInt(args.apply(3)) //10000
     val depth = 5
 
     val allSampled = all.sample(false, 0.1, 12345)
 
-    allSampled.partitions.size				//parseGramsTFIDFData
+    allSampled.partitions.size //parseGramsTFIDFData
     val (trainingAll, testAll) = Transformer.splitRawDataByURL(allSampled)
+
     val trainingData = Transformer.parseGramsTFIDFData(trainingAll, grams, grams2).repartition(parts)
-    //val trainingData = Transformer.parseGramsTFIDFData(trainingAll, grams, grams2).repartition(parts)
     val test = Transformer.parseGramsTFIDFData(testAll, grams, grams2).repartition(parts)
 
     trainingData.partitions.size
@@ -82,12 +82,37 @@ object Trees4Grams {
     val training_points = Transformer.data2points(trainingData, idf_vector_filtered, hashingTF).repartition(parts)
     val test_points = Transformer.data2points(test, idf_vector_filtered, hashingTF).repartition(parts)
 
-    val boostingStrategy = BoostingStrategy.defaultParams("Classification")
-    boostingStrategy.numIterations = trees
-    boostingStrategy.treeStrategy.maxDepth = depth ///4-8
-    val model = GradientBoostedTrees.train(training_points, boostingStrategy)
+    // Run training algorithm to build the model
+    val numIterations = 1000
+    val model = SVMWithSGD.train(training_points, numIterations)
+    model.clearThreshold()
     // Evaluate model on test instances and compute test error
-    val res = Transformer.labelAndPredRes(test_points, model)
-    Utils.write2File("trees_" + trees + "_grams_" + grams +"_grams2_" + grams2+ "_fetures_" + fetures + "_res_" + res, sc)
+    // Compute raw scores on the test set.
+
+    def labelAndPredRes(inputPoints: RDD[LabeledPoint], model: SVMModel) = {
+      val local_model = model
+      val labelAndPreds = inputPoints.map { point =>
+        val prediction = local_model.predict(point.features)
+        val p = 0.5 + prediction
+        (point.label, p.toInt)
+      }
+      val tp = labelAndPreds.filter { case (l, p) => (l == 1) && (p == 1) }.count
+      val tn = labelAndPreds.filter { case (l, p) => (l == 0) && (p == 0) }.count
+      val fp = labelAndPreds.filter { case (l, p) => (l == 0) && (p == 1) }.count
+      val fn = labelAndPreds.filter { case (l, p) => (l == 1) && (p == 0) }.count
+      println("tp : " + tp + ", tn : " + tn + ", fp : " + fp + ", fn : " + fn)
+      val res = "sensitivity : " + tp / (tp + fn).toDouble + " specificity : " + tn / (fp + tn).toDouble + " precision : " + tp / (tp + fp).toDouble
+      println(res)
+      res
+    }
+
+    val scoreAndLabels = labelAndPredRes(test_points, model)
+
+    /*
+    // Get evaluation metrics.
+    val metrics = new BinaryClassificationMetrics(scoreAndLabels)
+    val auROC = metrics.thresholds()//areaUnderROC()
+    */
+    //Utils.write2File("trees_" + trees + "_grams_" + grams + "_grams2_" + grams2 + "_fetures_" + fetures + "_res_" + res, sc)
   }
 }

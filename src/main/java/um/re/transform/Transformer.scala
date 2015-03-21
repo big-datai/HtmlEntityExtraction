@@ -219,7 +219,12 @@ object Transformer {
     val sen = tp / (tp + fn).toDouble
     val spec = tn / (fp + tn).toDouble
     val prec = tp / (tp + fp).toDouble
-    (model_i.trees.length, (tp, tn, fp, fn, sen, spec, prec))
+    val predsByURL = labelAndPreds.groupBy(_._1).cache
+    val urlCount = predsByURL.count
+    val upperBound = predsByURL.filter{ p=> p._2.toList.filter(l=> l._2==1 && l._3==1).size > 0}.count.toDouble/urlCount.toDouble
+    val lowerBound = predsByURL.filter{ p=> (p._2.size > 0 && p._2.toList.filter(l=> l._2==1 && l._3==1).size > 0  && p._2.size == p._2.toList.filterNot(l=> l._2==0 && l._3==1).size )}.count.toDouble/urlCount.toDouble
+    predsByURL.unpersist()
+    (model_i.trees.length, (tp, tn, fp, fn, sen, spec, prec,upperBound,lowerBound))
   }
 
   def labelAndPredPerURL(model: RandomForestModel, input_points: RDD[(String, LabeledPoint)]): RDD[(String, Double, Double)] = {

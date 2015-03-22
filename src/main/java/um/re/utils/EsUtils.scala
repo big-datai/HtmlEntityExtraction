@@ -10,7 +10,6 @@ import org.apache.spark.SparkContext._
 import org.apache.spark.rdd._
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.serializer.KryoRegistrator
-import com.esotericsoftware.kryo.Kryo
 import scala.math
 import scala.collection.JavaConversions._
 import play.api.libs.json._
@@ -23,7 +22,7 @@ import org.apache.hadoop.io.NullWritable
 import org.elasticsearch.hadoop.mr.EsOutputFormat
 
 object EsUtils {
-  val ESIP = "54.234.29.6"
+  val ESIP = "54.159.1.156"
   val ESINDEX = "candidl/data"
   val conf = new JobConf()
   conf.set("es.resource", "process_count/counter")

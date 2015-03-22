@@ -78,8 +78,8 @@ object SVM {
     val selected_indices = Transformer.getTopTFIDFIndices(fetures, tfidf_avg)
     val idf_vector_filtered = Transformer.projectByIndices(idf_vector, selected_indices)
 
-    val training_points = Transformer.data2points(trainingData, idf_vector_filtered, hashingTF).repartition(parts)
-    val test_points = Transformer.data2points(test, idf_vector_filtered, hashingTF).repartition(parts)
+    val training_points = Transformer.data2points(trainingData, idf_vector_filtered,selected_indices, hashingTF).repartition(parts)
+    val test_points = Transformer.data2points(test, idf_vector_filtered,selected_indices, hashingTF).repartition(parts)
 
     // Run training algorithm to build the model
     val numIterations = 1000

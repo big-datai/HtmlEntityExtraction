@@ -11,7 +11,7 @@ import org.apache.spark.SparkContext._
 import org.apache.spark.rdd._
 import org.apache.spark.serializer.KryoSerializer
 import org.apache.spark.serializer.KryoRegistrator
-import com.esotericsoftware.kryo.Kryo
+//import com.esotericsoftware.kryo.Kryo
 import um.re.utils.URegistrator
 import scala.math
 import scala.collection.JavaConversions._

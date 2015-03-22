@@ -173,7 +173,19 @@ object Transformer {
     }.filter(l => l._2._2.length > 1)
   }
 
-  def data2points(data: RDD[(Int, Seq[String], Double)], idf_vals: Array[Double], tf_model: HashingTF): RDD[LabeledPoint] = {
+  def data2points(data: RDD[(Int, Seq[String], Double)], idf_vals: Array[Double], selected_ind_vals: Array[Int] = null, tf_model: HashingTF): RDD[LabeledPoint] = {
+    data.map {
+      case (lable, txt, location) =>
+        val tf_vals_full = tf_model.transform(txt).toArray
+        val  tf_vals = selected_ind_vals.map(i => tf_vals_full(i))
+        val tfidf_vals = (tf_vals, idf_vals).zipped.map((d1, d2) => d1 * d2)
+        val features = tfidf_vals ++ Array(location)
+        val values = features.filter { l => l != 0 }
+        val index = features.zipWithIndex.filter { l => l._1 != 0 }.map { l => l._2 }
+        LabeledPoint(lable, Vectors.sparse(features.length, index, values))
+    }
+  }
+def data2points(data: RDD[(Int, Seq[String], Double)], idf_vals: Array[Double], tf_model: HashingTF): RDD[LabeledPoint] = {
     data.map {
       case (lable, txt, location) =>
         val tf_vals = tf_model.transform(txt).toArray
@@ -185,6 +197,8 @@ object Transformer {
     }
   }
 
+  
+  
   def data2pointsPerURL(data: RDD[(String, (Int, Seq[String], Double, String))], idf_vals: Array[Double], selected_ind_vals: Array[Int], tf_model: HashingTF) = {
     data.map {
       case (url, (lable, txt, location, domain)) =>

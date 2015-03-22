@@ -57,8 +57,8 @@ object GBTLocationFeatureSelection extends App{
   val selected_indices = Transformer.getTopTFIDFIndices(100,tfidf_avg)
   val idf_vector_filtered = Transformer.projectByIndices(idf_vector, selected_indices) 
   
-  val training_points = Transformer.data2points(trainingData, idf_vector_filtered, hashingTF)
-  val test_points = Transformer.data2points(test, idf_vector_filtered, hashingTF)
+  val training_points = Transformer.data2points(trainingData, idf_vector_filtered,selected_indices, hashingTF)
+  val test_points = Transformer.data2points(test, idf_vector_filtered,selected_indices, hashingTF)
 
   val boostingStrategy =BoostingStrategy.defaultParams("Classification")
   boostingStrategy.numIterations = 3

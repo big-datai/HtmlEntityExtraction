@@ -57,7 +57,6 @@ object SVM {
     val grams = 5 //Integer.parseInt(args.apply(1))
     val grams2 = 4 //Integer.parseInt(args.apply(2))
     val fetures = 10000 //Integer.parseInt(args.apply(3)) //10000
-    val depth = 5
 
     val allSampled = all.sample(false, 0.1, 12345)
 
@@ -93,7 +92,7 @@ object SVM {
       val local_model = model
       val labelAndPreds = inputPoints.map { point =>
         val prediction = local_model.predict(point.features)
-        val p = 0.5 + prediction
+        val p = 0.05 + prediction
         (point.label, p.toInt)
       }
       val tp = labelAndPreds.filter { case (l, p) => (l == 1) && (p == 1) }.count

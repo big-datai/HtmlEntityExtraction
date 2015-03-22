@@ -44,7 +44,7 @@ object Trees4Grams {
 
   def main(args: Array[String]) {
 
-    val conf_s = new SparkConf().setAppName("es").setMaster("yarn-cluster").set("spark.serializer", classOf[KryoSerializer].getName)
+    val conf_s = new SparkConf().setAppName("es").set("spark.serializer", classOf[KryoSerializer].getName)
     val sc = new SparkContext(conf_s)
 
     println("+++++++++++++++++++++++++++++++++++++       0:" + Integer.parseInt(args.apply(0)) + "_" + Integer.parseInt(args.apply(1)) + "_" + Integer.parseInt(args.apply(2)))

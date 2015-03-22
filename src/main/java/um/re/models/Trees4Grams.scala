@@ -49,23 +49,24 @@ object Trees4Grams {
 
     println("+++++++++++++++++++++++++++++++++++++       0:" + Integer.parseInt(args.apply(0)) + "_" + Integer.parseInt(args.apply(1)) + "_" + Integer.parseInt(args.apply(2)))
 
-    val parts = 300
+    val parts = 1000
     val data = new UConf(sc, parts)
     val all = data.getData
 
-    val trees =20// Integer.parseInt(args.apply(0)) //50
+    val trees =200// Integer.parseInt(args.apply(0)) //50
     val grams = 5//Integer.parseInt(args.apply(1))
     val grams2 = 4//Integer.parseInt(args.apply(2))
-    val fetures = 100//Integer.parseInt(args.apply(3)) //10000
+    val fetures = 200//Integer.parseInt(args.apply(3)) //10000
     val depth = 5
 
     val allSampled = all.sample(false, 0.1, 12345)
 
     allSampled.partitions.size				//parseGramsTFIDFData
     val (trainingAll, testAll) = Transformer.splitRawDataByURL(allSampled)
-    val trainingData = Transformer.parseGramsTFIDFData(trainingAll, grams, grams2).repartition(parts)
     //val trainingData = Transformer.parseGramsTFIDFData(trainingAll, grams, grams2).repartition(parts)
-    val test = Transformer.parseGramsTFIDFData(testAll, grams, grams2).repartition(parts)
+    //val test = Transformer.parseGramsTFIDFData(testAll, grams, grams2).repartition(parts)
+    val trainingData = Transformer.parseData(trainingAll).repartition(parts)
+    val test = Transformer.parseData(testAll).repartition(parts)
 
     trainingData.partitions.size
     test.partitions.size

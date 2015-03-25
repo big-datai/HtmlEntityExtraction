@@ -1,0 +1,16 @@
+#bash submit multiple
+
+trees=(5 500 1000)
+grams=(4 6)
+grams2=(5 0)
+fetures=(1000 6000 20000 50000)                                                                                                                               
+    for t in ${trees[@]} ; do
+        for g in ${grams[@]} ; do
+	  	for g2 in ${grams2[@]} ; do
+           		for f in ${fetures[@]};do
+		nohup sh ~/spark/bin/spark-submit --jars $(echo /home/hadoop/*.jar | tr ' ' ',') --class "um.re.models.Trees4Grams" --master yarn-cluster /home/hadoop/sparkmain/target/sparkmain-1.0-SNAPSHOT.jar $t $g $g2 $f &
+	     		sleep 1m
+			done
+	   	done 
+        done
+    done

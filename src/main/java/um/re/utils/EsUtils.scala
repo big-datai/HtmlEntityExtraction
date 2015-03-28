@@ -22,7 +22,7 @@ import org.apache.hadoop.io.NullWritable
 import org.elasticsearch.hadoop.mr.EsOutputFormat
 
 object EsUtils {
-  val ESIP = "54.159.1.156"
+  val ESIP = "54.152.94.149"
   val ESINDEX = "candidl/data"
   val conf = new JobConf()
   conf.set("es.resource", "process_count/counter")

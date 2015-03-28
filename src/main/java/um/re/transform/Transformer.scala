@@ -173,6 +173,35 @@ object Transformer {
     }.filter(l => l._2._2.length > 1)
   }
 
+  def parseDataRawPerURL(raw: RDD[(String, Map[String, String])]): RDD[(String, (Int, String, Double, String))] = {
+    raw.map { l =>
+      val url = l._2.apply("url")
+      val domain = Utils.getDomain(url)
+      val before = l._2.apply("text_before")
+      val after = l._2.apply("text_after")
+      val txt =  before+after
+      val (label, partsEmbedded, normalizedLocation) = parseDataRow(l)
+      (url, (label, txt, normalizedLocation, domain))
+
+    }.filter(l => l._2._2.length > 1)
+  }
+  def tokenizeParsedDataByURLRow(row:(String, (Int, String, Double, String)),tokenize:Boolean,grams:Int,grams2:Int) ={
+    val (url, (label, txt, normalizedLocation, domain)) = row  
+    var newTokens :Seq[String]= Seq.empty
+	if (tokenize)
+	  newTokens = Utils.tokenazer(txt)
+	if (grams > 0)
+	  newTokens = newTokens++Transformer.gramsByN(txt, grams)
+	if (grams2 > 0)
+	  newTokens = newTokens++Transformer.gramsByN(txt, grams2)
+	(url, (label, newTokens, normalizedLocation, domain))
+	
+  }
+  def tokenizeParsedDataByURL(data:RDD[(String, (Int, String, Double, String))],tokenize:Boolean,grams:Int,grams2:Int)={
+    data.map{tokenizeParsedDataByURLRow(_,tokenize,grams,grams2)}
+  }
+
+  
   def data2points(data: RDD[(Int, Seq[String], Double)], idf_vals: Array[Double], selected_ind_vals: Array[Int] = null, tf_model: HashingTF): RDD[LabeledPoint] = {
     data.map {
       case (lable, txt, location) =>
@@ -239,12 +268,15 @@ def data2points(data: RDD[(Int, Seq[String], Double)], idf_vals: Array[Double], 
     labelAndPreds
   }
 
-  def buildTreeSubModels(model: GradientBoostedTreesModel): IndexedSeq[GradientBoostedTreesModel] = {
+  def buildTreeSubModels(model: GradientBoostedTreesModel,sizes:Array[Int]=Array()): IndexedSeq[GradientBoostedTreesModel] = {
     val algo = model.algo
     val trees = model.trees
     val treeW = model.treeWeights
     val numTrees = trees.length
-    for (i <- 1 to trees.size) yield new GradientBoostedTreesModel(algo, trees.take(i), treeW.take(i))
+    if (sizes.length==0)
+    	for (i <- 1 to trees.size) yield new GradientBoostedTreesModel(algo, trees.take(i), treeW.take(i))
+    else 
+      for (i <- sizes) yield new GradientBoostedTreesModel(algo, trees.take(i), treeW.take(i))
   }
 
   def evaluateModel(labelAndPreds: RDD[(String, Double, Double)], model_i: GradientBoostedTreesModel) = {

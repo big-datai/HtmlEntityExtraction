@@ -67,7 +67,7 @@ object GBTPerDomain {
     }
   
  
-  sc.parallelize(domain2ScoreList, 1).saveAsTextFile("hdfs:///pavlovout/dscores/"+list(0))
+  sc.parallelize(domain2ScoreList, 1).saveAsTextFile("s3://pavlovout/dscores/"+list(0))
  
   /*for(d <- domain2ScoreMap.keySet){
     val scores = domain2ScoreMap.apply(d)

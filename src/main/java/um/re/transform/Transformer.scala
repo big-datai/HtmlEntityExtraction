@@ -134,11 +134,11 @@ object Transformer {
     else
       (0, partsEmbedded, location)
   }
-  
+
   def parseGramsTFIDFData(all: RDD[(String, Map[String, String])], grams: Int, grams2: Int): RDD[(Int, Seq[String], Double)] = {
     all.map(l => gramsTFIDFParser(l, grams, grams2))
   }
-  
+
   def parseData(all: RDD[(String, Map[String, String])], grams: Int, grams2: Int): RDD[(Int, Seq[String], Double)] = {
     if (grams2 != 0)
       all.map(l => gramsParser(l, grams, grams2)).filter(l => l._2.length > 1)
@@ -206,7 +206,7 @@ object Transformer {
     data.map {
       case (lable, txt, location) =>
         val tf_vals_full = tf_model.transform(txt).toArray
-        val  tf_vals = selected_ind_vals.map(i => tf_vals_full(i))
+        val tf_vals = selected_ind_vals.map(i => tf_vals_full(i))
         val tfidf_vals = (tf_vals, idf_vals).zipped.map((d1, d2) => d1 * d2)
         val features = tfidf_vals ++ Array(location)
         val values = features.filter { l => l != 0 }
@@ -214,7 +214,7 @@ object Transformer {
         LabeledPoint(lable, Vectors.sparse(features.length, index, values))
     }
   }
-def data2points(data: RDD[(Int, Seq[String], Double)], idf_vals: Array[Double], tf_model: HashingTF): RDD[LabeledPoint] = {
+  def data2points(data: RDD[(Int, Seq[String], Double)], idf_vals: Array[Double], tf_model: HashingTF): RDD[LabeledPoint] = {
     data.map {
       case (lable, txt, location) =>
         val tf_vals = tf_model.transform(txt).toArray
@@ -226,8 +226,6 @@ def data2points(data: RDD[(Int, Seq[String], Double)], idf_vals: Array[Double], 
     }
   }
 
-  
-  
   def data2pointsPerURL(data: RDD[(String, (Int, Seq[String], Double, String))], idf_vals: Array[Double], selected_ind_vals: Array[Int], tf_model: HashingTF) = {
     data.map {
       case (url, (lable, txt, location, domain)) =>
@@ -333,7 +331,7 @@ def data2points(data: RDD[(Int, Seq[String], Double)], idf_vals: Array[Double], 
     val res = "sensitivity : " + tp / (tp + fn).toDouble + " specificity : " + tn / (fp + tn).toDouble + " precision : " + tp / (tp + fp).toDouble
     res
   }
-    def labelAndPredRes(inputPoints: RDD[LabeledPoint], model: SVMModel): String = {
+  def labelAndPredRes(inputPoints: RDD[LabeledPoint], model: SVMModel): String = {
     val local_model = model
     val labelAndPreds = inputPoints.map { point =>
       val prediction = local_model.predict(point.features)
@@ -345,9 +343,9 @@ def data2points(data: RDD[(Int, Seq[String], Double)], idf_vals: Array[Double], 
     val fn = labelAndPreds.filter { case (l, p) => (l == 1) && (p == 0) }.count
     println("tp : " + tp + ", tn : " + tn + ", fp : " + fp + ", fn : " + fn)
     val res = "sensitivity : " + tp / (tp + fn).toDouble + " specificity : " + tn / (fp + tn).toDouble + " precision : " + tp / (tp + fp).toDouble
-    res
+    res.replaceAll("\\s", "_").replaceAll(":", "_")
   }
-  def labelAndPred(inputPoints: RDD[LabeledPoint], model: RandomForestModel): RDD[(Double, Double)] = {
+  def labelAndPred(inputPoints: RDD[LabeledPoint], model: RandomForestModel):String = {
     val local_model = model
     val labelAndPreds = inputPoints.map { point =>
       val prediction = local_model.predict(point.features)
@@ -358,7 +356,7 @@ def data2points(data: RDD[(Int, Seq[String], Double)], idf_vals: Array[Double], 
     val fp = labelAndPreds.filter { case (l, p) => (l == 0) && (p == 1) }.count
     val fn = labelAndPreds.filter { case (l, p) => (l == 1) && (p == 0) }.count
     println("tp : " + tp + ", tn : " + tn + ", fp : " + fp + ", fn : " + fn)
-    println("sensitivity : " + tp / (tp + fn).toDouble + " specificity : " + tn / (fp + tn).toDouble + " precision : " + tp / (tp + fp).toDouble)
-    labelAndPreds
+    val res="sensitivity : " + tp / (tp + fn).toDouble + " specificity : " + tn / (fp + tn).toDouble + " precision : " + tp / (tp + fp).toDouble
+    res.replaceAll("\\s", "_").replaceAll(":", "_")
   }
 }

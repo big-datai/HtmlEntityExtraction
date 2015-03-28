@@ -44,18 +44,18 @@ object Trees4Grams {
 
   def main(args: Array[String]) {
 
-    val conf_s = new SparkConf().setAppName("es").set("spark.serializer", classOf[KryoSerializer].getName)
+    val conf_s = new SparkConf().setAppName("Trees4Grams")//.set("spark.serializer", classOf[KryoSerializer].getName)
     val sc = new SparkContext(conf_s)
 
-    println("+++++++++++++++++++++++++++++++++++++       0:" + Integer.parseInt(args.apply(0)) + "_" + Integer.parseInt(args.apply(1)) + "_" + Integer.parseInt(args.apply(2)))
-
-    val parts = 1000
+    val parts = 2000
     val data = new UConf(sc, parts)
     val all = data.getData
+    
+   // all.repartition(parts).saveAsObjectFile("/user/hadoop/data_es2")
 
     val trees = Integer.parseInt(args.apply(0)) //50
     val grams = Integer.parseInt(args.apply(1))
-    val grams2 = Integer.parseInt(args.apply(2))
+    val grams2 =Integer.parseInt(args.apply(2))
     val fetures = Integer.parseInt(args.apply(3)) //10000
     val depth = 5
 
@@ -65,8 +65,8 @@ object Trees4Grams {
     val (trainingAll, testAll) = Transformer.splitRawDataByURL(allSampled)
     //val trainingData = Transformer.parseGramsTFIDFData(trainingAll, grams, grams2).repartition(parts)
     //val test = Transformer.parseGramsTFIDFData(testAll, grams, grams2).repartition(parts)
-    val trainingData = Transformer.parseData(trainingAll).repartition(parts)
-    val test = Transformer.parseData(testAll).repartition(parts)
+    val trainingData = Transformer.parseGramsTFIDFData(trainingAll, grams, grams2).repartition(parts)
+    val test = Transformer.parseGramsTFIDFData(testAll, grams, grams2).repartition(parts)
 
     trainingData.partitions.size
     test.partitions.size

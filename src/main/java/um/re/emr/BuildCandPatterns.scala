@@ -28,9 +28,9 @@ import um.re.utils.EsUtils
 
 
 object BuildCandPatterns extends App {
-  val conf_s = new SparkConf().setAppName("es").setMaster("yarn-cluster").set("spark.serializer", classOf[KryoSerializer].getName)
-  conf_s.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
-  conf_s.set("spark.kryo.registrator", "um.re.es.emr.URegistrator")
+  val conf_s = new SparkConf()//.setAppName("es").setMaster("yarn-cluster").set("spark.serializer", classOf[KryoSerializer].getName)
+  //conf_s.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
+  //conf_s.set("spark.kryo.registrator", "um.re.es.emr.URegistrator")
   val sc = new SparkContext(conf_s)
 
   val conf = new JobConf()

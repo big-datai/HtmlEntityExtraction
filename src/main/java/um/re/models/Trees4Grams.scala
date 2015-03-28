@@ -44,7 +44,7 @@ object Trees4Grams {
 
   def main(args: Array[String]) {
 
-    val conf_s = new SparkConf().setAppName("es").set("spark.serializer", classOf[KryoSerializer].getName)
+    val conf_s = new SparkConf().setAppName("Trees4Grams")//.set("spark.serializer", classOf[KryoSerializer].getName)
     val sc = new SparkContext(conf_s)
 
     val parts = 2000

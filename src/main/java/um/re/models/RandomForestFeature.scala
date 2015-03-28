@@ -22,12 +22,10 @@ import um.re.utils.Utils
 
 object RandomForestFeature extends App {
 
-  val conf_s = new SparkConf().setAppName("es").setMaster("yarn-cluster").set("spark.serializer", classOf[KryoSerializer].getName).set("spark.driver.maxResultSize","10g")
+  val conf_s = new SparkConf().setAppName("RandomForest")
   val sc = new SparkContext(conf_s)
 
-  println("+++++++++++++++++++++++++++++++++++++       0:" + Integer.parseInt(args.apply(0)) + "_" + Integer.parseInt(args.apply(1)) + "_" + Integer.parseInt(args.apply(2)))
-
-  val parts = 1000
+  val parts = 2000
   val data = new UConf(sc, parts)
   val all = data.getData
 
@@ -40,13 +38,9 @@ object RandomForestFeature extends App {
 
   allSampled.partitions.size //parseGramsTFIDFData
   val (trainingAll, testAll) = Transformer.splitRawDataByURL(allSampled)
-  // val trainingData = Transformer.parseGramsTFIDFData(trainingAll, grams, grams2).repartition(parts)
-  // val test = Transformer.parseGramsTFIDFData(testAll, grams, grams2).repartition(parts)
-  val trainingData = Transformer.parseData(trainingAll, grams, 0).repartition(parts)
-  val test = Transformer.parseData(testAll, grams, 0).repartition(parts)
+  val trainingData = Transformer.parseGramsTFIDFData(trainingAll, grams, 0).repartition(parts)
+  val test = Transformer.parseGramsTFIDFData(testAll, grams, 0).repartition(parts)
 
-  trainingData.partitions.size
-  test.partitions.size
   //trainng idf
   val hashingTF = new HashingTF(500000)
   val tf: RDD[Vector] = hashingTF.transform(trainingData.map(l => l._2))
@@ -60,8 +54,6 @@ object RandomForestFeature extends App {
   val training_points = Transformer.data2points(trainingData, idf_vector_filtered, selected_indices, hashingTF).repartition(parts)
   val test_points = Transformer.data2points(test, idf_vector_filtered, selected_indices, hashingTF).repartition(parts)
 
-  import org.apache.spark.mllib.tree.RandomForest
-  // Train a RandomForest model.
   val treeStrategy = Strategy.defaultStrategy("Classification")
   val featureSubsetStrategy = "auto" // Let the algorithm choose.
   val model = RandomForest.trainClassifier(training_points, treeStrategy, trees, featureSubsetStrategy, seed = 12345)

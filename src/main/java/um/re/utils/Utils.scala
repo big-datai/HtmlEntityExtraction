@@ -12,8 +12,9 @@ import java.net.URI
 import java.io.PrintWriter
 import java.io.File
 import com.gargoylesoftware.htmlunit.WebClient
-import com.gargoylesoftware.htmlunit.html.HtmlPage;
+import com.gargoylesoftware.htmlunit.html.HtmlPage
 import com.gargoylesoftware.htmlunit.WebResponseData
+import org.apache.spark.mllib.tree.GradientBoostedTrees
 object Utils {
 
   def getDomain(input: String) = {
@@ -106,7 +107,7 @@ object Utils {
     candid
   }
   /**
-   * This method checks if candidate is true and 
+   * This method checks if candidate is true and
    */
   def isTrueCandid(map_pat: Map[String, String], cand: Map[String, String]): Boolean = {
     (map_pat.get("price") != None && map_pat.get("price_updated") != None && cand.get("priceCandidate") != None &&
@@ -215,7 +216,7 @@ object Utils {
     try { op(p) } finally { p.close() }
   }
 
-  def write2File(text:String, sc:SparkContext){
+  def write2File(text: String, sc: SparkContext) {
     val rddRes = sc.makeRDD(Seq(text))
     rddRes.saveAsTextFile("hdfs:///user/res/" + text)
   }
@@ -227,9 +228,32 @@ object Utils {
       m.put(new Text(k), new Text(v))
     m
   }
- 
 
   def mapWritableToInput(in: MapWritable): Map[String, String] = {
     in.map { case (k, v) => (k.toString, v.toString) }.toMap
   }
+  /**
+   * Only in client mode
+   */
+  def saveModel(path: String, model: GradientBoostedTrees) {
+    //save model 
+    import java.io.FileOutputStream
+    import java.io.ObjectOutputStream
+    val fos = new FileOutputStream("/home/hadoop/modelAll")
+    val oos = new ObjectOutputStream(fos)
+    oos.writeObject(model)
+    oos.close
+  }
+  /**
+   * Only in client mode
+   */
+  def loadModel() {
+    import java.io.FileInputStream
+    import java.io.ObjectInputStream
+    var model: org.apache.spark.mllib.tree.model.GradientBoostedTreesModel = null
+    val fos = new FileInputStream("/home/hadoop/modelAll")
+    val oos = new ObjectInputStream(fos)
+    model = oos.readObject().asInstanceOf[org.apache.spark.mllib.tree.model.GradientBoostedTreesModel]
+  }
+
 }

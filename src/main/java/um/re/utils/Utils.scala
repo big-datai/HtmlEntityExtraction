@@ -262,32 +262,7 @@ object Utils {
     val oos = new ObjectInputStream(fos)
     model = oos.readObject().asInstanceOf[org.apache.spark.mllib.tree.model.GradientBoostedTreesModel]
   }
-
-/**
- * Method for choosing domains with more then minCandNum candidates .
- * @  minCandNum is minimum number of candidates per domain
- * @  allData is parsed data with all domains  
- */
-//def domainsList(allData:RDD[(String, Map[String, String])],minCandNum:Int): RDD[String]={
- //   val domain = allData.map {l => Utils.getDomain(l._2.apply("url"))}
-  //  val words = domain.flatMap(x => x.split(","))
-  //  val countDomain = words.map(x => (x, 1)).reduceByKey((x, y) => x + y)
-  //  countDomain.filter(d => d._2>=minCandNum).map(l => l._1)
-//}   
-
-/**
- * Method for printing domains to file by row.
- * @  minCandNum is minimum number of candidates per domain
- * @  allData is parsed data with all domains  
- */
-//def print2FileDomList(domainsList:RDD[(String)],numOfGroups:Int)={
- //   val domainsListArr=domainsList.toArray
-//    for (i <- 1 to grpSize)
- //   val domain = allData.map {l => Utils.getDomain(l._2.apply("url"))}
- //   val words = domain.flatMap(x => x.split(","))
-  //  val countDomain = words.map(x => (x, 1)).reduceByKey((x, y) => x + y)
   
-
  /**
  * Method for choosing domains with more then minCandNum candidates .
  * @  minCandNum is minimum number of candidates per domain
@@ -316,19 +291,5 @@ def printDom2File(allData:RDD[(String, Map[String, String])],sc: SparkContext,mi
       t._2.toList.map(_._1).mkString(",")}.collect().mkString("\n")
     sc.parallelize(List(domainNameGrp), 1).saveAsTextFile("hdfs:///pavlovout/dscores/test/")
 }     
-      
-      
- //     val NumGroups=domainNameGrp.toArray().maxBy(_._2)
-   
-
-    
-    
-    
- //   for (i <- 1 to NumGroups._2.toInt){
-  //      var list=domainNameGrp.filter(l => l._2==i).map(n => n._1)
-  //      list.saveAsTextFile("hdfs:///pavlovout/dscores/" + i + "_test")
-  //  }   
-//} 
-    
 }   
 

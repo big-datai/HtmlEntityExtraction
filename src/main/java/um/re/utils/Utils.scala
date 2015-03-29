@@ -60,15 +60,22 @@ object Utils {
   def textOnly(text: String) = {
     text.replaceAll("[^A-Za-z]+", " ").replaceAll("[\\p{Blank}]{1,}?", " ")
   }
+  def textNum(text: String) = {
+    text.replaceAll("[^0-9A-Za-z]+", " ").replaceAll("[\\p{Blank}]{1,}?", " ")
+  }
   /**
    * Tokenazer
    */
   def tokenazer(text: String) = {
     textOnly(text).split(" ").toSeq
   }
+    def tokenazerTextNum(text: String) = {
+    textNum(text).split(" ").toSeq
+  }
   def bySpace(text: String) = {
     text.replaceAll("[\\p{Blank}]{1,}?", " ")
   }
+
   /**
    * Tokenazer by space
    */

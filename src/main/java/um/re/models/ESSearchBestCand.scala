@@ -1,5 +1,5 @@
 package um.re.models
-/*
+
 import org.apache.hadoop.io.MapWritable
 import org.apache.hadoop.io.Text
 import org.apache.hadoop.mapred.JobConf
@@ -18,69 +18,57 @@ import org.apache.hadoop.io.Text
 import org.apache.spark.serializer.KryoSerializer
 import um.re.utils.Utils
 import um.re.utils.EsUtils
-//import org.elasticsearch.hadoop.mr.EsInputFormat[org.apache.hadoop.io.Text,org.apache.hadoop.io.{EsInputFormat => MapWritable]}
 
 object ESPatternAlgo {
   //val conf = new Configuration()
-  val conf_s = new SparkConf().setAppName("es").set("master", "yarn-client").set("spark.serializer", classOf[KryoSerializer].getName)
+  val conf_s = new SparkConf()
   val sc = new SparkContext(conf_s)
 
   val conf = new JobConf()
   conf.set("es.resource", EsUtils.ESINDEX)
   conf.set("es.nodes", EsUtils.ESIP)
+
   val source = sc.newAPIHadoopRDD(conf, classOf[EsInputFormat[Text, MapWritable]], classOf[Text], classOf[MapWritable])
   val source_map = source.map { l => (l._1.toString(), l._2.map { case (k, v) => (k.toString, v.toString) }.toMap) }.repartition(100)
 
-  source_map.saveAsObjectFile("hdfs:///user/obj")
-  val patterns = source_map.map { l =>
+  val queryPrice = source_map.map { l =>
     try {
       val patterns = l._2.get("patterns").get.toString
       //Utils.string2Json(patterns)
-      val query = patterns.replaceAll("[^A-Za-z]+", " ").replaceAll("[\\p{Blank}]{2,}", " ").split(" ").distinct.mkString(" ") //map(w=>(w,1)).reduceByKey(_+_)
+      val query = patterns.replaceAll("[^0-9A-Za-z]+", " ").replaceAll("[\\p{Blank}]{2,}", " ").split(" ").distinct.mkString(" ") //map(w=>(w,1)).reduceByKey(_+_)
       val price_o = l._2.get("price").get.toString
       (query, price_o)
     } catch {
       case _: Exception => null
     }
   }
-  val patterns2 = source_map.map { l =>
-    try {
-      val patterns = l._2.get("patterns").get.toString
-      //Utils.string2Json(patterns)
-      val query = patterns.replaceAll("[^A-Za-z]+", " ").split(" ")
-      val price_o = l._2.get("price").get.toString
 
-      val cnf = new JobConf()
-      cnf.set("es.nodes", EsUtils.ESIP)
-      cnf.set("es.query", "?q=text_before:" + query)
-      val res = sc.newAPIHadoopRDD(cnf, classOf[EsInputFormat[Text, MapWritable]], classOf[Text], classOf[MapWritable])
-      val res_map = res.map { l => (l._1.toString(), l._2.map { case (k, v) => (k.toString, v.toString) }.toMap) }
-      val price_cand = res_map.take(1).apply(0)._2.get("price").get.toString
+  val arr_patterns = queryPrice.take(1) //toArray
 
-      if (price_o == price_cand)
+  //TODO USE REGULAR JAVA CONNECTOR TO RUN A QUERY THIS ONE DOES NOT SORT THE RESULTS
+  def search(query: String, price_o: String) = {
+    val cnf = new JobConf()
+    cnf.set("es.resource", EsUtils.ESINDEX)
+    cnf.set("es.nodes", EsUtils.ESIP)
+    val b = """{"query":{"bool":{"must":[{"query_string":{"default_field":"_all","query":"""
+    val a = """}}],"must_not":[],"should":[]}},"from":0,"size":1,"sort":[],"facets":{}}"""
+    val q = b + "\"" + query + "\"" + a
 
-    } catch {
-      case _: Exception => null
+    val q5 = """{
+    "query": {
+        "match": {
+            "_all": " 35559 v script type text javascript language JavaScript 1 2 CDATA window calcPriceData priceTo productX 35 000 productY 18 price 593 70 productInBox product avail 119 div id browse form name orderform method post action cart php mode add 36561 span h2 li dl class each dt pr TaxedPrice1 Sale Price dd TaxedPrice priceto Market alt 771 81 You Save"
+        }
     }
-  }
-
-  val arr_patterns = patterns.take(10) //toArray
-
-  val cnf = new JobConf()
-  cnf.set("es.resource", EsUtils.ESINDEX)
-  cnf.set("es.nodes", EsUtils.ESIP)
-  cnf.set("es.query", "?q=" + "xml")
-  arr_patterns.foreach { l =>
-    val query = l._1
-    val price_o = l._2
+}"""
+    cnf.set("es.query", q5)   
     val res = sc.newAPIHadoopRDD(cnf, classOf[EsInputFormat[Text, MapWritable]], classOf[Text], classOf[MapWritable])
     val res_map = res.map { l => (l._1.toString(), l._2.map { case (k, v) => (k.toString, v.toString) }.toMap) }
+    val prices = res_map.take(10).map { p => p._2.get("price").get.toString }
     val price_cand = res_map.take(1).apply(0)._2.get("price").get.toString
-    if (price_o == price_cand) {
-    }
+    (price_cand, res_map.count, res_map.take(1).apply(0)._2.get("length").get.toString)
   }
 
+  val res = arr_patterns.map { l => search(l._1, l._2) }
 
 }
-* 
-*/

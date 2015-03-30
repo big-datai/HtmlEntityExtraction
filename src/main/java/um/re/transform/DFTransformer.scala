@@ -18,19 +18,8 @@ import org.apache.spark.ml.param.ParamPair
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types.StructType
 
-object DFTransformer { //}extends Transformer {
+object DFTransformer {
 
-       
-  /*
-  override def transform(dataset: DataFrame, paramPairs: ParamPair[_]*): DataFrame = {
-
-    null
-  }
-  override def transformSchema()={
-    null
-  }
-  * 
-  */
   def rdd2DF(all: RDD[(String, Map[String, String])], sc: SparkContext): DataFrame = {
     val sqlContext = new org.apache.spark.sql.SQLContext(sc)
     val all_k: RDD[DataSchema] = all.map(parseRow)
@@ -53,5 +42,4 @@ object DFTransformer { //}extends Transformer {
     new DataSchema(row, location, raw_text, url, domain, flag)
   }
 
- 
 }

@@ -14,7 +14,7 @@ import org.apache.spark.mllib.tree.configuration.BoostingStrategy
 import org.apache.spark.mllib.tree.GradientBoostedTrees
 import org.apache.spark.mllib.stat.Statistics
 import org.apache.spark.mllib.tree.model.GradientBoostedTreesModel
-
+  
 import um.re.transform.Transformer
 import um.re.utils.{ UConf }
 import um.re.utils.Utils
@@ -34,9 +34,12 @@ object GBTPerDomain extends App {
   val list = args(0).split(",").filter(s => !s.equals(""))
   //$trees tp     fp    ...
   var domain2ScoreMap: Map[String, IndexedSeq[(Int, (Long, Long, Long, Long, Double, Double, Double, Double, Double))]] = Map.empty
-
+  
+  val dMap = sc.textFile((Utils.S3STORAGE+Utils.DMODELS+"dlist"),1).collect().mkString("\n").split("\n").map(l=> (l.split("\t")(0),l.split("\t")(1)) ).toMap
+  
   for (d <- list) {
 
+    val storage = "hdfs:/"
     // filter domain group by url (url => Iterator.cadidates)
     val parsedDataPerURL = Transformer.parseDataPerURL(all).filter(l => l._2._4.equals(d)).groupBy(_._1)
 
@@ -57,23 +60,30 @@ object GBTPerDomain extends App {
 
     val boostingStrategy = BoostingStrategy.defaultParams("Classification")
     boostingStrategy.numIterations = 30
-    //boostingStrategy.treeStrategy.maxDepth = 5
+    boostingStrategy.treeStrategy.maxDepth = 5
     val model = GradientBoostedTrees.train(training_points, boostingStrategy)
-
+    
     val subModels = Transformer.buildTreeSubModels(model)
     val scoresMap = subModels.map(m => Transformer.evaluateModel(Transformer.labelAndPredPerURL(m, test_points), m))
-    domain2ScoreMap = domain2ScoreMap.updated(d, scoresMap)
+    
+    val bestRes = scoresMap.toList.map{case(k,v)=>
+      	val f = 2*v._5*v._7/(v._5+v._7)
+      	(f+v._9,k)}.sorted.reverse.apply(0)._2
+    
+    val selectedModel = subModels.apply(bestRes-1)
+    val selectedScore = scoresMap.filter(_._1 == bestRes)
+      
+    selectedModel.save(sc, Utils.HDFSSTORAGE + Utils.DMODELS + dMap.apply(d))
+    
+    domain2ScoreMap = domain2ScoreMap.updated(d, selectedScore)
     val domain2ScoreList = domain2ScoreMap.toList.map { l =>
       l._2.map { s => l._1 + " : " + s.toString }.mkString("\n")
     }
-    sc.parallelize(domain2ScoreList, 1).saveAsTextFile("s3://pavlovout/dscores/" + d) // list on place i
+    sc.parallelize(domain2ScoreList, 1).saveAsTextFile(Utils.HDFSSTORAGE + Utils.DSCORES + dMap.apply(d)) // list on place i
 
     //TODO add function to choose candidates and evaluate on url level
     
     //TODO CHOOSE MODEL BY F
-    val prec=
-   // val F=2*(prec*recall)/(prec+recall)
-    sc.parallelize(subModels, 1).saveAsObjectFile("/user/" + d)
   
   }
 

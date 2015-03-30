@@ -16,7 +16,11 @@ import com.gargoylesoftware.htmlunit.html.HtmlPage
 import com.gargoylesoftware.htmlunit.WebResponseData
 import org.apache.spark.mllib.tree.GradientBoostedTrees
 object Utils {
-
+  val S3STORAGE = "s3:/"
+  val HDFSSTORAGE = "hdfs://"
+  val DMODELS = "/rawd/objects/dmodels/"
+  val DSCORES = "/rawd/objects/dscores/"
+  
   def getDomain(input: String) = {
     var url = input
     try {

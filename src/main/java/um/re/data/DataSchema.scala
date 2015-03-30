@@ -25,4 +25,8 @@ import org.apache.spark.mllib.tree.model.RandomForestModel
 import org.apache.spark.mllib.classification.SVMModel
 
 case class DataSchema(map: (String, Map[String, String]), location:Double, raw_text: String = null,  url: String = "",  domain: String = "", label:Boolean,
-                      points: LabeledPoint = null, hash: HashingTF = null,pattern: String = null)
+                      points: LabeledPoint = null, score:Scores=null,pattern: String = null)
+                      
+case class Scores(res:Map[String, IndexedSeq[(Int, (Long, Long, Long, Long, Double, Double, Double, Double, Double))]])
+
+case class Url(url:String)

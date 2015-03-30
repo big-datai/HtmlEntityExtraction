@@ -12,6 +12,7 @@ import org.apache.spark.mllib.stat.Statistics
 import um.re.transform.Transformer
 import um.re.utils.{ UConf }
 import um.re.transform.DFTransformer
+import um.re.data.Url
 
 object GBTDomainBySchema extends App {
   val conf_s = new SparkConf
@@ -19,24 +20,25 @@ object GBTDomainBySchema extends App {
 
   val data = new UConf(sc, 200)
   val all = data.getData
-
-  val df = DFTransformer.rdd2DF(all, sc)
-
-  //TODO create list of domains that are relevant
+  val df = DFTransformer.rdd2DF(all, sc).cache
   val list = args(0).split(",").filter(s => !s.equals(""))
-  //$trees tp     fp    ...
-
-  var domain2ScoreMap: Map[String, IndexedSeq[(Int, (Long, Long, Long, Long, Double, Double, Double, Double, Double))]] = Map.empty
 
   for (d <- list) {
 
-    // filter domain group by url (url => Iterator.cadidates)
-    val parsedDataPerURL = Transformer.parseDataPerURL(all).filter(l => l._2._4.equals(d)).groupBy(_._1)
+    val oneDomain = df.filter("domain = '" + d + "'").cache
+    val urls=oneDomain.select("url").distinct.rdd.map{l=>l.getString(0)}
+    //val group = urls.groupBy(_.toString) //map{l=>(l.get(4),l)}.groupByKey
 
-    val splits = parsedDataPerURL.randomSplit(Array(0.7, 0.3))
-    val (training, test) = (splits(0).flatMap(l => l._2), splits(1).flatMap(l => l._2))
-
-    val hashingTF = new HashingTF(300000)
+    val sqlContext = new org.apache.spark.sql.SQLContext(sc)
+    import sqlContext.implicits._    
+    val splits = urls.randomSplit(Array(0.7, 0.3))
+    val (training, test) = (splits(0).map(l=>Url(l)).toDF, splits(1).map(l=>Url(l)).toDF)
+    val dfTraining = oneDomain.join(training, oneDomain.col("url").equalTo(training("url")))
+     val dfTest = oneDomain.join(test, oneDomain.col("url").equalTo(test("url")))
+     dfTraining.show
+    
+    /*
+    val hashingTF = new HashingTF(500000)
     val tf: RDD[Vector] = hashingTF.transform(training.map(l => l._2._2))
     val idf = (new IDF(minDocFreq = 10)).fit(tf)
     val idf_vector = idf.idf.toArray
@@ -67,7 +69,7 @@ object GBTDomainBySchema extends App {
     val prec =
       // val F=2*(prec*recall)/(prec+recall)
       sc.parallelize(subModels, 1).saveAsObjectFile("/user/" + d)
-
+*/
   }
 
 }

@@ -32,8 +32,6 @@ object GBTPerDomain extends App {
   //list of domains 
   //TODO create list of domains that are relevant
   val list = args(0).split(",").filter(s => !s.equals(""))
-  //$trees tp     fp    ...
-  var domain2ScoreMap: Map[String, IndexedSeq[(Int, (Long, Long, Long, Long, Double, Double, Double, Double, Double))]] = Map.empty
   
   val dMap = sc.textFile((Utils.S3STORAGE+Utils.DMODELS+"dlist"),1).collect().mkString("\n").split("\n").map(l=> (l.split("\t")(0),l.split("\t")(1)) ).toMap
   
@@ -73,13 +71,12 @@ object GBTPerDomain extends App {
     val selectedModel = subModels.apply(bestRes-1)
     val selectedScore = scoresMap.filter(_._1 == bestRes)
       
-    selectedModel.save(sc, Utils.HDFSSTORAGE + Utils.DMODELS + dMap.apply(d))
+    selectedModel.save(sc, Utils.S3STORAGE + Utils.DMODELS + dMap.apply(d))
     
-    domain2ScoreMap = domain2ScoreMap.updated(d, selectedScore)
-    val domain2ScoreList = domain2ScoreMap.toList.map { l =>
-      l._2.map { s => l._1 + " : " + s.toString }.mkString("\n")
-    }
-    sc.parallelize(domain2ScoreList, 1).saveAsTextFile(Utils.HDFSSTORAGE + Utils.DSCORES + dMap.apply(d)) // list on place i
+    val scoreString = selectedScore.map { l =>
+      d + " : " + l.toString }
+    
+    sc.parallelize(scoreString, 1).saveAsTextFile(Utils.S3STORAGE + Utils.DSCORES + dMap.apply(d)) // list on place i
 
     //TODO add function to choose candidates and evaluate on url level
     

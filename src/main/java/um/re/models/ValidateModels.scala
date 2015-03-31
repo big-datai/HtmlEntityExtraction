@@ -56,6 +56,6 @@ object ValidateModels extends App {
       l._2.map { s => l._1 + " : " + s.toString }.mkString("\n")
     }
     //save results to s3://rawd/objects/res/
-    sc.parallelize(domain2ScoreList, 1).saveAsTextFile("s3://rawd/objects/res/"+dom +"_"+modKey) // list on place i
+    sc.parallelize(domain2ScoreList, 1).saveAsTextFile("s3://rawd/objects/res/"+modKey) // list on place i
   }
 }

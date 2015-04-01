@@ -80,9 +80,9 @@ object GBTPerDomain extends App {
       }
       try {
         sc.parallelize(scoreString, 1).saveAsTextFile(Utils.HDFSSTORAGE + Utils.DSCORES + dMap.apply(d)) // list on place i
-        selectedModel.save(sc, Utils.HDFSSTORAGE + Utils.DMODELS + dMap.apply(d))
-        sc.parallelize(scoreString, 1).saveAsTextFile(Utils.S3STORAGE + Utils.DSCORES + dMap.apply(d)) // list on place i
-        selectedModel.save(sc, Utils.S3STORAGE + Utils.DMODELS + dMap.apply(d))
+        //selectedModel.save(sc, Utils.HDFSSTORAGE + Utils.DMODELS + dMap.apply(d))
+        //sc.parallelize(scoreString, 1).saveAsTextFile(Utils.S3STORAGE + Utils.DSCORES + dMap.apply(d)) // list on place i
+        //selectedModel.save(sc, Utils.S3STORAGE + Utils.DMODELS + dMap.apply(d))
       } catch {
         case _: Throwable => sc.parallelize("", 1).saveAsTextFile(Utils.HDFSSTORAGE + Utils.DSCORES + "Fails/" + dMap.apply(d))
       }

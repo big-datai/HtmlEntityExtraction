@@ -28,19 +28,19 @@ object GBTPerDomainPar extends App {
     val all = data.getData
 
     //val list = List("richtonemusic.co.uk","wholesalesupplements.shop.rakuten.com","shop.everythingbuttheweddingdress.com","DiscountCleaningProducts.com","yesss.co.uk","idsecurityonline.com","janitorialequipmentsupply.com","sanddollarlifestyles.com","protoolsdirect.co.uk","educationalinsights.com","faucet-warehouse.com","rexart.com","chronostore.com","racks-for-all.shop.rakuten.com","musicdirect.com","budgetpackaging.com","americanblinds.com","overthehill.com","thesupplementstore.co.uk","intheholegolf.com","alldesignerglasses.com","nitetimetoys.com","instrumentalley.com","ergonomic-chairs.officechairs.com","piratescave.co.uk")
-    val list = List("fawnandforest.com","parrotshopping.com").par
-
+    //val list = List("fawnandforest.com","parrotshopping.com").par
+    val list = List("mrcostumes.com","sto00.mailcar.net","parentsfavorite.com","wildbirdstoreonline.com","runningboardsdirect.com","vitaminworlddiscount.shop.rakuten.com","gigaworld.co.uk","samstores.com","galaxorstore.com","flyshack.com","eventstable.com","shop.texasmediasystems.com","vcdiscounter.com","safetycompany.com","early-pregnancy-tests.com","grandfatherclockco.com","letsplaysomething.com","livingdirect.com","golflocker.com","totalfitnessbath.co.uk","ecodirect.com","ettitude.com","tacticalgear.com","housemakers.co.uk","uncommongoods.com","retrobikegear.com","shopallergy.com","inkstation.com.au","cymbalfusion.com","toolschest.com","BlueRainbowDesign.com","ge.factoryoutletstore.com","nostalgicbulbs.com","wellbots.com","rugstudio.com","dsmusic.com","Natex.us","nbcuniversalstore.com","heatingcontrolsonline.co.uk","webosolar.com","footaction.com","waterfiltersfast.com","liquidsurfandsail.com","yourdiscountchemist.com.au","petguys.com","careandheal.com","ctl.net","batterymart.com","lift-chair-store.com","scaledynasty.com","sneakers4u.com")
+    val parList = list.par
     //list of domains 
     //TODO create list of domains that are relevant
 
-    val dMap = sc.textFile((Utils.S3STORAGE + Utils.DMODELS + "dlist"), 1).collect().mkString("\n").split("\n").map(l => (l.split("\t")(0), l.split("\t")(1))).toMap
+    val dMap = sc.textFile((Utils.S3STORAGE + Utils.DMODELS + "dlist2"), 1).collect().mkString("\n").split("\n").map(l => (l.split("\t")(0), l.split("\t")(1))).toMap
     val parsed = Transformer.parseDataPerURL(all).cache
-
+    
     //val list = args(0).split(",").filter(s => !s.equals("")).filter(dMap.keySet.contains(_))
 
-    sc.parallelize(list.toSeq, 1).saveAsTextFile("/mike/list/" + list.apply(0)+System.currentTimeMillis().toString().replace(" ", "_"))
-
-    for (d <- list) {
+    sc.parallelize(	list, 1).saveAsTextFile("/mike/list/" + list.apply(0)+System.currentTimeMillis().toString().replace(" ", "_"))
+    for (d <- parList) {
       try {
         // filter domain group by url (url => Iterator.cadidates)
         val parsedDataPerURL = parsed.filter(l => l._2._4.equals(d)).groupBy(_._1)

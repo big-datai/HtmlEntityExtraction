@@ -24,7 +24,7 @@ object GBTPerDomain extends App {
   val sc = new SparkContext(conf_s)
   try {
 
-    val data = new UConf(sc, 200)
+    val data = new UConf(sc, 500)
     val all = data.getData
 
     //val list = List("richtonemusic.co.uk","wholesalesupplements.shop.rakuten.com","shop.everythingbuttheweddingdress.com","DiscountCleaningProducts.com","yesss.co.uk","idsecurityonline.com","janitorialequipmentsupply.com","sanddollarlifestyles.com","protoolsdirect.co.uk","educationalinsights.com","faucet-warehouse.com","rexart.com","chronostore.com","racks-for-all.shop.rakuten.com","musicdirect.com","budgetpackaging.com","americanblinds.com","overthehill.com","thesupplementstore.co.uk","intheholegolf.com","alldesignerglasses.com","nitetimetoys.com","instrumentalley.com","ergonomic-chairs.officechairs.com","piratescave.co.uk")
@@ -33,7 +33,7 @@ object GBTPerDomain extends App {
     //list of domains 
     //TODO create list of domains that are relevant
 
-    val dMap = sc.textFile((Utils.S3STORAGE + Utils.DMODELS + "dlist"), 1).collect().mkString("\n").split("\n").map(l => (l.split("\t")(0), l.split("\t")(1))).toMap
+    val dMap = sc.textFile((Utils.S3STORAGE + Utils.DMODELS + "dlist2"), 1).collect().mkString("\n").split("\n").map(l => (l.split("\t")(0), l.split("\t")(1))).toMap
     val parsed = Transformer.parseDataPerURL(all).cache
 
     val list = args(0).split(",").filter(s => !s.equals("")).filter(dMap.keySet.contains(_)).par

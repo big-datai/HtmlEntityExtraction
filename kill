@@ -1,0 +1,4 @@
+i=10
+for ((i=10; i <= 100 ; i++)) do
+yarn application -kill application_1427876222818_00$i
+done

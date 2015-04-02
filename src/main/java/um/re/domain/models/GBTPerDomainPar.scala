@@ -19,7 +19,7 @@ import um.re.transform.Transformer
 import um.re.utils.{ UConf }
 import um.re.utils.Utils
 
-object GBTPerDomain extends App {
+object GBTPerDomainPar extends App {
   val conf_s = new SparkConf()
   val sc = new SparkContext(conf_s)
   try {
@@ -28,7 +28,7 @@ object GBTPerDomain extends App {
     val all = data.getData
 
     //val list = List("richtonemusic.co.uk","wholesalesupplements.shop.rakuten.com","shop.everythingbuttheweddingdress.com","DiscountCleaningProducts.com","yesss.co.uk","idsecurityonline.com","janitorialequipmentsupply.com","sanddollarlifestyles.com","protoolsdirect.co.uk","educationalinsights.com","faucet-warehouse.com","rexart.com","chronostore.com","racks-for-all.shop.rakuten.com","musicdirect.com","budgetpackaging.com","americanblinds.com","overthehill.com","thesupplementstore.co.uk","intheholegolf.com","alldesignerglasses.com","nitetimetoys.com","instrumentalley.com","ergonomic-chairs.officechairs.com","piratescave.co.uk")
-    //val list = List("fawnandforest.com","parrotshopping.com")
+    val list = List("fawnandforest.com","parrotshopping.com").par
 
     //list of domains 
     //TODO create list of domains that are relevant
@@ -36,9 +36,9 @@ object GBTPerDomain extends App {
     val dMap = sc.textFile((Utils.S3STORAGE + Utils.DMODELS + "dlist"), 1).collect().mkString("\n").split("\n").map(l => (l.split("\t")(0), l.split("\t")(1))).toMap
     val parsed = Transformer.parseDataPerURL(all).cache
 
-    val list = args(0).split(",").filter(s => !s.equals("")).filter(dMap.keySet.contains(_))
+    //val list = args(0).split(",").filter(s => !s.equals("")).filter(dMap.keySet.contains(_))
 
-    sc.parallelize(list.toSeq, 1).saveAsTextFile("/dima/list/" + list.apply(0)+System.currentTimeMillis().toString().replace(" ", "_"))
+    sc.parallelize(list.toSeq, 1).saveAsTextFile("/mike/list/" + list.apply(0)+System.currentTimeMillis().toString().replace(" ", "_"))
 
     for (d <- list) {
       try {
@@ -81,8 +81,8 @@ object GBTPerDomain extends App {
           d + " : " + l.toString
         }
         try {
-          sc.parallelize(scoreString, 1).saveAsTextFile(Utils.HDFSSTORAGE + Utils.DSCORES + dMap.apply(d)+System.currentTimeMillis().toString().replace(" ", "_")) // list on place i
-          selectedModel.save(sc, Utils.HDFSSTORAGE + Utils.DMODELS + dMap.apply(d)+System.currentTimeMillis().toString().replace(" ", "_"))
+          sc.parallelize(scoreString, 1).saveAsTextFile(Utils.HDFSSTORAGE + "/mike" + Utils.DSCORES + dMap.apply(d)+System.currentTimeMillis().toString().replace(" ", "_")) // list on place i
+          selectedModel.save(sc, Utils.HDFSSTORAGE + "/mike" + Utils.DMODELS + dMap.apply(d)+System.currentTimeMillis().toString().replace(" ", "_"))
           // sc.parallelize(scoreString, 1).saveAsTextFile(Utils.S3STORAGE + Utils.DSCORES + dMap.apply(d)) // list on place i
           // selectedModel.save(sc, Utils.S3STORAGE + Utils.DMODELS + dMap.apply(d))
         } catch {
@@ -95,12 +95,12 @@ object GBTPerDomain extends App {
       } catch {
         case e: Throwable =>
           val errMsg = "model:  " + d + " " + e.getLocalizedMessage() + e.getMessage()
-          sc.parallelize(List(errMsg), 1).saveAsTextFile(Utils.HDFSSTORAGE + Utils.DMODELS + "log/" + errMsg + d+System.currentTimeMillis().toString().replace(" ", "_"))
+          sc.parallelize(List(errMsg), 1).saveAsTextFile(Utils.HDFSSTORAGE + "/mike" + Utils.DMODELS + "log/" + errMsg + d+System.currentTimeMillis().toString().replace(" ", "_"))
       }
     }
   } catch {
     case e: Throwable =>
       val errMsg = e.getLocalizedMessage() + e.getMessage()
-      sc.parallelize(List(errMsg), 1).saveAsTextFile(Utils.HDFSSTORAGE + Utils.DMODELS + "log/" + errMsg + System.currentTimeMillis().toString().replace(" ", "_"))
+      sc.parallelize(List(errMsg), 1).saveAsTextFile(Utils.HDFSSTORAGE + "/mike" + Utils.DMODELS + "log/" + errMsg + System.currentTimeMillis().toString().replace(" ", "_"))
   }
 }

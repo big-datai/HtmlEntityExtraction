@@ -24,6 +24,7 @@ import org.elasticsearch.hadoop.mr.EsOutputFormat
 object EsUtils {
   val ESIP = "52.1.55.179"
   val ESINDEX = "candidl/data"
+  val ESINDEXANAL = "htmls/data"
   val conf = new JobConf()
   conf.set("es.resource", "process_count/counter")
   conf.set("es.query", "?q=updatePriceCount")

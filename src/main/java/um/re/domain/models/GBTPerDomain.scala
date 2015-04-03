@@ -36,7 +36,7 @@ object GBTPerDomain extends App {
     val dMap = sc.textFile((Utils.S3STORAGE + Utils.DMODELS + "dlist2"), 1).collect().mkString("\n").split("\n").map(l => (l.split("\t")(0), l.split("\t")(1))).toMap
     val parsed = Transformer.parseDataPerURL(all).cache
 
-    val list = args(0).split(",").filter(s => !s.equals("")).filter(dMap.keySet.contains(_)).par
+    val list = args(0).split(",").filter(s => !s.equals("")).filter(dMap.keySet.contains(_))
 
     sc.parallelize(Seq("",""), 1).saveAsTextFile("/dima/list/" + list.apply(0)+System.currentTimeMillis().toString().replace(" ", "_"))
 

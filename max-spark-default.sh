@@ -76,9 +76,9 @@ unzip play-iteratees_2.10.jar.zip
 tar -zxf apache-maven-3.0.5-bin.tar.gz
 /usr/share/aws/emr/scripts/configure-hadoop -y yarn.nodemanager.resource.cpu-vcores=2
 
-/usr/share/aws/emr/scripts/configure-hadoop -z yarn.scheduler.capacity.maximum-applications=40000
+#/usr/share/aws/emr/scripts/configure-hadoop -z yarn.scheduler.capacity.maximum-applications=40000
 #/usr/share/aws/emr/scripts/configure-hadoop -y yarn.scheduler.capacity.default.maximum-applications=500
-/usr/share/aws/emr/scripts/configure-hadoop -z yarn.scheduler.capacity.maximum-am-resource-percent=100
+#/usr/share/aws/emr/scripts/configure-hadoop -z yarn.scheduler.capacity.maximum-am-resource-percent=100
 
 
 

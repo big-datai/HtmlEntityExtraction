@@ -5,19 +5,17 @@ import org.apache.spark.SparkContext
 import org.apache.spark.SparkConf
 import org.apache.spark.SparkContext._
 import org.apache.spark.serializer.KryoSerializer
-
 import org.apache.spark.mllib.feature.{ HashingTF, IDF }
 import org.apache.spark.mllib.linalg.{ Vector, Vectors }
 import org.apache.spark.mllib.regression.LabeledPoint
-
 import org.apache.spark.mllib.tree.configuration.BoostingStrategy
 import org.apache.spark.mllib.tree.GradientBoostedTrees
 import org.apache.spark.mllib.stat.Statistics
 import org.apache.spark.mllib.tree.model.GradientBoostedTreesModel
-
 import um.re.transform.Transformer
 import um.re.utils.{ UConf }
 import um.re.utils.Utils
+import scala.collection.parallel.ForkJoinTaskSupport
 
 object GBTPerDomainPar extends App {
   val conf_s = new SparkConf()
@@ -38,8 +36,9 @@ object GBTPerDomainPar extends App {
 
     //val list = args(0).split(",").filter(s => !s.equals("")).filter(dMap.keySet.contains(_))
 
-    val list=sc.textFile("/domains.list").flatMap{l=>l.split(",").filter(s => !s.equals("")).filter(dMap.keySet.contains(_))}.toArray().filter(s => !s.equals(""))
+    val list=sc.textFile("/domains.list").flatMap{l=>l.split(",").filter(s => !s.equals("")).filter(dMap.keySet.contains(_))}.filter(s => !s.equals("")).toArray().toList
     val parList = list.par
+    //parList.tasksupport = new ForkJoinTaskSupport(new scala.concurrent.forkjoin.ForkJoinPool(25))
     
     for (d <- parList) {
       try {

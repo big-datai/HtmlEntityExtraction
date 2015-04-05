@@ -80,6 +80,4 @@ tar -zxf apache-maven-3.0.5-bin.tar.gz
 #/usr/share/aws/emr/scripts/configure-hadoop -y yarn.scheduler.capacity.default.maximum-applications=500
 #/usr/share/aws/emr/scripts/configure-hadoop -z yarn.scheduler.capacity.maximum-am-resource-percent=100
 
-
-
 exit 0

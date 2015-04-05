@@ -16,13 +16,10 @@ import um.re.transform.Transformer
 import um.re.utils.{ UConf }
 import um.re.utils.Utils
 import scala.collection.parallel.ForkJoinTaskSupport
-import org.apache.hadoop.io.compress.GzipCodec
 
-object GBTPerDomainPar extends App {
+object GBTDomainSuperPar extends App {
   val conf_s = new SparkConf()
   val sc = new SparkContext(conf_s)
-  val processID = Integer.valueOf(args(0))
-  val numDomains = Integer.valueOf(args(1))
   try {
 
     val data = new UConf(sc, 300)
@@ -36,36 +33,38 @@ object GBTPerDomainPar extends App {
 
     val dMap = sc.textFile((Utils.S3STORAGE + Utils.DMODELS + "dlist"), 1).collect().mkString("\n").split("\n").map(l => (l.split("\t")(0), l.split("\t")(1))).toMap
     val parsed = Transformer.parseDataPerURL(all).repartition(300).cache
-    val modDivider = dMap.size/numDomains
+
     //val list = args(0).split(",").filter(s => !s.equals("")).filter(dMap.keySet.contains(_))
-    val list = dMap.keySet.toArray.sorted.zipWithIndex.filter{d => d._2%modDivider == processID }.map(d=> d._1).toList
-    //take(20)
-    
-    //val list=sc.textFile("/domains.list").flatMap{l=>l.split(",").filter(s => !s.equals("")).filter(dMap.keySet.contains(_))}.filter(s => !s.equals("")).toArray().toList
+
+    val list = sc.textFile("/domains.list").flatMap { l => l.split(",").filter(s => !s.equals("")).filter(dMap.keySet.contains(_)) }.filter(s => !s.equals("")).toArray().toList
     val parList = list.par
-    //parList.tasksupport = new ForkJoinTaskSupport(new scala.concurrent.forkjoin.ForkJoinPool(25))
+    parList.tasksupport = new ForkJoinTaskSupport(new scala.concurrent.forkjoin.ForkJoinPool(50))
+    val r = scala.util.Random
     
     for (d <- parList) {
-      try {
-        sc.parallelize(list, 1).saveAsTextFile("/mike"+processID+"/list/" + dMap.apply(d) + System.currentTimeMillis().toString().replace(" ", "_"))
+      try {       
+ 
+       // Thread sleep r.nextInt(2000)
+        
+        sc.parallelize(list, 1).saveAsTextFile("/mike/list/" + d + System.currentTimeMillis().toString().replace(" ", "_"))
         println("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
         println("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
         println("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
         println("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-        println("                                " + d + "                                          ")
+        println("                                " + d + "                                      ")
         println("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
         println("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
         println("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
         // filter domain group by url (url => Iterator.cadidates)
-        
+
         val parsedDataPerURL = parsed.repartition(300).filter(l => l._2._4.equals(d)).groupBy(_._1).repartition(10)
 
         val splits = parsedDataPerURL.randomSplit(Array(0.7, 0.3))
         val (training, test) = (splits(0).flatMap(l => l._2), splits(1).flatMap(l => l._2))
 
-        val hashingTF = new HashingTF(300000)
+        val hashingTF = new HashingTF(3000)
         val tf: RDD[Vector] = hashingTF.transform(training.map(l => l._2._2))
-        val idf = (new IDF(minDocFreq = 10)).fit(tf)
+        val idf = (new IDF(minDocFreq = 5)).fit(tf)
         val idf_vector = idf.idf.toArray
 
         val tfidf_avg = Statistics.colStats(idf.transform(tf)).mean.toArray
@@ -79,26 +78,16 @@ object GBTPerDomainPar extends App {
         boostingStrategy.numIterations = 30
         boostingStrategy.treeStrategy.maxDepth = 5
         val model = GradientBoostedTrees.train(training_points, boostingStrategy)
-        
-        val subModels = Transformer.buildTreeSubModels(model)
-        val scoresMap = subModels.map(m => Transformer.evaluateModel(Transformer.labelAndPredPerURL(m, test_points), m))
 
-        val bestRes = scoresMap.toList.map {
-          case (k, v) =>
-            val f = 2 * v._5 * v._7 / (v._5 + v._7)
-            (f + v._9, k)
-        }.sorted.reverse.apply(0)._2
+        val res = Transformer.evaluateModel(Transformer.labelAndPredPerURL(model, test_points), model)
+        val selectedModel = model
+        val selectedScore = res
 
-        val selectedModel = subModels.apply(bestRes - 1)
-        val selectedScore = scoresMap.filter(_._1 == bestRes)
-
-        val scoreString = selectedScore.map { l =>
-          d + " : " + l.toString
-        }
+        val scoreString = d + selectedScore.toString
         try {
-          println("-----------------------------entering the models "+d+ " - "+scoreString.length+" ---------------------------------------------------")
-          sc.parallelize(scoreString, 1).saveAsTextFile(Utils.HDFSSTORAGE + "/mike"+processID + Utils.DSCORES + dMap.apply(d) + System.currentTimeMillis().toString().replace(" ", "_")) // list on place i
-          sc.parallelize(Seq(selectedModel)).saveAsObjectFile(Utils.HDFSSTORAGE + "/mike"+processID + Utils.DMODELS + dMap.apply(d) + System.currentTimeMillis().toString().replace(" ", "_"))
+          println("-----------------------------entering the models " + d + " - " + scoreString.length + " ---------------------------------------------------")
+          sc.parallelize(Seq(scoreString), 1).saveAsTextFile(Utils.HDFSSTORAGE + "/mike" + Utils.DSCORES + d + System.currentTimeMillis().toString().replace(" ", "_")) // list on place i
+          //selectedModel.save(sc, Utils.HDFSSTORAGE + "/mike" + Utils.DMODELS + d + System.currentTimeMillis().toString().replace(" ", "_"))
           println("--------------------------------------------------------------------------------")
           println("--------------------------------------------------------------------------------")
           println("--------------------------------------------------------------------------------")
@@ -106,24 +95,23 @@ object GBTPerDomainPar extends App {
           println("--------------------------------------------------------------------------------")
           println("--------------------------------------------------------------------------------")
           println("--------------------------------------------------------------------------------")
-          sc.parallelize(scoreString, 1).saveAsTextFile(Utils.S3STORAGE + Utils.DSCORES + dMap.apply(d),classOf[GzipCodec]) // list on place i
-          sc.parallelize(Seq(selectedModel)).saveAsObjectFile(Utils.S3STORAGE + Utils.DMODELS + dMap.apply(d))
+          // sc.parallelize(scoreString, 1).saveAsTextFile(Utils.S3STORAGE + Utils.DSCORES + dMap.apply(d)) // list on place i
+          // selectedModel.save(sc, Utils.S3STORAGE + Utils.DMODELS + dMap.apply(d))
         } catch {
           case _: Throwable => sc.parallelize("dss".toSeq, 1).saveAsTextFile(Utils.HDFSSTORAGE + Utils.DSCORES + "Fails/" + dMap.apply(d) + System.currentTimeMillis().toString().replace(" ", "_"))
         }
-
+     
         //TODO add function to choose candidates and evaluate on url level
-
         //TODO CHOOSE MODEL BY F
       } catch {
         case e: Throwable =>
           val errMsg = "model:  " + d + " " + e.getLocalizedMessage() + e.getMessage()
-          sc.parallelize(List(errMsg), 1).saveAsTextFile(Utils.HDFSSTORAGE + "/mike"+processID + Utils.DMODELS + "log/" + errMsg + d + System.currentTimeMillis().toString().replace(" ", "_"))
+          sc.parallelize(List(errMsg), 1).saveAsTextFile(Utils.HDFSSTORAGE + "/mike" + Utils.DMODELS + "log/" + errMsg + d + System.currentTimeMillis().toString().replace(" ", "_"))
       }
     }
   } catch {
     case e: Throwable =>
       val errMsg = e.getLocalizedMessage() + e.getMessage()
-      sc.parallelize(List(errMsg), 1).saveAsTextFile(Utils.HDFSSTORAGE + "/mike"+processID + Utils.DMODELS + "log/" + errMsg + System.currentTimeMillis().toString().replace(" ", "_"))
+      sc.parallelize(List(errMsg), 1).saveAsTextFile(Utils.HDFSSTORAGE + "/mike" + Utils.DMODELS + "log/" + errMsg + System.currentTimeMillis().toString().replace(" ", "_"))
   }
 }

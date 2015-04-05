@@ -18,6 +18,7 @@ import org.apache.spark.mllib.tree.GradientBoostedTrees
 object Utils {
   val S3STORAGE = "s3:/"
   val HDFSSTORAGE = "hdfs://"
+  val DCANDIDS = "/rawd/objects/dcandids/"
   val DMODELS = "/rawd/objects/dmodels/"
   val DSCORES = "/rawd/objects/dscores/"
   

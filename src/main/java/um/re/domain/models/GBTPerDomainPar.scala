@@ -16,10 +16,13 @@ import um.re.transform.Transformer
 import um.re.utils.{ UConf }
 import um.re.utils.Utils
 import scala.collection.parallel.ForkJoinTaskSupport
+import org.apache.hadoop.io.compress.GzipCodec
 
 object GBTPerDomainPar extends App {
   val conf_s = new SparkConf()
   val sc = new SparkContext(conf_s)
+  val processID = Integer.valueOf(args(0))
+  val numDomains = Integer.valueOf(args(1))
   try {
 
     val data = new UConf(sc, 300)
@@ -33,16 +36,18 @@ object GBTPerDomainPar extends App {
 
     val dMap = sc.textFile((Utils.S3STORAGE + Utils.DMODELS + "dlist"), 1).collect().mkString("\n").split("\n").map(l => (l.split("\t")(0), l.split("\t")(1))).toMap
     val parsed = Transformer.parseDataPerURL(all).repartition(300).cache
-
+    val modDivider = dMap.size/numDomains
     //val list = args(0).split(",").filter(s => !s.equals("")).filter(dMap.keySet.contains(_))
-
-    val list=sc.textFile("/domains.list").flatMap{l=>l.split(",").filter(s => !s.equals("")).filter(dMap.keySet.contains(_))}.filter(s => !s.equals("")).toArray().toList
+    val list = dMap.keySet.toArray.sorted.zipWithIndex.filter{d => d._2%modDivider == processID }.map(d=> d._1).toList
+    //take(20)
+    
+    //val list=sc.textFile("/domains.list").flatMap{l=>l.split(",").filter(s => !s.equals("")).filter(dMap.keySet.contains(_))}.filter(s => !s.equals("")).toArray().toList
     val parList = list.par
     //parList.tasksupport = new ForkJoinTaskSupport(new scala.concurrent.forkjoin.ForkJoinPool(25))
     
     for (d <- parList) {
       try {
-        sc.parallelize(list, 1).saveAsTextFile("/mike/list/" + d + System.currentTimeMillis().toString().replace(" ", "_"))
+        sc.parallelize(list, 1).saveAsTextFile("/mike"+processID+"/list/" + dMap.apply(d) + System.currentTimeMillis().toString().replace(" ", "_"))
         println("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
         println("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
         println("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
@@ -74,7 +79,7 @@ object GBTPerDomainPar extends App {
         boostingStrategy.numIterations = 30
         boostingStrategy.treeStrategy.maxDepth = 5
         val model = GradientBoostedTrees.train(training_points, boostingStrategy)
-
+        
         val subModels = Transformer.buildTreeSubModels(model)
         val scoresMap = subModels.map(m => Transformer.evaluateModel(Transformer.labelAndPredPerURL(m, test_points), m))
 
@@ -92,8 +97,8 @@ object GBTPerDomainPar extends App {
         }
         try {
           println("-----------------------------entering the models "+d+ " - "+scoreString.length+" ---------------------------------------------------")
-          sc.parallelize(scoreString, 1).saveAsTextFile(Utils.HDFSSTORAGE + "/mike" + Utils.DSCORES + d + System.currentTimeMillis().toString().replace(" ", "_")) // list on place i
-          //selectedModel.save(sc, Utils.HDFSSTORAGE + "/mike" + Utils.DMODELS + d + System.currentTimeMillis().toString().replace(" ", "_"))
+          sc.parallelize(scoreString, 1).saveAsTextFile(Utils.HDFSSTORAGE + "/mike"+processID + Utils.DSCORES + dMap.apply(d) + System.currentTimeMillis().toString().replace(" ", "_")) // list on place i
+          sc.parallelize(Seq(selectedModel)).saveAsObjectFile(Utils.HDFSSTORAGE + "/mike"+processID + Utils.DMODELS + dMap.apply(d) + System.currentTimeMillis().toString().replace(" ", "_"))
           println("--------------------------------------------------------------------------------")
           println("--------------------------------------------------------------------------------")
           println("--------------------------------------------------------------------------------")
@@ -101,8 +106,8 @@ object GBTPerDomainPar extends App {
           println("--------------------------------------------------------------------------------")
           println("--------------------------------------------------------------------------------")
           println("--------------------------------------------------------------------------------")
-          // sc.parallelize(scoreString, 1).saveAsTextFile(Utils.S3STORAGE + Utils.DSCORES + dMap.apply(d)) // list on place i
-          // selectedModel.save(sc, Utils.S3STORAGE + Utils.DMODELS + dMap.apply(d))
+          sc.parallelize(scoreString, 1).saveAsTextFile(Utils.S3STORAGE + Utils.DSCORES + dMap.apply(d),classOf[GzipCodec]) // list on place i
+          sc.parallelize(Seq(selectedModel)).saveAsObjectFile(Utils.S3STORAGE + Utils.DMODELS + dMap.apply(d))
         } catch {
           case _: Throwable => sc.parallelize("dss".toSeq, 1).saveAsTextFile(Utils.HDFSSTORAGE + Utils.DSCORES + "Fails/" + dMap.apply(d) + System.currentTimeMillis().toString().replace(" ", "_"))
         }
@@ -113,12 +118,12 @@ object GBTPerDomainPar extends App {
       } catch {
         case e: Throwable =>
           val errMsg = "model:  " + d + " " + e.getLocalizedMessage() + e.getMessage()
-          sc.parallelize(List(errMsg), 1).saveAsTextFile(Utils.HDFSSTORAGE + "/mike" + Utils.DMODELS + "log/" + errMsg + d + System.currentTimeMillis().toString().replace(" ", "_"))
+          sc.parallelize(List(errMsg), 1).saveAsTextFile(Utils.HDFSSTORAGE + "/mike"+processID + Utils.DMODELS + "log/" + errMsg + d + System.currentTimeMillis().toString().replace(" ", "_"))
       }
     }
   } catch {
     case e: Throwable =>
       val errMsg = e.getLocalizedMessage() + e.getMessage()
-      sc.parallelize(List(errMsg), 1).saveAsTextFile(Utils.HDFSSTORAGE + "/mike" + Utils.DMODELS + "log/" + errMsg + System.currentTimeMillis().toString().replace(" ", "_"))
+      sc.parallelize(List(errMsg), 1).saveAsTextFile(Utils.HDFSSTORAGE + "/mike"+processID + Utils.DMODELS + "log/" + errMsg + System.currentTimeMillis().toString().replace(" ", "_"))
   }
 }

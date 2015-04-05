@@ -16,7 +16,7 @@ object DomainDataForModels extends App {
   val sc = new SparkContext(conf_s)
   try {
 
-    val data = new UConf(sc, 300)
+    val data = new UConf(sc, 1000)
     val all = data.getData
 
     val dMap = sc.textFile((Utils.S3STORAGE + Utils.DMODELS + "dlist"), 1).collect().mkString("\n").split("\n").map(l => (l.split("\t")(0), l.split("\t")(1))).toMap
@@ -43,7 +43,7 @@ object DomainDataForModels extends App {
         val splits = parsedDataPerURL.randomSplit(Array(0.7, 0.3))
         val (training, test) = (splits(0).flatMap(l => l._2), splits(1).flatMap(l => l._2))
 
-        val hashingTF = new HashingTF(300000)
+        val hashingTF = new HashingTF(30000)
         val tf: RDD[Vector] = hashingTF.transform(training.map(l => l._2._2))
         val idf = (new IDF(minDocFreq = 10)).fit(tf)
         val idf_vector = idf.idf.toArray

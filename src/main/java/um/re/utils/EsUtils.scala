@@ -25,6 +25,8 @@ object EsUtils {
   val ESIP = "52.5.109.11"
   val ESINDEX = "candidl/data"
   val ESINDEXANAL = "htmls/data"
+  val ESIP2 = "52.5.109.11"
+  val ESINDEXANAL2 = "full_river/data"
   val conf = new JobConf()
   conf.set("es.resource", "process_count/counter")
   conf.set("es.query", "?q=updatePriceCount")

@@ -10,9 +10,11 @@ import org.apache.spark.mllib.stat.Statistics
 import um.re.transform.Transformer
 import um.re.utils.Utils
 import um.re.analysis.UConfAnal
+import um.re.analysis.UConfAnal2
 import um.re.transform.Transformer
 import um.re.utils.{ UConf }
 import um.re.utils.Utils
+import um.re.analysis.EsExporter2
 
 object DomAnalysis extends App {
   val conf_s = new SparkConf()
@@ -49,8 +51,9 @@ object DomAnalysis extends App {
 
 //Join on domains that are relevant (minCandNum==80) and choosing Kth percentile of domains => according to # of urls 
     val FinalChosenDom=topKPercentDom(tuplelDataDom,80,20,sc)
-     
+     val CountProd= FinalChosenDom.map(l=>(l._2._2,1)).reduceByKey((x, y) => x + y).filter(f=>(f._2>50))
 
+    // .map(x => (x, 1)).reduceByKey((x, y) => x + y)
 //TODO count per each product (from the top K) in how many competitors it is contained (out of all domains) 
 
     

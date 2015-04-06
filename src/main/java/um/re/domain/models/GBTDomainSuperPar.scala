@@ -16,6 +16,7 @@ import um.re.transform.Transformer
 import um.re.utils.{ UConf }
 import um.re.utils.Utils
 import scala.collection.parallel.ForkJoinTaskSupport
+import org.apache.hadoop.io.compress.GzipCodec
 
 object GBTDomainSuperPar extends App {
   val conf_s = new SparkConf()
@@ -23,7 +24,7 @@ object GBTDomainSuperPar extends App {
   try {
 
     val data = new UConf(sc, 300)
-    val all = data.getData
+    val all = data.getDataFS()
 
     //val list = List("richtonemusic.co.uk","wholesalesupplements.shop.rakuten.com","shop.everythingbuttheweddingdress.com","DiscountCleaningProducts.com","yesss.co.uk","idsecurityonline.com","janitorialequipmentsupply.com","sanddollarlifestyles.com","protoolsdirect.co.uk","educationalinsights.com","faucet-warehouse.com","rexart.com","chronostore.com","racks-for-all.shop.rakuten.com","musicdirect.com","budgetpackaging.com","americanblinds.com","overthehill.com","thesupplementstore.co.uk","intheholegolf.com","alldesignerglasses.com","nitetimetoys.com","instrumentalley.com","ergonomic-chairs.officechairs.com","piratescave.co.uk")
     //val list = List("fawnandforest.com","parrotshopping.com").par
@@ -38,13 +39,13 @@ object GBTDomainSuperPar extends App {
 
     val list = sc.textFile("/domains.list").flatMap { l => l.split(",").filter(s => !s.equals("")).filter(dMap.keySet.contains(_)) }.filter(s => !s.equals("")).toArray().toList
     val parList = list.par
-    parList.tasksupport = new ForkJoinTaskSupport(new scala.concurrent.forkjoin.ForkJoinPool(50))
-    val r = scala.util.Random
+    //val r = scala.util.Random
     
     for (d <- parList) {
       try {       
  
-       // Thread sleep r.nextInt(2000)
+    	 // parList.tasksupport = new ForkJoinTaskSupport(new scala.concurrent.forkjoin.ForkJoinPool(1000))
+       //Thread sleep r.nextInt(400000)
         
         sc.parallelize(list, 1).saveAsTextFile("/mike/list/" + d + System.currentTimeMillis().toString().replace(" ", "_"))
         println("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
@@ -85,17 +86,18 @@ object GBTDomainSuperPar extends App {
 
         val scoreString = d + selectedScore.toString
         try {
-          println("-----------------------------entering the models " + d + " - " + scoreString.length + " ---------------------------------------------------")
-          sc.parallelize(Seq(scoreString), 1).saveAsTextFile(Utils.HDFSSTORAGE + "/mike" + Utils.DSCORES + d + System.currentTimeMillis().toString().replace(" ", "_")) // list on place i
-          //selectedModel.save(sc, Utils.HDFSSTORAGE + "/mike" + Utils.DMODELS + d + System.currentTimeMillis().toString().replace(" ", "_"))
-          println("--------------------------------------------------------------------------------")
-          println("--------------------------------------------------------------------------------")
-          println("--------------------------------------------------------------------------------")
-          println("                                " + "/mike" + Utils.DSCORES + d + System.currentTimeMillis().toString().replace(" ", "_") + "                                          ")
-          println("--------------------------------------------------------------------------------")
-          println("--------------------------------------------------------------------------------")
-          println("--------------------------------------------------------------------------------")
-          // sc.parallelize(scoreString, 1).saveAsTextFile(Utils.S3STORAGE + Utils.DSCORES + dMap.apply(d)) // list on place i
+            println("-----------------------------entering the models " + d + " - " + scoreString.length + " ---------------------------------------------------")
+            sc.parallelize(Seq(scoreString), 1).saveAsTextFile(Utils.HDFSSTORAGE + "/mike"  + Utils.DSCORES + dMap.apply(d) + System.currentTimeMillis().toString().replace(" ", "_")) // list on place i
+            sc.parallelize(Seq(selectedModel)).saveAsObjectFile(Utils.HDFSSTORAGE + "/mike" + Utils.DMODELS + dMap.apply(d) + System.currentTimeMillis().toString().replace(" ", "_"))
+            println("--------------------------------------------------------------------------------")
+            println("--------------------------------------------------------------------------------")
+            println("--------------------------------------------------------------------------------")
+            println("                                " + "/mike" + Utils.DSCORES + d + System.currentTimeMillis().toString().replace(" ", "_") + "                                          ")
+            println("--------------------------------------------------------------------------------")
+            println("--------------------------------------------------------------------------------")
+            println("--------------------------------------------------------------------------------")
+            sc.parallelize(Seq(scoreString), 1).saveAsTextFile(Utils.S3STORAGE + Utils.DSCORES + dMap.apply(d), classOf[GzipCodec]) // list on place i
+            sc.parallelize(Seq(selectedModel)).saveAsObjectFile(Utils.S3STORAGE + Utils.DMODELS + dMap.apply(d))
           // selectedModel.save(sc, Utils.S3STORAGE + Utils.DMODELS + dMap.apply(d))
         } catch {
           case _: Throwable => sc.parallelize("dss".toSeq, 1).saveAsTextFile(Utils.HDFSSTORAGE + Utils.DSCORES + "Fails/" + dMap.apply(d) + System.currentTimeMillis().toString().replace(" ", "_"))

@@ -20,7 +20,7 @@ object DomainDataForModels extends App {
     val all = data.getData
 
     val dMap = sc.textFile((Utils.S3STORAGE + Utils.DMODELS + "dlist"), 1).collect().mkString("\n").split("\n").map(l => (l.split("\t")(0), l.split("\t")(1))).toMap
-    val parsed = Transformer.parseDataPerURL(all).repartition(300).cache
+    val parsed = Transformer.parseDataPerURL(all).repartition(1000).cache
     val list = dMap.keySet.toList
     val parList = list.par
     //parList.tasksupport = new ForkJoinTaskSupport(new scala.concurrent.forkjoin.ForkJoinPool(25))

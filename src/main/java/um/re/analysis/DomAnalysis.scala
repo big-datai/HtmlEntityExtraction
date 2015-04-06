@@ -27,6 +27,24 @@ object DomAnalysis extends App {
     countDomain.filter(d => d._2>=minCandNum).map(l=>l._1)
     }
   
+// def topKdomains()
+  
+  /*
+  def domainsList(allData:RDD[(String, Map[String, String])],minCandNum:Int,minGrpNum:Int): RDD[(String, Long)]={
+    val domain = allData.map {l => Utils.getDomain(l._2.apply("url"))}
+    val words = domain.flatMap(x => x.split(","))
+    val countDomain = words.map(x => (x, 1)).reduceByKey((x, y) => x + y)
+    val domainList = countDomain.filter(d => d._2>=minCandNum)
+    val indexedDomainList=domainList.map(n => n._1).zipWithIndex
+    def domNameGrp(indexedDomainList: RDD[(String,Long)]): RDD[(String,Long)] = {
+      val domainGrp= indexedDomainList.count/minGrpNum
+      indexedDomainList.map(n => (n._1, n._2 % domainGrp))
+      }
+   domNameGrp(indexedDomainList)
+  }
+  
+  */
+  
   
 //Load html data with  Title
     val dataHtmls = new UConfAnal(sc, 200)
@@ -36,11 +54,11 @@ object DomAnalysis extends App {
   //  all.take(1).foreach(println)
    // val test= all.take(1).map(l=> l._1)
    // val test2= all.take(1).map(l=> l._2)//.filter(n=> n._1=="title")//.filter(l=>l._1="title")
-     val partialDataDom = allHtmls.map (l=>((l._2.apply("raw_text"),"domain1")))
-     val partialDataUrl = allHtmls.map (l=>((l._2.apply("raw_text"),l._2.apply("url"))))
-     val partialDataTitles = allHtmls.map (l=>((l._2.apply("raw_text"),l._2.apply("title"))))
+  //   val partialDataDom = allHtmls.map (l=>((l._2.apply("raw_text"),"domain1")))
+     //val partialDataUrl = allHtmls.map (l=>((l._2.apply("raw_text"),l._2.apply("url"))))
+     //val partialDataTitles = allHtmls.map (l=>((l._2.apply("raw_text"),l._2.apply("title"))))
     // val partialDataTitle = allHtmls.map (l=>((l._2.apply("raw_text"),l._2.apply("title")))
-    
+    val partialDataDom = allHtmls.map (l=>((l._2.apply("raw_text"),(l._2.apply("url"),l._2.apply("title")))))
       
      //,("url",l._2.apply("url"))
  //   val pairs = title.map(x => (x.split("+")(0), x))
@@ -51,11 +69,18 @@ object DomAnalysis extends App {
     val allCandid = dataCandid.getData
     val domainRelevantList= domainList(allCandid,80)
     val reldom =domainRelevantList.map(l=>(l,"domain2"))
-    val partList1 = partialDataDom.join(reldom)//.join(partialDataUrl).join(partialDataTitles)
-    val partList2=partialDataDom.join(partialDataUrl)
-    val partList3=partialDataDom.join(partialDataTitles)
-    val partList4=partList1.join(partList2)
-    val partList5=partList4.join(partList3)
+    val partList1 = partialDataDom.join(reldom).map(l=>(l._1,l._2._1))
+    val cntByK=partList1.countByKey().toList.map(l=>(l._2,l._1))
+    val newCntByK=sc.parallelize(cntByK, 1).sortByKey(false)
+    val numOfChosenDom=(newCntByK.count * 20/100).toInt
+    val chosenDom=newCntByK.take(numOfChosenDom)
+    // val accum = sc.accumulator(0)
+    //val chosenDom=newCntByK.foreach(x => accum += 1)
+         
+ //   val partList2=partialDataDom.join(partialDataUrl)
+ //   val partList3=partialDataDom.join(partialDataTitles)
+ //   val partList4=partList1.join(partList2)
+ //   val partList5=partList4.join(partList3)
     
     
     val dMap = sc.textFile((Utils.S3STORAGE + Utils.DMODELS + "dlist"), 1).collect().mkString("\n").split("\n").map(l => (l.split("\t")(0), l.split("\t")(1))).toMap

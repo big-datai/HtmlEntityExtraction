@@ -21,6 +21,7 @@ object Utils {
   val DCANDIDS = "/rawd/objects/dcandids/"
   val DMODELS = "/rawd/objects/dmodels/"
   val DSCORES = "/rawd/objects/dscores/"
+  val ANALDATA="/analysis/data/"
   
   def getDomain(input: String) = {
     var url = input

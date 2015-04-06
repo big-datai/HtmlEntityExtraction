@@ -14,13 +14,13 @@ class UConf(sc: SparkContext, parts: Int) {
   conf.set("es.nodes", EsUtils.ESIP)
 
   def getData() = {
-      val source = sc.newAPIHadoopRDD(conf, classOf[EsInputFormat[Text, MapWritable]], classOf[Text], classOf[MapWritable])
-      val all = source.map { l => (l._1.toString(), l._2.map { case (k, v) => (k.toString, v.toString()) }.toMap) }.repartition(parts)
-      all
+    val source = sc.newAPIHadoopRDD(conf, classOf[EsInputFormat[Text, MapWritable]], classOf[Text], classOf[MapWritable])
+    val all = source.map { l => (l._1.toString(), l._2.map { case (k, v) => (k.toString, v.toString()) }.toMap) }.repartition(parts)
+    all
   }
-  
-  def getDataFS(path :String = Utils.HDFSSTORAGE + Utils.DCANDIDS ) = {
-    sc.objectFile[(String,Map[String,String])]( path, parts)
+
+  def getDataFS(path: String = Utils.HDFSSTORAGE + Utils.DCANDIDS) = {
+    sc.objectFile[(String, Map[String, String])](path, parts)
   }
 
   def setQuery(query: String) {

@@ -19,7 +19,7 @@ class UConf(sc: SparkContext, parts: Int) {
     all
   }
 
-  def getDataFS(path: String = Utils.HDFSSTORAGE + Utils.DCANDIDS) = {
+  def getDataFS(path: String = Utils.S3STORAGE + Utils.DCANDIDS) = {
     sc.objectFile[(String, Map[String, String])](path, parts)
   }
 

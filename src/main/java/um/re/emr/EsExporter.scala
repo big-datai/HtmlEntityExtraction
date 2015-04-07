@@ -17,6 +17,6 @@ object EsExporter extends App {
     
   val data = new UConf(sc, 300)
   val all = data.getData
-  all.saveAsObjectFile(dest)
+  all.saveAsObjectFile(dest)//"s3://rawd/objects/dcandids/")//"dest)
 
 }

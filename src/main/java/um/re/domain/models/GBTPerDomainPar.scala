@@ -21,6 +21,7 @@ import org.apache.hadoop.io.compress.GzipCodec
 object GBTPerDomainPar {
   def main(args: Array[String]) {
     val conf_s = new SparkConf()
+    
     val sc = new SparkContext(conf_s)
     val processID = Integer.valueOf(args(0))
     val numDomains = Integer.valueOf(args(1))

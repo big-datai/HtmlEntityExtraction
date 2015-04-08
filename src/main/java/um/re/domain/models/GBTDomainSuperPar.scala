@@ -17,57 +17,42 @@ import um.re.utils.{ UConf }
 import um.re.utils.Utils
 import scala.collection.parallel.ForkJoinTaskSupport
 import org.apache.hadoop.io.compress.GzipCodec
+import org.apache.log4j.Logger
+import org.apache.log4j.Level
 
 object GBTDomainSuperPar extends App {
   val conf_s = new SparkConf()
   val sc = new SparkContext(conf_s)
+
   try {
 
     val data = new UConf(sc, 300)
     val all = data.getDataFS()
 
-    //val list = List("richtonemusic.co.uk","wholesalesupplements.shop.rakuten.com","shop.everythingbuttheweddingdress.com","DiscountCleaningProducts.com","yesss.co.uk","idsecurityonline.com","janitorialequipmentsupply.com","sanddollarlifestyles.com","protoolsdirect.co.uk","educationalinsights.com","faucet-warehouse.com","rexart.com","chronostore.com","racks-for-all.shop.rakuten.com","musicdirect.com","budgetpackaging.com","americanblinds.com","overthehill.com","thesupplementstore.co.uk","intheholegolf.com","alldesignerglasses.com","nitetimetoys.com","instrumentalley.com","ergonomic-chairs.officechairs.com","piratescave.co.uk")
-    //val list = List("fawnandforest.com","parrotshopping.com").par
-    //val list = List("mrcostumes.com", "sto00.mailcar.net", "parentsfavorite.com", "wildbirdstoreonline.com", "runningboardsdirect.com", "vitaminworlddiscount.shop.rakuten.com", "gigaworld.co.uk", "samstores.com", "galaxorstore.com", "flyshack.com", "eventstable.com", "shop.texasmediasystems.com", "vcdiscounter.com", "safetycompany.com", "early-pregnancy-tests.com", "grandfatherclockco.com", "letsplaysomething.com", "livingdirect.com", "golflocker.com", "totalfitnessbath.co.uk", "ecodirect.com", "ettitude.com", "tacticalgear.com", "housemakers.co.uk", "uncommongoods.com", "retrobikegear.com", "shopallergy.com", "inkstation.com.au", "cymbalfusion.com", "toolschest.com", "BlueRainbowDesign.com", "ge.factoryoutletstore.com", "nostalgicbulbs.com", "wellbots.com", "rugstudio.com", "dsmusic.com", "Natex.us", "nbcuniversalstore.com", "heatingcontrolsonline.co.uk", "webosolar.com", "footaction.com", "waterfiltersfast.com", "liquidsurfandsail.com", "yourdiscountchemist.com.au", "petguys.com", "careandheal.com", "ctl.net", "batterymart.com", "lift-chair-store.com", "scaledynasty.com", "sneakers4u.com")
-    //list of domains 
-    //TODO create list of domains that are relevant
-
-    val dMap = sc.textFile((Utils.S3STORAGE + Utils.DMODELS + "dlist"), 1).collect().mkString("\n").split("\n").map(l => (l.split("\t")(0), l.split("\t")(1))).toMap
+    val dMap = sc.textFile((Utils.S3STORAGE + Utils.DMODELS + "part-00000"), 1).collect().mkString("\n").split("\n").map(l => (l.split("\t")(0), l.split("\t")(1))).toMap
     val parsed = Transformer.parseDataPerURL(all).repartition(300).cache
 
-    //val list = args(0).split(",").filter(s => !s.equals("")).filter(dMap.keySet.contains(_))
-
+    // val dlist=sc.textFile((Utils.S3STORAGE + Utils.DMODELS + "dlist"), 1)
+    //dlist.saveAsTextFile((Utils.S3STORAGE + Utils.DMODELS + "part-00000"), classOf[GzipCodec])
     val list = sc.textFile("/domains.list").flatMap { l => l.split(",").filter(s => !s.equals("")).filter(dMap.keySet.contains(_)) }.filter(s => !s.equals("")).toArray().toList
     val parList = list.par
     //val r = scala.util.Random
-    
+
     for (d <- parList) {
-      try {       
- 
-    	 // parList.tasksupport = new ForkJoinTaskSupport(new scala.concurrent.forkjoin.ForkJoinPool(1000))
-       //Thread sleep r.nextInt(400000)
-        
-        sc.parallelize(list, 1).saveAsTextFile("/mike/list/" + d + System.currentTimeMillis().toString().replace(" ", "_"))
-        println("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-        println("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-        println("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-        println("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-        println("                                " + d + "                                      ")
-        println("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-        println("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-        println("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-        // filter domain group by url (url => Iterator.cadidates)
+      try {
+
+        // parList.tasksupport = new ForkJoinTaskSupport(new scala.concurrent.forkjoin.ForkJoinPool(1000))
+        //Thread sleep r.nextInt(400000)
+
+        sc.parallelize(list, 1).saveAsTextFile("/temp/list/" + dMap.apply(d) + System.currentTimeMillis().toString().replace(" ", "_"))
 
         val parsedDataPerURL = parsed.repartition(300).filter(l => l._2._4.equals(d)).groupBy(_._1).repartition(10)
-
         val splits = parsedDataPerURL.randomSplit(Array(0.7, 0.3))
         val (training, test) = (splits(0).flatMap(l => l._2), splits(1).flatMap(l => l._2))
-
-        val hashingTF = new HashingTF(3000)
+        val hashingTF = new HashingTF(1000)
         val tf: RDD[Vector] = hashingTF.transform(training.map(l => l._2._2))
         val idf = (new IDF(minDocFreq = 5)).fit(tf)
         val idf_vector = idf.idf.toArray
-
         val tfidf_avg = Statistics.colStats(idf.transform(tf)).mean.toArray
         val selected_indices = Transformer.getTopTFIDFIndices(100, tfidf_avg)
         val idf_vector_filtered = Transformer.projectByIndices(idf_vector, selected_indices)
@@ -86,34 +71,26 @@ object GBTDomainSuperPar extends App {
 
         val scoreString = d + selectedScore.toString
         try {
-            println("-----------------------------entering the models " + d + " - " + scoreString.length + " ---------------------------------------------------")
-            sc.parallelize(Seq(scoreString), 1).saveAsTextFile(Utils.HDFSSTORAGE + "/mike"  + Utils.DSCORES + dMap.apply(d) + System.currentTimeMillis().toString().replace(" ", "_")) // list on place i
-            sc.parallelize(Seq(selectedModel)).saveAsObjectFile(Utils.HDFSSTORAGE + "/mike" + Utils.DMODELS + dMap.apply(d) + System.currentTimeMillis().toString().replace(" ", "_"))
-            println("--------------------------------------------------------------------------------")
-            println("--------------------------------------------------------------------------------")
-            println("--------------------------------------------------------------------------------")
-            println("                                " + "/mike" + Utils.DSCORES + d + System.currentTimeMillis().toString().replace(" ", "_") + "                                          ")
-            println("--------------------------------------------------------------------------------")
-            println("--------------------------------------------------------------------------------")
-            println("--------------------------------------------------------------------------------")
-            sc.parallelize(Seq(scoreString), 1).saveAsTextFile(Utils.S3STORAGE + Utils.DSCORES + dMap.apply(d), classOf[GzipCodec]) // list on place i
-            sc.parallelize(Seq(selectedModel)).saveAsObjectFile(Utils.S3STORAGE + Utils.DMODELS + dMap.apply(d))
-          // selectedModel.save(sc, Utils.S3STORAGE + Utils.DMODELS + dMap.apply(d))
+          sc.parallelize(Seq(scoreString), 1).saveAsTextFile(Utils.HDFSSTORAGE + "/temp" + Utils.DSCORES + dMap.apply(d) + System.currentTimeMillis().toString().replace(" ", "_")) // list on place i
+          sc.parallelize(Seq(selectedModel),1).saveAsObjectFile(Utils.HDFSSTORAGE + "/temp" + Utils.DMODELS + dMap.apply(d) + System.currentTimeMillis().toString().replace(" ", "_"))
+          //S3 STORAGE
+          //sc.parallelize(Seq(scoreString), 1).saveAsTextFile(Utils.S3STORAGE + Utils.DSCORES + dMap.apply(d), classOf[GzipCodec]) 
+          // sc.parallelize(Seq(selectedModel)).saveAsObjectFile(Utils.S3STORAGE + Utils.DMODELS + dMap.apply(d))
         } catch {
-          case _: Throwable => sc.parallelize("dss".toSeq, 1).saveAsTextFile(Utils.HDFSSTORAGE + Utils.DSCORES + "Fails/" + dMap.apply(d) + System.currentTimeMillis().toString().replace(" ", "_"))
+          case _: Throwable => sc.parallelize(Seq("failed on writing the models"), 1).saveAsTextFile(Utils.HDFSSTORAGE + Utils.DSCORES + "Fails/" + dMap.apply(d) + System.currentTimeMillis().toString().replace(" ", "_"))
         }
-     
+
         //TODO add function to choose candidates and evaluate on url level
         //TODO CHOOSE MODEL BY F
       } catch {
         case e: Throwable =>
-          val errMsg = "model:  " + d + " " + e.getLocalizedMessage() + e.getMessage()
-          sc.parallelize(List(errMsg), 1).saveAsTextFile(Utils.HDFSSTORAGE + "/mike" + Utils.DMODELS + "log/" + errMsg + d + System.currentTimeMillis().toString().replace(" ", "_"))
+          val errMsg = "model:  " + d + " " + e.getLocalizedMessage() + e.getMessage() + "try failed inside of for a big error"
+          sc.parallelize(List(errMsg), 1).saveAsTextFile(Utils.HDFSSTORAGE + "/temp" + Utils.DMODELS + "log/" + errMsg + d + System.currentTimeMillis().toString().replace(" ", "_"))
       }
     }
   } catch {
     case e: Throwable =>
       val errMsg = e.getLocalizedMessage() + e.getMessage()
-      sc.parallelize(List(errMsg), 1).saveAsTextFile(Utils.HDFSSTORAGE + "/mike" + Utils.DMODELS + "log/" + errMsg + System.currentTimeMillis().toString().replace(" ", "_"))
+      sc.parallelize(List(errMsg + "program failed gloabal error"), 1).saveAsTextFile(Utils.HDFSSTORAGE + "/temp" + Utils.DMODELS + "log/" + errMsg + System.currentTimeMillis().toString().replace(" ", "_"))
   }
 }

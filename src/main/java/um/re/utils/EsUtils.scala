@@ -22,10 +22,11 @@ import org.apache.hadoop.io.NullWritable
 import org.elasticsearch.hadoop.mr.EsOutputFormat
 
 object EsUtils {
-  val ESIP = "52.5.109.11"
+  val ESIP = "52.5.43.115"
+  val ESIPANAL="52.1.251.41"
   val ESINDEX = "candidl/data"
-  val ESINDEXANAL = "htmls/data"
-  val ESIP2 = "52.5.109.11"
+  val ESINDEXANAL = "full_river/data"
+  val ESIP2 = "52.1.251.41"
   val ESINDEXANAL2 = "full_river/data"
   val conf = new JobConf()
   conf.set("es.resource", "process_count/counter")

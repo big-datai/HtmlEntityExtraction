@@ -12,7 +12,7 @@ import um.re.utils.EsUtils
 class UConfAnal(sc: SparkContext, parts: Int) {
   val conf = new JobConf()
   conf.set("es.resource", EsUtils.ESINDEXANAL)
-  conf.set("es.nodes", EsUtils.ESIP)
+  conf.set("es.nodes", EsUtils.ESIPANAL)
 
   val source = sc.newAPIHadoopRDD(conf, classOf[EsInputFormat[Text, MapWritable]], classOf[Text], classOf[MapWritable])
   val all = source.map { l => (l._1.toString(), l._2.map { case (k, v) => (k.toString, v.toString()) }.toMap) }.repartition(parts)

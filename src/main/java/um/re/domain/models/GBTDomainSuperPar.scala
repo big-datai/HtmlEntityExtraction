@@ -25,11 +25,12 @@ object GBTDomainSuperPar extends App {
   val sc = new SparkContext(conf_s)
 
   try {
-
+	//TODO we should stick with this repartition or maybe use the hdfs default blocks  
     val data = new UConf(sc, 300)
     val all = data.getDataFS()
-
+    // dMap as broadcast variable
     val dMap = sc.textFile((Utils.S3STORAGE + Utils.DMODELS + "part-00000"), 1).collect().mkString("\n").split("\n").map(l => (l.split("\t")(0), l.split("\t")(1))).toMap
+    //TODO either repartition by domain or don't repartition, the data were partitioned in UConf
     val parsed = Transformer.parseDataPerURL(all).repartition(300).cache
 
     // val dlist=sc.textFile((Utils.S3STORAGE + Utils.DMODELS + "dlist"), 1)
@@ -44,12 +45,14 @@ object GBTDomainSuperPar extends App {
         // parList.tasksupport = new ForkJoinTaskSupport(new scala.concurrent.forkjoin.ForkJoinPool(1000))
         //Thread sleep r.nextInt(400000)
 
-        sc.parallelize(list, 1).saveAsTextFile("/temp/list/" + dMap.apply(d) + System.currentTimeMillis().toString().replace(" ", "_"))
-
+        sc.parallelize(Seq(), 1).saveAsTextFile("/temp/list/" + dMap.apply(d) + System.currentTimeMillis().toString().replace(" ", "_"))
+        
+        //TODO again none needed repartition before filter , post filter better group by key(url) and coalesce  
         val parsedDataPerURL = parsed.repartition(300).filter(l => l._2._4.equals(d)).groupBy(_._1).repartition(10)
         val splits = parsedDataPerURL.randomSplit(Array(0.7, 0.3))
         val (training, test) = (splits(0).flatMap(l => l._2), splits(1).flatMap(l => l._2))
         val hashingTF = new HashingTF(1000)
+        //TODO maybe cache tf
         val tf: RDD[Vector] = hashingTF.transform(training.map(l => l._2._2))
         val idf = (new IDF(minDocFreq = 5)).fit(tf)
         val idf_vector = idf.idf.toArray
@@ -57,6 +60,7 @@ object GBTDomainSuperPar extends App {
         val selected_indices = Transformer.getTopTFIDFIndices(100, tfidf_avg)
         val idf_vector_filtered = Transformer.projectByIndices(idf_vector, selected_indices)
 
+        //TODO cache points , coalesce instead of repartition if didn't repartition earlier otherwise don't repartition
         val training_points = Transformer.data2pointsPerURL(training, idf_vector_filtered, selected_indices, hashingTF).map(p => p._2).repartition(10)
         val test_points = Transformer.data2pointsPerURL(test, idf_vector_filtered, selected_indices, hashingTF).repartition(10)
 

@@ -23,14 +23,15 @@ import org.apache.log4j.Level
 object GBTDomainSuperPar extends App {
   val conf_s = new SparkConf()
   val sc = new SparkContext(conf_s)
+  val parts=400
 
   try {
 
-    val data = new UConf(sc, 300)
+    val data = new UConf(sc, parts)
     val all = data.getDataFS()
 
     val dMap = sc.textFile((Utils.S3STORAGE + Utils.DMODELS + "part-00000"), 1).collect().mkString("\n").split("\n").map(l => (l.split("\t")(0), l.split("\t")(1))).toMap
-    val parsed = Transformer.parseDataPerURL(all).repartition(300).cache
+    val parsed = Transformer.parseDataPerURL(all).repartition(parts).cache
 
     // val dlist=sc.textFile((Utils.S3STORAGE + Utils.DMODELS + "dlist"), 1)
     //dlist.saveAsTextFile((Utils.S3STORAGE + Utils.DMODELS + "part-00000"), classOf[GzipCodec])
@@ -41,12 +42,13 @@ object GBTDomainSuperPar extends App {
     for (d <- parList) {
       try {
 
-        // parList.tasksupport = new ForkJoinTaskSupport(new scala.concurrent.forkjoin.ForkJoinPool(1000))
+         //parList.tasksupport = new ForkJoinTaskSupport(new scala.concurrent.forkjoin.ForkJoinPool(80))
         //Thread sleep r.nextInt(400000)
 
         sc.parallelize(list, 1).saveAsTextFile("/temp/list/" + dMap.apply(d) + System.currentTimeMillis().toString().replace(" ", "_"))
 
-        val parsedDataPerURL = parsed.repartition(300).filter(l => l._2._4.equals(d)).groupBy(_._1).repartition(10)
+        val parsedDataPerURL = parsed.repartition(parts).filter(l => l._2._4.equals(d)).repartition(10).groupBy(_._1)
+        //TODO REPARTITION BEFORE GROUP BY
         val splits = parsedDataPerURL.randomSplit(Array(0.7, 0.3))
         val (training, test) = (splits(0).flatMap(l => l._2), splits(1).flatMap(l => l._2))
         val hashingTF = new HashingTF(1000)
@@ -73,6 +75,7 @@ object GBTDomainSuperPar extends App {
         try {
           sc.parallelize(Seq(scoreString), 1).saveAsTextFile(Utils.HDFSSTORAGE + "/temp" + Utils.DSCORES + dMap.apply(d) + System.currentTimeMillis().toString().replace(" ", "_")) // list on place i
           sc.parallelize(Seq(selectedModel),1).saveAsObjectFile(Utils.HDFSSTORAGE + "/temp" + Utils.DMODELS + dMap.apply(d) + System.currentTimeMillis().toString().replace(" ", "_"))
+          println(d)
           //S3 STORAGE
           //sc.parallelize(Seq(scoreString), 1).saveAsTextFile(Utils.S3STORAGE + Utils.DSCORES + dMap.apply(d), classOf[GzipCodec]) 
           // sc.parallelize(Seq(selectedModel)).saveAsObjectFile(Utils.S3STORAGE + Utils.DMODELS + dMap.apply(d))

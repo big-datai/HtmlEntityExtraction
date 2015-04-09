@@ -34,7 +34,7 @@ object GBTDomainSuperPar extends App {
     val dMap = sc.broadcast(sc.textFile((Utils.S3STORAGE + Utils.DMODELS + "part-00000"), 1).collect().mkString("\n").split("\n").map(l => (l.split("\t")(0), l.split("\t")(1))).toMap)
     //TODO either repartition by domain or don't repartition, the data were partitioned in UConf
     val partByDomain = new HashPartitioner(parts)
-    val parsed = Transformer.parseDataPerURL(all).map{l=> (l._2._4,l)}.partitionBy(partByDomain).mapPartitions({p=>p.map(_._2)}, true).cache
+    val parsed = Transformer.parseDataPerURL(all).map { l => (l._2._4, l) }.partitionBy(partByDomain).mapPartitions({ p => p.map(_._2) }, true).cache
 
     // val dlist=sc.textFile((Utils.S3STORAGE + Utils.DMODELS + "dlist"), 1)
     //dlist.saveAsTextFile((Utils.S3STORAGE + Utils.DMODELS + "part-00000"), classOf[GzipCodec])
@@ -47,7 +47,7 @@ object GBTDomainSuperPar extends App {
 
         // parList.tasksupport = new ForkJoinTaskSupport(new scala.concurrent.forkjoin.ForkJoinPool(1000))
         //Thread sleep r.nextInt(400000)
-    	sc.parallelize(Seq(""), 1).saveAsTextFile("/temp/list/" + dMap.value.apply(d) + System.currentTimeMillis().toString().replace(" ", "_"))
+    	  sc.parallelize(Seq(""), 1).saveAsTextFile("/temp/list/" + dMap.value.apply(d) + System.currentTimeMillis().toString().replace(" ", "_"))
         val partForDomain = 10
         
         //TODO again none needed repartition before filter , post filter better group by key(url) and coalesce  
@@ -81,6 +81,7 @@ object GBTDomainSuperPar extends App {
         try {
           sc.parallelize(Seq(scoreString), 1).saveAsTextFile(Utils.HDFSSTORAGE + "/temp" + Utils.DSCORES + dMap.value.apply(d) + System.currentTimeMillis().toString().replace(" ", "_")) // list on place i
           sc.parallelize(Seq(selectedModel),1).saveAsObjectFile(Utils.HDFSSTORAGE + "/temp" + Utils.DMODELS + dMap.value.apply(d) + System.currentTimeMillis().toString().replace(" ", "_"))
+          training_points.unpersist(false)
           //S3 STORAGE
           //sc.parallelize(Seq(scoreString), 1).saveAsTextFile(Utils.S3STORAGE + Utils.DSCORES + dMap.value.apply(d), classOf[GzipCodec]) 
           // sc.parallelize(Seq(selectedModel)).saveAsObjectFile(Utils.S3STORAGE + Utils.DMODELS + dMap.value.apply(d))

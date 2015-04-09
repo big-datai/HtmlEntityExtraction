@@ -19,6 +19,7 @@ import scala.collection.parallel.ForkJoinTaskSupport
 import org.apache.hadoop.io.compress.GzipCodec
 import org.apache.log4j.Logger
 import org.apache.log4j.Level
+import org.apache.spark.HashPartitioner
 
 object GBTDomainSuperPar extends App {
   val conf_s = new SparkConf()
@@ -26,16 +27,18 @@ object GBTDomainSuperPar extends App {
 
   try {
 	//TODO we should stick with this repartition or maybe use the hdfs default blocks  
-    val data = new UConf(sc, 300)
+    val parts = Integer.valueOf(args.apply(0))
+    val data = new UConf(sc, parts)
     val all = data.getDataFS()
     // dMap as broadcast variable
-    val dMap = sc.textFile((Utils.S3STORAGE + Utils.DMODELS + "part-00000"), 1).collect().mkString("\n").split("\n").map(l => (l.split("\t")(0), l.split("\t")(1))).toMap
+    val dMap = sc.broadcast(sc.textFile((Utils.S3STORAGE + Utils.DMODELS + "part-00000"), 1).collect().mkString("\n").split("\n").map(l => (l.split("\t")(0), l.split("\t")(1))).toMap)
     //TODO either repartition by domain or don't repartition, the data were partitioned in UConf
-    val parsed = Transformer.parseDataPerURL(all).repartition(300).cache
+    val partByDomain = new HashPartitioner(parts)
+    val parsed = Transformer.parseDataPerURL(all).map{l=> (l._2._4,l)}.partitionBy(partByDomain).mapPartitions({p=>p.map(_._2)}, true).cache
 
     // val dlist=sc.textFile((Utils.S3STORAGE + Utils.DMODELS + "dlist"), 1)
     //dlist.saveAsTextFile((Utils.S3STORAGE + Utils.DMODELS + "part-00000"), classOf[GzipCodec])
-    val list = sc.textFile("/domains.list").flatMap { l => l.split(",").filter(s => !s.equals("")).filter(dMap.keySet.contains(_)) }.filter(s => !s.equals("")).toArray().toList
+    val list = sc.textFile("/domains.list").flatMap { l => l.split(",").filter(s => !s.equals("")).filter(dMap.value.keySet.contains(_)) }.filter(s => !s.equals("")).toArray().toList
     val parList = list.par
     //val r = scala.util.Random
 
@@ -44,11 +47,12 @@ object GBTDomainSuperPar extends App {
 
         // parList.tasksupport = new ForkJoinTaskSupport(new scala.concurrent.forkjoin.ForkJoinPool(1000))
         //Thread sleep r.nextInt(400000)
-
-        sc.parallelize(Seq(), 1).saveAsTextFile("/temp/list/" + dMap.apply(d) + System.currentTimeMillis().toString().replace(" ", "_"))
+    	sc.parallelize(Seq(""), 1).saveAsTextFile("/temp/list/" + dMap.value.apply(d) + System.currentTimeMillis().toString().replace(" ", "_"))
+        val partForDomain = 10
         
         //TODO again none needed repartition before filter , post filter better group by key(url) and coalesce  
-        val parsedDataPerURL = parsed.repartition(300).filter(l => l._2._4.equals(d)).groupBy(_._1).repartition(10)
+        //val parsedDataPerURL = parsed.repartition(300).filter(l => l._2._4.equals(d)).groupBy(_._1).repartition(10)
+        val parsedDataPerURL = parsed.filter(l => l._2._4.equals(d)).coalesce(partForDomain).groupBy(_._1)
         val splits = parsedDataPerURL.randomSplit(Array(0.7, 0.3))
         val (training, test) = (splits(0).flatMap(l => l._2), splits(1).flatMap(l => l._2))
         val hashingTF = new HashingTF(1000)
@@ -61,8 +65,8 @@ object GBTDomainSuperPar extends App {
         val idf_vector_filtered = Transformer.projectByIndices(idf_vector, selected_indices)
 
         //TODO cache points , coalesce instead of repartition if didn't repartition earlier otherwise don't repartition
-        val training_points = Transformer.data2pointsPerURL(training, idf_vector_filtered, selected_indices, hashingTF).map(p => p._2).repartition(10)
-        val test_points = Transformer.data2pointsPerURL(test, idf_vector_filtered, selected_indices, hashingTF).repartition(10)
+        val training_points = Transformer.data2pointsPerURL(training, idf_vector_filtered, selected_indices, hashingTF).map(p => p._2).cache
+        val test_points = Transformer.data2pointsPerURL(test, idf_vector_filtered, selected_indices, hashingTF)
 
         val boostingStrategy = BoostingStrategy.defaultParams("Classification")
         boostingStrategy.numIterations = 30
@@ -75,13 +79,13 @@ object GBTDomainSuperPar extends App {
 
         val scoreString = d + selectedScore.toString
         try {
-          sc.parallelize(Seq(scoreString), 1).saveAsTextFile(Utils.HDFSSTORAGE + "/temp" + Utils.DSCORES + dMap.apply(d) + System.currentTimeMillis().toString().replace(" ", "_")) // list on place i
-          sc.parallelize(Seq(selectedModel),1).saveAsObjectFile(Utils.HDFSSTORAGE + "/temp" + Utils.DMODELS + dMap.apply(d) + System.currentTimeMillis().toString().replace(" ", "_"))
+          sc.parallelize(Seq(scoreString), 1).saveAsTextFile(Utils.HDFSSTORAGE + "/temp" + Utils.DSCORES + dMap.value.apply(d) + System.currentTimeMillis().toString().replace(" ", "_")) // list on place i
+          sc.parallelize(Seq(selectedModel),1).saveAsObjectFile(Utils.HDFSSTORAGE + "/temp" + Utils.DMODELS + dMap.value.apply(d) + System.currentTimeMillis().toString().replace(" ", "_"))
           //S3 STORAGE
-          //sc.parallelize(Seq(scoreString), 1).saveAsTextFile(Utils.S3STORAGE + Utils.DSCORES + dMap.apply(d), classOf[GzipCodec]) 
-          // sc.parallelize(Seq(selectedModel)).saveAsObjectFile(Utils.S3STORAGE + Utils.DMODELS + dMap.apply(d))
+          //sc.parallelize(Seq(scoreString), 1).saveAsTextFile(Utils.S3STORAGE + Utils.DSCORES + dMap.value.apply(d), classOf[GzipCodec]) 
+          // sc.parallelize(Seq(selectedModel)).saveAsObjectFile(Utils.S3STORAGE + Utils.DMODELS + dMap.value.apply(d))
         } catch {
-          case _: Throwable => sc.parallelize(Seq("failed on writing the models"), 1).saveAsTextFile(Utils.HDFSSTORAGE + Utils.DSCORES + "Fails/" + dMap.apply(d) + System.currentTimeMillis().toString().replace(" ", "_"))
+          case _: Throwable => sc.parallelize(Seq("failed on writing the models"), 1).saveAsTextFile(Utils.HDFSSTORAGE + Utils.DSCORES + "Fails/" + dMap.value.apply(d) + System.currentTimeMillis().toString().replace(" ", "_"))
         }
 
         //TODO add function to choose candidates and evaluate on url level

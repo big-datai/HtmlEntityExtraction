@@ -65,7 +65,7 @@ object GBTDomainSuperPar extends App {
         val idf_vector_filtered = Transformer.projectByIndices(idf_vector, selected_indices)
 
         //TODO cache points , coalesce instead of repartition if didn't repartition earlier otherwise don't repartition
-        val training_points = Transformer.data2pointsPerURL(training, idf_vector_filtered, selected_indices, hashingTF).map(p => p._2).cache
+        val training_points = Transformer.data2pointsPerURL(training, idf_vector_filtered, selected_indices, hashingTF).map(p => p._2)//.cache
         val test_points = Transformer.data2pointsPerURL(test, idf_vector_filtered, selected_indices, hashingTF)
 
         val boostingStrategy = BoostingStrategy.defaultParams("Classification")
@@ -81,7 +81,7 @@ object GBTDomainSuperPar extends App {
         try {
           sc.parallelize(Seq(scoreString), 1).saveAsTextFile(Utils.HDFSSTORAGE + "/temp" + Utils.DSCORES + dMap.value.apply(d) + System.currentTimeMillis().toString().replace(" ", "_")) // list on place i
           sc.parallelize(Seq(selectedModel),1).saveAsObjectFile(Utils.HDFSSTORAGE + "/temp" + Utils.DMODELS + dMap.value.apply(d) + System.currentTimeMillis().toString().replace(" ", "_"))
-          training_points.unpersist(false)
+         // training_points.unpersist(false)
           //S3 STORAGE
           //sc.parallelize(Seq(scoreString), 1).saveAsTextFile(Utils.S3STORAGE + Utils.DSCORES + dMap.value.apply(d), classOf[GzipCodec]) 
           // sc.parallelize(Seq(selectedModel)).saveAsObjectFile(Utils.S3STORAGE + Utils.DMODELS + dMap.value.apply(d))

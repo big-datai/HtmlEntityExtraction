@@ -77,7 +77,7 @@ object GBTDomainSuperPar extends App {
         val res = Transformer.evaluateModel(Transformer.labelAndPredPerURL(model, test_points), model)
         val selectedModel = (model, idf_vector_filtered, selected_indices)        
         val selectedScore = res
-        training_points.unpersist(false)
+        training_points.unpersist(true)
 
         val scoreString = d + selectedScore.toString
         try {

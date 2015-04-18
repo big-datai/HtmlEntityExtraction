@@ -3,6 +3,7 @@ package um.re.transform
 import scala.Array.canBuildFrom
 import org.apache.spark.mllib.feature.HashingTF
 import org.apache.spark.mllib.linalg.Vectors
+import org.apache.spark.mllib.linalg.Vector
 import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.mllib.tree.model.GradientBoostedTreesModel
 import org.apache.spark.rdd.RDD
@@ -12,6 +13,11 @@ import org.apache.spark.mllib.tree.model.RandomForestModel
 import org.apache.spark.mllib.classification.SVMModel
 
 object Transformer {
+
+  def confidenceGBT(model : GradientBoostedTreesModel ,features: Vector): Double = {
+    val treePredictions = model.trees.map(_.predict(features))
+    (treePredictions, model.treeWeights).zipped.map((d1, d2) => d1 * d2).sum
+  }
 
   def splitRawDataByURL(data: RDD[(String, Map[String, String])], trainingFraction: Double = 0.7): (RDD[(String, Map[String, String])], RDD[(String, Map[String, String])]) = {
     val testFraction = 1 - trainingFraction
@@ -266,6 +272,15 @@ object Transformer {
     labelAndPreds
   }
 
+  def labelAndPredPerURLSelectedCandid(model: GradientBoostedTreesModel, input_points: RDD[(String, LabeledPoint)]): RDD[(String, Double, Double,Double)] = {
+    val labelAndPreds = input_points.map {
+      case (url, point) =>
+        val prediction = model.predict(point.features)
+        (url, point.label, prediction,confidenceGBT(model,point.features))
+    }
+    labelAndPreds
+  }
+  
   def buildTreeSubModels(model: GradientBoostedTreesModel,sizes:Array[Int]=Array()): IndexedSeq[GradientBoostedTreesModel] = {
     val algo = model.algo
     val trees = model.trees
@@ -293,6 +308,24 @@ object Transformer {
     (model_i.trees.length, (tp, tn, fp, fn, sen, spec, prec, upperBound, lowerBound))
   }
 
+  def evaluateModelByURL(labelAndPreds: RDD[(String, Double, Double,Double)], model_i: GradientBoostedTreesModel) = {
+    val predsByURL = labelAndPreds.map(l=>(l._1,(l._2,l._3,l._4)) ).groupByKey.map{url => 
+      val selectedCandid =  url._2.toList.//filter(_._2==1).
+      map{case (l,p,c)=> (c,l,p)}.sorted.reverse.head
+      (url._1,selectedCandid)
+      }
+    val urlCount = predsByURL.count
+    val tp = predsByURL.filter { case (url,(c,l,p)) => (l == 1) && (p == 1) }.count
+    val tn = predsByURL.filter { case (url,(c,l,p)) => (l == 0) && (p == 0) }.count
+    val fp = predsByURL.filter { case (url,(c,l,p)) => (l == 0) && (p == 1) }.count
+    val fn = predsByURL.filter { case (url,(c,l,p)) => (l == 1) && (p == 0) }.count
+    val sen = tp / (tp + fn).toDouble
+    val spec = tn / (fp + tn).toDouble
+    val prec = tp / (tp + fp).toDouble
+    (model_i.trees.length, (tp, tn, fp, fn, sen, spec, prec))
+  }
+
+  
   def labelAndPredPerURL(model: RandomForestModel, input_points: RDD[(String, LabeledPoint)]): RDD[(String, Double, Double)] = {
     val labelAndPreds = input_points.map {
       case (url, point) =>

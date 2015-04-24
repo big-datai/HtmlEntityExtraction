@@ -13,7 +13,7 @@ import org.apache.spark.mllib.tree.GradientBoostedTrees
 import org.apache.spark.mllib.stat.Statistics
 import org.apache.spark.mllib.tree.model.GradientBoostedTreesModel
 import um.re.transform.Transformer
-import um.re.utils.{ UConf }
+import um.re.utils.UConf
 import um.re.utils.Utils
 import scala.collection.parallel.ForkJoinTaskSupport
 import org.apache.hadoop.io.compress.GzipCodec
@@ -21,7 +21,7 @@ import org.apache.log4j.Logger
 import org.apache.log4j.Level
 import org.apache.spark.HashPartitioner
 
-object GBTDomainSuperPar extends App {
+object GBTDomainSuperParSelectCandid extends App {
   val conf_s = new SparkConf()
   val sc = new SparkContext(conf_s)
 
@@ -50,6 +50,8 @@ object GBTDomainSuperPar extends App {
     	  sc.parallelize(Seq(""), 1).saveAsTextFile("/temp/list/" + dMap.value.apply(d) + System.currentTimeMillis().toString().replace(" ", "_"))
         val partForDomain = 10
         
+        //val parsedDataPerURL = parsed.filter(l => l._2._4.equals("thebookpeople.co.uk")).coalesce(partForDomain).groupBy(_._1)
+        
         //TODO again none needed repartition before filter , post filter better group by key(url) and coalesce  
         //val parsedDataPerURL = parsed.repartition(300).filter(l => l._2._4.equals(d)).groupBy(_._1).repartition(10)
         val parsedDataPerURL = parsed.filter(l => l._2._4.equals(d)).coalesce(partForDomain).groupBy(_._1)
@@ -74,15 +76,15 @@ object GBTDomainSuperPar extends App {
         val model = GradientBoostedTrees.train(training_points, boostingStrategy)
         training_points.unpersist(false)
         
-        val res = Transformer.evaluateModel(Transformer.labelAndPredPerURL(model, test_points), model)
-        val selectedModel = (model, idf_vector_filtered, selected_indices)        
+        val res = Transformer.evaluateModelByURL(Transformer.labelAndPredPerURLSelectedCandid(model, test_points), model)
+        //val selectedModel = (model, idf_vector_filtered, selected_indices)        
         val selectedScore = res
         training_points.unpersist(true)
 
         val scoreString = d + selectedScore.toString
         try {
           sc.parallelize(Seq(scoreString), 1).saveAsTextFile(Utils.HDFSSTORAGE + "/temp" + Utils.DSCORES + dMap.value.apply(d) + System.currentTimeMillis().toString().replace(" ", "_")) // list on place i
-          sc.parallelize(Seq(selectedModel),1).saveAsObjectFile(Utils.HDFSSTORAGE + "/temp" + Utils.DMODELS + dMap.value.apply(d) + System.currentTimeMillis().toString().replace(" ", "_"))
+          //sc.parallelize(Seq(selectedModel),1).saveAsObjectFile(Utils.HDFSSTORAGE + "/temp" + Utils.DMODELS + dMap.value.apply(d) + System.currentTimeMillis().toString().replace(" ", "_"))
           //S3 STORAGE
           //sc.parallelize(Seq(scoreString), 1).saveAsTextFile(Utils.S3STORAGE + Utils.DSCORES + dMap.value.apply(d), classOf[GzipCodec]) 
           // sc.parallelize(Seq(selectedModel)).saveAsObjectFile(Utils.S3STORAGE + Utils.DMODELS + dMap.value.apply(d))

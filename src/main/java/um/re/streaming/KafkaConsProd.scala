@@ -8,7 +8,7 @@ import kafka.producer._
 import org.apache.spark.streaming.Seconds
 import java.util.Properties
 
-object KafkaConsumer extends App {
+object KafkaConsProd extends App {
   val sc = new SparkContext()
 
   val ssc = new StreamingContext(sc, Seconds(5))
@@ -22,6 +22,21 @@ object KafkaConsumer extends App {
     ssc, kafkaParams, topicsSet)
 
   messages.print
+
+  //  def toKMsg(v:String) = { new KeyedMessage[String, String]("testOut", v)}
+
+  messages.map(v=>v._2).foreachRDD { rdd =>
+    rdd.foreachPartition { p =>
+      val props = new Properties()
+      props.put("metadata.broker.list", brokers)
+      props.put("serializer.class", "kafka.serializer.StringEncoder")
+
+      @transient val config = new ProducerConfig(props)
+      @transient val producer = new Producer[String, String](config)
+      p.foreach(rec => producer.send(new KeyedMessage[String, String]("testOut", rec)))
+      producer.close()
+    }
+  }
 
   ssc.start()
   ssc.awaitTermination()

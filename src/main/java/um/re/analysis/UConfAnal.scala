@@ -8,6 +8,7 @@ import org.apache.spark.SparkContext
 import org.elasticsearch.hadoop.mr.EsInputFormat
 import um.re.data.DataSchema
 import um.re.utils.EsUtils
+import um.re.utils.{Utils}
 
 class UConfAnal(sc: SparkContext, parts: Int) {
   val conf = new JobConf()
@@ -19,6 +20,10 @@ class UConfAnal(sc: SparkContext, parts: Int) {
 
   def getData() = {
     all
+  }
+  
+   def getDataFS(path: String = Utils.S3STORAGE + "/rawd/objects/full") = {
+    sc.objectFile[(String, (String, String, String))](path, parts)
   }
 
   def setQuery(query: String) {

@@ -41,6 +41,7 @@ object BuildCandPatterns extends App {
   val source = sc.newAPIHadoopRDD(conf, classOf[EsInputFormat[Text, MapWritable]], classOf[Text], classOf[MapWritable])
   val source2 = source.map { l => (l._1.toString(), l._2.map { case (k, v) => (k.toString, v.toString) }.toMap) }.repartition(300)//sample(false, 0.001, 12345)
   val res = Utils.getCandidatesPatternsHtmlTrimed(source2)
+ 
   val db = res.filter { l => 
     val map_pat = l.head
     val count = l.tail.filter{ cand =>

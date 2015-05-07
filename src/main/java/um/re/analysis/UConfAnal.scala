@@ -16,7 +16,7 @@ class UConfAnal(sc: SparkContext, parts: Int) {
   conf.set("es.nodes", EsUtils.ESIPANAL)
 
   val source = sc.newAPIHadoopRDD(conf, classOf[EsInputFormat[Text, MapWritable]], classOf[Text], classOf[MapWritable])
-  val all = source.map { l => (l._1.toString(), l._2.map { case (k, v) => (k.toString, v.toString()) }.toMap) }.repartition(parts)
+  val all = source.map { l => (l._1.toString(), l._2.map { case (k, v) => (k.toString, v.toString()) }.toMap) }//.repartition(parts)
 
   def getData() = {
     all
@@ -26,6 +26,12 @@ class UConfAnal(sc: SparkContext, parts: Int) {
     sc.objectFile[(String, (String, String, String))](path, parts)
   }
 
+   
+  def getDataFromS3(path: String = Utils.S3STORAGE + "/dpavlov/es/full_river") = {
+    sc.objectFile[(String, Map[String, String])](path, parts)
+  }
+    
+    
   def setQuery(query: String) {
     conf.set("", "")
     conf.set("es.query", "?q=" + query)

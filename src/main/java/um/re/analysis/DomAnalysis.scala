@@ -78,9 +78,9 @@ object DomAnalysis extends App {
 
  
 //Load html data with  Title
-    val dataHtmls = new UConfAnal(sc, 200)
+    val dataHtmls = new UConfAnal(sc, 150)
     //Read from ES
-      //val allHtmls = dataHtmls.getData
+      //val alldata = dataHtmls.getData
       //val tuplelDataDom = allHtmls.map (l=>((Utils.getDomain(l._1),(l._2.apply("url"),(l._2.apply("prod_id")),(l._2.apply("title"))))))
       
     //Read from S3
@@ -108,7 +108,7 @@ val GrpByDom=FinalChosenProds
     
    // val numProd=output.map(l=>(l._2)).distinct().count
 //Save2s3      
-   //tuplelDataDom.saveAsObjectFile(Utils.S3STORAGE+"/rawd/objects/full") 
+   //tuplelDataDom.saveAsObjectFile(Utils.S3STORAGE+"/dpavlov/es/full_river") 
 //ReadFromS3  
   //val tuplelDataDomS3 = sc.objectFile[(String, (String, String, String))](Utils.S3STORAGE+"/rawd/objects/full", 200)
 

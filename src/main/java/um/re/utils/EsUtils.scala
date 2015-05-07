@@ -22,8 +22,8 @@ import org.apache.hadoop.io.NullWritable
 import org.elasticsearch.hadoop.mr.EsOutputFormat
 
 object EsUtils {
-  val ESIP = "52.5.43.115"
-  val ESIPANAL="52.1.251.41"
+  val ESIP = "107.20.157.48"
+  val ESIPANAL="107.20.157.48"
   val ESINDEX = "candidl/data"
   val ESINDEXANAL = "full_river/data"
   val ESIP2 = "52.1.251.41"

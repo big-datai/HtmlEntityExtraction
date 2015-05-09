@@ -9,12 +9,10 @@ import org.apache.spark.mllib.linalg.{ Vector, Vectors }
 import org.apache.spark.mllib.stat.Statistics
 import um.re.transform.Transformer
 import um.re.utils.Utils
-import um.re.analysis.UConfAnal
-import um.re.analysis.UConfAnal2
 import um.re.transform.Transformer
 import um.re.utils.{ UConf }
 import um.re.utils.Utils
-import um.re.analysis.EsExporter2
+
 
 object DomAnalysisFull extends App {
   val conf_s = new SparkConf()
@@ -70,13 +68,13 @@ object DomAnalysisFull extends App {
  
  
 //Load html data with  Title
-    val dataHtmls = new UConfAnal(sc, 200)
+    val dataHtmls = new UConf(sc, 200)
     //Read from ES
       //val allHtmls = dataHtmls.getData
       //val tuplelDataDom = allHtmls.map (l=>((Utils.getDomain(l._1),(l._2.apply("url"),(l._2.apply("prod_id")),(l._2.apply("title"))))))
       
     //Read from S3
-    val tuplelDataDom = dataHtmls.getDataFS()
+    val tuplelDataDom = dataHtmls.getAnalDataFS()
     
 //Join on domains that are relevant (minCandNum==80) and choosing Kth percentile of domains => according to # of urls 
     val FinalChosenDom=tuplelDataDom

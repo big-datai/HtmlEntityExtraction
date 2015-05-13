@@ -159,7 +159,7 @@ object Utils {
    */
   def allPatterns(patterns: String, html: String, new_length: Int) = {
     patterns.split("\\|\\|\\|").filter(p => p != null && !p.isEmpty() && !p.equals("")).map { p =>
-      extPatternLocationPair(shrinkString(p), shrinkString(html), new_length)
+      extPatternLocationPair(p, html, new_length)
     }.toMap
   }
 

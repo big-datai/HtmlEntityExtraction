@@ -23,6 +23,14 @@ class UConf(sc: SparkContext, parts: Int) {
     sc.objectFile[(String, Map[String, String])](path, parts)
   }
 
+  def getDataFromS3(path: String = Utils.S3STORAGE + "/dpavlov/es/full_river") = {
+    sc.objectFile[(String, Map[String, String])](path, parts)
+  }
+  
+  def getAnalDataFS(path: String = Utils.S3STORAGE + "/rawd/objects/full") = {
+    sc.objectFile[(String, (String, String, String))](path, parts)
+  }
+   
   def setQuery(query: String) {
     conf.set("", "")
     conf.set("es.query", "?q=" + query)

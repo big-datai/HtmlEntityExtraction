@@ -21,10 +21,10 @@ object Utils {
   val DCANDIDS = "/rawd/objects/dcandids/"
   val DMODELS = "/rawd/objects/dmodels/"
   val DSCORES = "/rawd/objects/dscores/"
-  val ANALDATA="/analysis/data/"
-  val SEEDS2S3="/dpavlov/seeds3"
-  val FULLR2S3="/dpavlov/es/full_river"
-  
+  val ANALDATA = "/analysis/data/"
+  val SEEDS2S3 = "/dpavlov/seeds3"
+  val FULLR2S3 = "/dpavlov/es/full_river"
+  val DEBUGFLAG = false
   def getDomain(input: String) = {
     var url = input
     try {
@@ -77,7 +77,7 @@ object Utils {
   def tokenazer(text: String) = {
     textOnly(text).split(" ").toSeq
   }
-    def tokenazerTextNum(text: String) = {
+  def tokenazerTextNum(text: String) = {
     textNum(text).split(" ").toSeq
   }
   def bySpace(text: String) = {
@@ -131,6 +131,51 @@ object Utils {
       Utils.parseDouble(cand.get("priceCandidate").get.toString).get == Utils.parseDouble((map_pat.get("price").get.toString)).get &&
       Utils.parseDouble(map_pat.get("price_updated").get.toString).get == Utils.parseDouble(map_pat.get("price").get.toString).get)
   }
+
+  def htmlsToCandidsPipe(source: RDD[(String, Map[String, String])]): RDD[Map[String, String]] = {
+    val res = Utils.getCandidatesPatternsHtmlTrimed(source)
+    if (DEBUGFLAG)
+      res.count
+    
+    val resFiltered = res.filter { l =>
+      val map_pat = l.head
+      val count = l.tail.filter { cand =>
+        (Utils.isTrueCandid(map_pat, cand))
+      }.size
+      l != null && count > 0
+    }
+    if (DEBUGFLAG)
+      resFiltered.count
+      
+    val db = resFiltered.map { l =>
+      try {
+        val map_pat = l.head
+        val pat = map_pat.get("patterns").get.toString
+        val html = map_pat.get("html").get.toString
+        val length = html.size
+        val location_pattern :Map[String,String] = Map.empty//Utils.allPatterns(pat, html, 150)
+        //add to each candidate pattern
+        l.tail.map { cand =>
+          cand + ("price_updated" -> map_pat.get("price_updated").get.toString) + ("price" -> map_pat.get("price").get.toString) +
+            ("patterns" -> Utils.map2JsonString(location_pattern)) + ("length" -> length.toString)
+        }
+      } catch {
+        case _: Exception => null
+      }
+    }
+    if (DEBUGFLAG)
+      db.count
+    val dbFiltered = db.filter(l => l != null)
+    if (DEBUGFLAG)
+      dbFiltered.count
+    
+    val fin = db.flatMap(l => l)
+    if (DEBUGFLAG)
+      fin.count
+    
+    fin
+  }
+
   def getCandidatesPatternsHtmlTrimed(source2: RDD[(String, Map[String, String])]): RDD[List[Map[String, String]]] = {
     val candid = source2.map { l =>
       try {
@@ -146,7 +191,7 @@ object Utils {
         val p=m_webClient.getPage(id)
         */
         val patterns = shrinkString(l._2.get("price_patterns").get)
-        val res = nf.findM(id, html)
+        val res = nf.findFast(id, html)
         val p_h = Map("patterns" -> patterns, "html" -> html, "price" -> price, "price_updated" -> price_updated)
         p_h :: res
       } catch {
@@ -270,34 +315,35 @@ object Utils {
     val oos = new ObjectInputStream(fos)
     model = oos.readObject().asInstanceOf[org.apache.spark.mllib.tree.model.GradientBoostedTreesModel]
   }
-  
- /**
- * Method for choosing domains with more then minCandNum candidates .
- * @  minCandNum is minimum number of candidates per domain
- * @  allData is parsed data with all domains  
- */   
- def domainsList(allData:RDD[(String, Map[String, String])],minCandNum:Int,minGrpNum:Int): RDD[(String, Long)]={
-    val domain = allData.map {l => Utils.getDomain(l._2.apply("url"))}
+
+  /**
+   * Method for choosing domains with more then minCandNum candidates .
+   * @  minCandNum is minimum number of candidates per domain
+   * @  allData is parsed data with all domains
+   */
+  def domainsList(allData: RDD[(String, Map[String, String])], minCandNum: Int, minGrpNum: Int): RDD[(String, Long)] = {
+    val domain = allData.map { l => Utils.getDomain(l._2.apply("url")) }
     val words = domain.flatMap(x => x.split(","))
     val countDomain = words.map(x => (x, 1)).reduceByKey((x, y) => x + y)
-    val domainList = countDomain.filter(d => d._2>=minCandNum)
-    val indexedDomainList=domainList.map(n => n._1).zipWithIndex
-    def domNameGrp(indexedDomainList: RDD[(String,Long)]): RDD[(String,Long)] = {
-      val domainGrp= indexedDomainList.count/minGrpNum
+    val domainList = countDomain.filter(d => d._2 >= minCandNum)
+    val indexedDomainList = domainList.map(n => n._1).zipWithIndex
+    def domNameGrp(indexedDomainList: RDD[(String, Long)]): RDD[(String, Long)] = {
+      val domainGrp = indexedDomainList.count / minGrpNum
       indexedDomainList.map(n => (n._1, n._2 % domainGrp))
-      }
-   domNameGrp(indexedDomainList)
+    }
+    domNameGrp(indexedDomainList)
   }
-    
-/**
- * Method for printing domains to file by row. => for example printDom2File(all,sc,80)
- * @  minCandNum is minimum number of candidates per domain
- * @  allData is parsed data with all domains  
- */
-def printDom2File(allData:RDD[(String, Map[String, String])],sc: SparkContext,minCandNum:Int,minGrpNum:Int)={  
-    val domainNameGrp=domainsList(allData,minCandNum,minGrpNum).groupBy(_._2).map{t=> 
-      t._2.toList.map(_._1).mkString(",")}.collect().mkString("\n")
+
+  /**
+   * Method for printing domains to file by row. => for example printDom2File(all,sc,80)
+   * @  minCandNum is minimum number of candidates per domain
+   * @  allData is parsed data with all domains
+   */
+  def printDom2File(allData: RDD[(String, Map[String, String])], sc: SparkContext, minCandNum: Int, minGrpNum: Int) = {
+    val domainNameGrp = domainsList(allData, minCandNum, minGrpNum).groupBy(_._2).map { t =>
+      t._2.toList.map(_._1).mkString(",")
+    }.collect().mkString("\n")
     sc.parallelize(List(domainNameGrp), 1).saveAsTextFile("hdfs:///pavlovout/dscores/test/")
-}     
+  }
 }   
 

@@ -10,6 +10,29 @@ object PriceParcer extends Serializable {
   val NUM_PATTERN: Regex = "([0-9,\\.]*[0-9])(?:[^0-9,\\.])".r
   var snippetSize: Int = 50
 
+  def findFast(url: String, html: String) /*: List[Map[String, String]] */= {
+    val candidates = NUM_PATTERN.findAllMatchIn(html).map{m =>
+    val price = m.group(1)  
+    val str_before: String = m.source.subSequence(math.max(m.start - snippetSize, 0), m.start).toString() 
+    val str_after: String = m.source.subSequence(m.end-1, math.min(m.end + snippetSize - 1, m.source.length)).toString()
+    val location = m.start.toString
+    (url,price,str_before,str_after,location)
+    }.filterNot{case(url,price,str_before,str_after,location) =>
+      val snip = str_before+price+str_after
+      ((!price.contains(".")) && (!price.contains(","))) ||
+        (price.contains(",,") || price.contains(".,") ||
+          price.contains(",.") || price.contains("..")) ||
+          ((!CURRENCY_SYMBOLS.findFirstIn(snip).isDefined) && (!TEXT_NEAR_PRICE.findFirstIn(snip).isDefined))
+      }.map{case(url,price,str_before,str_after,location) =>
+        val candidMap = Map("url" -> url ,
+        "priceCandidate" -> price,
+        "text_before" -> str_before,
+        "text_after" -> str_after,
+        "location" -> location)
+        candidMap
+        }.toList
+    candidates
+  }
   def findM(url: String, html: String): List[Map[String, String]] = {
     val candidates = fetchPriceCandidates(html)
     createMap(candidates, url)

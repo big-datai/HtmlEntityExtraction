@@ -27,14 +27,16 @@ object S3ToKafka { //}extends App {
     //Read Seeds From S3  
     //val path=Utils.S3STORAGE+"/dpavlov/seeds"
     val path = "/Users/dmitry/umbrella/seeds_sample"
-    val seeds = sc.objectFile[(String, String, String, String, String, String, String, String, String, String, String, String, String)](path, 200)
+    val seeds = sc.objectFile[(String)](path, 200)
 
     //loop on seeds and apply ModifiedMEnrich on each line then apply toJsonModified .toString(). then .getBytes()
 
+   // MEnrichMessage(String domain, String url, String title,  String prod_id, String price_patterns, String price, String price_prop1, String price_prop_anal,
+    //  String shipping, String last_scraped_time, String last_updated_time, String price_updated) 
+   /* 
     val seeds2kafka = seeds.map { line =>
-      new ModifiedMEnrichMessage(line._1, line._2, line._3, line._4, line._5, line._6, line._7, line._8,
-        line._9, line._10, line._11, line._12, line._13).toJsonModified().toString().getBytes()
-
+      new MEnrichMessage(line._1, line._2, line._3, line._4, line._5, line._6, line._7, line._8,
+        line._9, line._10, line._11, line._12).toJson().toString().getBytes()
     }
     //Producer: launch the Array[Byte]result into kafka      
     seeds2kafka.foreachPartition { p =>
@@ -50,6 +52,8 @@ object S3ToKafka { //}extends App {
 
     // ssc.start()
     // ssc.awaitTermination()
+     * 
+     */
   }
 }
 

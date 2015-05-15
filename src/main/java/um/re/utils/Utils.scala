@@ -24,11 +24,8 @@ object Utils {
   val ANALDATA = "/analysis/data/"
   val SEEDS2S3 = "/dpavlov/seeds3"
   val FULLR2S3 = "/dpavlov/es/full_river"
-<<<<<<< HEAD
-
-=======
   val DEBUGFLAG = false
->>>>>>> 4949c5d919950f39f0ee3ecab72822215e255239
+
   def getDomain(input: String) = {
     var url = input
     try {

@@ -39,32 +39,7 @@ object BuildCandPatterns extends App {
 
   val source = sc.newAPIHadoopRDD(conf, classOf[EsInputFormat[Text, MapWritable]], classOf[Text], classOf[MapWritable])
   val source2 = source.map { l => (l._1.toString(), l._2.map { case (k, v) => (k.toString, v.toString) }.toMap) }.repartition(300) //sample(false, 0.001, 12345)
-  val res = Utils.getCandidatesPatternsHtmlTrimed(source2)
-
-  val db = res.filter { l =>
-    val map_pat = l.head
-    val count = l.tail.filter { cand =>
-      (Utils.isTrueCandid(map_pat, cand))
-    }.size
-    l != null && count > 0
-  }.map { l =>
-    try {
-      val map_pat = l.head
-      val pat = map_pat.get("patterns").get.toString
-      val html = map_pat.get("html").get.toString
-      val length = html.size
-      val location_pattern = Utils.allPatterns(pat, html, 150)
-      //add to each candidate pattern
-      l.tail.map { cand =>
-        cand + ("price_updated" -> map_pat.get("price_updated").get.toString) + ("price" -> map_pat.get("price").get.toString) +
-          ("patterns" -> Utils.map2JsonString(location_pattern)) + ("length" -> length.toString)
-      }
-    } catch {
-      case _: Exception => null
-    }
-  }.filter(l => l != null)
-
-  val fin = db.flatMap(l => l)
+  val fin = Utils.htmlsToCandidsPipe(source2)
 
   val conf2 = new JobConf()
   conf2.set("es.resource", "candidl/data")

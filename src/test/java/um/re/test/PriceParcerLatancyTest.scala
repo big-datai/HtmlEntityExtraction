@@ -22,7 +22,7 @@ object PriceParcerLatancyTest extends App {
       val l1 = l.substring(""""full_river","data","""".length())
       l1.substring(0, l1.indexOf("\""))
     }.filter(!_.startsWith("http://www.the-house.com"))
-  val nf = um.re.utils.PriceParser
+  val nf = um.re.utils.PriceParcer
   val nfo = um.re.utils.PriceParcer
   nf.snippetSize = 150
   nfo.snippetSize = 150

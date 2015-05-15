@@ -24,7 +24,11 @@ object Utils {
   val ANALDATA = "/analysis/data/"
   val SEEDS2S3 = "/dpavlov/seeds3"
   val FULLR2S3 = "/dpavlov/es/full_river"
+<<<<<<< HEAD
 
+=======
+  val DEBUGFLAG = false
+>>>>>>> 4949c5d919950f39f0ee3ecab72822215e255239
   def getDomain(input: String) = {
     var url = input
     try {
@@ -138,6 +142,51 @@ object Utils {
       Utils.parseDouble(cand.get("priceCandidate").get.toString).get == Utils.parseDouble((map_pat.get("price").get.toString)).get &&
       Utils.parseDouble(map_pat.get("price_updated").get.toString).get == Utils.parseDouble(map_pat.get("price").get.toString).get)
   }
+
+  def htmlsToCandidsPipe(source: RDD[(String, Map[String, String])]): RDD[Map[String, String]] = {
+    val res = Utils.getCandidatesPatternsHtmlTrimed(source)
+    if (DEBUGFLAG)
+      res.count
+    
+    val resFiltered = res.filter { l =>
+      val map_pat = l.head
+      val count = l.tail.filter { cand =>
+        (Utils.isTrueCandid(map_pat, cand))
+      }.size
+      l != null && count > 0
+    }
+    if (DEBUGFLAG)
+      resFiltered.count
+      
+    val db = resFiltered.map { l =>
+      try {
+        val map_pat = l.head
+        val pat = map_pat.get("patterns").get.toString
+        val html = map_pat.get("html").get.toString
+        val length = html.size
+        val location_pattern :Map[String,String] = Map.empty//Utils.allPatterns(pat, html, 150)
+        //add to each candidate pattern
+        l.tail.map { cand =>
+          cand + ("price_updated" -> map_pat.get("price_updated").get.toString) + ("price" -> map_pat.get("price").get.toString) +
+            ("patterns" -> Utils.map2JsonString(location_pattern)) + ("length" -> length.toString)
+        }
+      } catch {
+        case _: Exception => null
+      }
+    }
+    if (DEBUGFLAG)
+      db.count
+    val dbFiltered = db.filter(l => l != null)
+    if (DEBUGFLAG)
+      dbFiltered.count
+    
+    val fin = db.flatMap(l => l)
+    if (DEBUGFLAG)
+      fin.count
+    
+    fin
+  }
+
   def getCandidatesPatternsHtmlTrimed(source2: RDD[(String, Map[String, String])]): RDD[List[Map[String, String]]] = {
     val candid = source2.map { l =>
       try {
@@ -153,7 +202,7 @@ object Utils {
         val p=m_webClient.getPage(id)
         */
         val patterns = shrinkString(l._2.get("price_patterns").get)
-        val res = nf.findM(id, html)
+        val res = nf.findFast(id, html)
         val p_h = Map("patterns" -> patterns, "html" -> html, "price" -> price, "price_updated" -> price_updated)
         p_h :: res
       } catch {

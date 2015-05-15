@@ -23,7 +23,7 @@ import org.elasticsearch.hadoop.mr.EsOutputFormat
 
 object EsUtils {
   val ESIP = "107.20.157.48"
-  val ESINDEX = "full_river/data"
+  val ESINDEX = "full_river2/data"
   val conf = new JobConf()
   conf.set("es.resource", "process_count/counter")
   conf.set("es.query", "?q=updatePriceCount")
@@ -81,7 +81,7 @@ object EsUtils {
       val map = Utils.mapWritableToInput(l._2)
       val asJson = Json.toJson(map)
       Json.stringify(asJson) + "," + System.lineSeparator()
-    }.coalesce(4, true).saveAsTextFile("s3://pavlovout/" + esName)
+    }.coalesce(100, true).saveAsTextFile("s3://pavlovout/" + esName)
 
   }
 }

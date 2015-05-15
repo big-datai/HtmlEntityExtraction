@@ -19,5 +19,5 @@ object FullR2S3 extends App {
     val alldata = dataHtmls.getData
 
 //Save2s3      
-   alldata.saveAsObjectFile(Utils.S3STORAGE+Utils.FULLR2S3) 
+   alldata.saveAsObjectFile(Utils.S3STORAGE+"/dpavlov/es/source20150513") 
 }

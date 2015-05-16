@@ -23,7 +23,7 @@ class UConf(sc: SparkContext, parts: Int) {
     sc.objectFile[(String, Map[String, String])](path, parts)
   }
 
-  def getDataFromS3(path: String = Utils.S3STORAGE + "/dpavlov/es/full_river") = {
+  def getDataFromS3(path: String = Utils.S3STORAGE + "/dpavlov/es/source20150516") = {
     sc.objectFile[(String, Map[String, String])](path, parts)
   }
   

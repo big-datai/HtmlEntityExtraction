@@ -22,7 +22,7 @@ object Utils {
   val DMODELS = "/rawd/objects/dmodels/"
   val DSCORES = "/rawd/objects/dscores/"
   val ANALDATA = "/analysis/data/"
-  val SEEDS2S3 = "/dpavlov/seeds3"
+  val SEEDS2S3 = "/dpavlov/seeds20150516"
   val FULLR2S3 = "/dpavlov/es/full_river"
   val DEBUGFLAG = false
 

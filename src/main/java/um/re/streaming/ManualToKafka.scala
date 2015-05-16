@@ -8,9 +8,8 @@ import org.apache.spark.streaming.Seconds
 import java.util.Properties
 import um.re.utils.Utils
 import com.utils.messages.MEnrichMessage 
-import com.utils.messages.ModifiedMEnrichMessage
 import kafka.serializer.DefaultEncoder
-
+/*
 object ManualToKafka extends App{
 
  val sc = new SparkContext()
@@ -29,7 +28,7 @@ object ManualToKafka extends App{
 //loop on seeds and apply ModifiedMEnrich on each line then apply toJsonModified .toString(). then .getBytes()
 
    val seeds2kafka = seeds.map{line=> 
-     new ModifiedMEnrichMessage(line._1,line._2,line._3,line._4,line._5,line._6,line._7,line._8,line._9
+     new MEnrichMessage(line._1,line._2,line._3,line._4,line._5,line._6,line._7,line._8,line._9
          ,line._10,line._11,line._12,line._13).toJsonModified().toString().getBytes()
    
    }
@@ -49,5 +48,5 @@ object ManualToKafka extends App{
  // ssc.awaitTermination()
 }
 
-
+*/
 

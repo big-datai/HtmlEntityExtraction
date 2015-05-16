@@ -23,7 +23,7 @@ import org.elasticsearch.hadoop.mr.EsOutputFormat
 
 object EsUtils {
   val ESIP = "107.20.157.48"
-  val ESINDEX = "full_river2/data"
+  var ESINDEX = "htmls/data"
   val conf = new JobConf()
   conf.set("es.resource", "process_count/counter")
   conf.set("es.query", "?q=updatePriceCount")

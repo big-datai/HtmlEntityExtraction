@@ -10,7 +10,6 @@ import org.apache.spark.streaming.Seconds
 import java.util.Properties
 import um.re.utils.Utils
 import com.utils.messages.MEnrichMessage
-import com.utils.messages.ModifiedMEnrichMessage
 import kafka.serializer.DefaultEncoder
 
 object S3ToKafka { //}extends App {

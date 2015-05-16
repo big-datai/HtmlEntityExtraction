@@ -28,7 +28,7 @@ object Es2EsWithMapping extends App {
 
   val conf_s = new SparkConf()
   val sc = new SparkContext(conf_s)
-
+  EsUtils.ESINDEX="sourcehtmls20150517/data"
   val data = new UConf(sc, 10)
   val all = data.getData()
 
@@ -57,8 +57,8 @@ object Es2EsWithMapping extends App {
 
   EsUtils.write2ESHadoop(source, conf2)
   
-  all.repartition(100).saveAsObjectFile(Utils.S3STORAGE+"/dpavlov/es/source20150513")
+  all.repartition(100).saveAsObjectFile(Utils.S3STORAGE+"/dpavlov/es/sourcehtmls20150517")
   
-  all.repartition(100).saveAsObjectFile(Utils.S3STORAGE+"/dpavlov/es/source20150516")
+  all.repartition(100).saveAsObjectFile(Utils.S3STORAGE+"/dpavlov/es/source20150513")
 }
 

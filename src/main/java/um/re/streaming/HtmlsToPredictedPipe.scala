@@ -16,21 +16,18 @@ import um.re.transform.Transformer
 import org.apache.spark.mllib.linalg.Vectors
 import kafka.serializer.DefaultDecoder
 import com.utils.messages.MEnrichMessage
-
+import play.api.libs.json.Json
 object HtmlsToPredictedPipe extends App {
 
   val sc = new SparkContext()
   val ssc = new StreamingContext(sc, Seconds(5))
 
   //TODO dmap for test
-  val dMap = sc.broadcast(sc.textFile("/Users/dmitry/umbrella/rawd/objects/dMap.txt", 1).collect().map(l => (l.split("\t")(0), l.split("\t")(1))).toMap)
-  //val dMap = sc.broadcast(sc.textFile((Utils.S3STORAGE + Utils.DMODELS + "part-00000"), 1).collect().mkString("\n").split("\n").map(l => (l.split("\t")(0), l.split("\t")(1))).toMap)
-  val nf = um.re.utils.PriceParcer
-  nf.snippetSize = 150
-  val candidFinder = sc.broadcast(nf)
-
-  //val Array(brokers, inputTopic,outputTopic) = args
-  val Array(brokers, inputTopic, outputTopic) = Array("localhost:9092", "testOut", "test2")
+  //val dMap = sc.broadcast(sc.textFile("/Users/dmitry/umbrella/rawd/objects/dMap.txt", 1).collect().map(l => (l.split("\t")(0), l.split("\t")(1))).toMap)
+  val dMap = sc.broadcast(sc.textFile((Utils.S3STORAGE + Utils.DMAP), 1).collect().mkString("\n").split("\n").map(l => (l.split("\t")(0), l.split("\t")(1))).toMap)
+  
+  val Array(brokers, inputTopic,outputTopic) = args
+  //val Array(brokers, inputTopic, outputTopic) = Array("localhost:9092", "testOut", "test2")
 
   // Create direct kafka stream with brokers and topics
   //TODO consider using multiple receivers for parallelism
@@ -39,24 +36,26 @@ object HtmlsToPredictedPipe extends App {
   val messages = KafkaUtils.createDirectStream[String, Array[Byte], StringDecoder, DefaultDecoder](
     ssc, kafkaParams, topicsSet)
 
-  val parsed = messages.map { //TODO parse msg from utils project
+  val parsed = messages.map { 
     case (s, msgBytes) =>
-      val msg = new MEnrichMessage.string2Message(msgBytes)
-      val parsedMsg : (String,Map[String,String]) = (s,Map.empty)
+      val msg =  MEnrichMessage.string2Message(msgBytes)
+      val msgEmptyHtml = msg //we remove the big html to keep the msg light
+      msgEmptyHtml.sethtml("")
+      val parsedMsg : (MEnrichMessage,Map[String,String]) = (msgEmptyHtml,Utils.json2Map(Json.parse(msg.toJson().toString())))
       parsedMsg
   }
   
   val candidates = parsed.transform(rdd => Utils.htmlsToCandidsPipe(rdd))
   
-  val predictions = candidates.map{case(candidates) =>
+  val predictions = candidates.map{case(msg,candidList) =>
 	  //TODO test path
-    val url = candidates.head.apply("url")
+    val url = candidList.head.apply("url")
     val domain = Utils.getDomain(url)
     val domainCode = dMap.value.apply(domain)  
-    val (model, idf, selected_indices) = sc.objectFile[(GradientBoostedTreesModel, Array[Double], Array[Int])]("/Users/dmitry/umbrella/rawd/objects/Models/" + domainCode + "/part-00000", 1).first
-      //val (model, idf, selected_indices) = sc.objectFile[(GradientBoostedTreesModel,Array[Double],Array[Int])](Utils.HDFSSTORAGE + "/temp" + Utils.DMODELS + domainCode+"*",1).first
+    //val (model, idf, selected_indices) = sc.objectFile[(GradientBoostedTreesModel, Array[Double], Array[Int])]("/Users/dmitry/umbrella/rawd/objects/Models/" + domainCode + "/part-00000", 1).first
+    val (model, idf, selected_indices) = sc.objectFile[(GradientBoostedTreesModel,Array[Double],Array[Int])](Utils.S3STORAGE + Utils.MODELS + domainCode+"/part-00000",1).first
 
-      val modelPredictions = candidates.map { candid =>
+      val modelPredictions = candidList.map { candid =>
         val priceCandidate = candid.apply("priceCandidate")
         val location = Integer.valueOf(candid.apply("location")).toDouble
         val text_before = Utils.tokenazer(candid.apply("text_before"))
@@ -83,8 +82,9 @@ object HtmlsToPredictedPipe extends App {
     	  else
     	    selectedCandid = (0,0,"-1")
 
-      val predictedPrice = selectedCandid._3.toDouble
-      new Msg(url, "", predictedPrice, "").getBytes
+      val predictedPrice = selectedCandid._3
+      msg.setModelPrice(predictedPrice)
+      msg
   }
 
   predictions.foreachRDD { rdd =>
@@ -95,7 +95,7 @@ object HtmlsToPredictedPipe extends App {
 
       @transient val config = new ProducerConfig(props)
       @transient val producer = new Producer[String, Array[Byte]](config)
-      p.foreach(rec => producer.send(new KeyedMessage[String, Array[Byte]](outputTopic, rec)))
+      p.foreach(rec => producer.send(new KeyedMessage[String, Array[Byte]](outputTopic, rec.toJson().toString().getBytes())))
       producer.close()
     }
   }

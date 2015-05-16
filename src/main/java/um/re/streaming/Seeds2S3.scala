@@ -55,5 +55,5 @@ object Seeds2S3 extends App {
   //Cant save file larger than 150Mg so One way is to zip files like that:
   //dataOutput.repartition(20).saveAsTextFile(Utils.S3STORAGE + Utils.SEEDS2S3, classOf[GzipCodec])
   //can also add some more partitions and save files
-   dataOutput.repartition(200).saveAsObjectFile(Utils.S3STORAGE+ Utils.SEEDS2S3)
+   dataOutput.repartition(20).saveAsObjectFile(Utils.S3STORAGE+ Utils.SEEDS2S3)
 }

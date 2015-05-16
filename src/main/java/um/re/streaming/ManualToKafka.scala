@@ -9,29 +9,37 @@ import java.util.Properties
 import um.re.utils.Utils
 import com.utils.messages.MEnrichMessage 
 import kafka.serializer.DefaultEncoder
-/*
-object ManualToKafka extends App{
+import org.apache.spark.SparkConf
 
- val sc = new SparkContext()
+object ManualToKafka { //extends App{
+def main (str:Array[String]) {
+val conf = new SparkConf().setMaster("local[1]").setAppName("Test")
+ val sc = new SparkContext(conf)
 //  val ssc = new StreamingContext(sc, Seconds(5))
 //val Array(brokers, inputTopic,outputTopic) = args
  val Array(brokers, topic) = Array("localhost:9092", "workers")
 //Read Seeds From S3  
- val seeds = sc.parallelize(List(("mike.com", "http://www.mike.com","kaka1","k1","1","11","111","0","1","a","ccc","eee","1"), 
-     ("dima.com", "http://www.dima.com","kaka2","k2","2","22","222","0","2","b","ccc","eee","1"), 
-     ("eran.com", "http://www.eran.com","kaka3","k3","3","33","333","0","3","c","ccc","eee","1"), 
-     ("deepricer.com", "http://www.deepricer.com","kaka4","k4","4","44","444","0","4","d","ccc","eee","1"))) 
- 
-       
-       
-    
-//loop on seeds and apply ModifiedMEnrich on each line then apply toJsonModified .toString(). then .getBytes()
+ val json="""{
+    "url": "http://luddensnatural.com/Herbal-Deodorants-Summer-Spice-Roll-Ons-3oz-p23715.html?utm_source=google-shopping&utm_medium=organic",
+    "title": "Nature's Gate Deodorant, Summer Spice, Roll-on - 3 oz",
+    "patternsHtml": "fsadfs!--pricedynamicallydisplayedhere-->$(.*?)</div></div><!--##PRICE_END##-->|||",
+    "price": "4.20",
+    "html": "no htmls",
+    "patternsText": "dorantsSummerSpiceRoll-Ons3oz.BacktoList$(.*?)SKU: 201842UPC: 078347555057Qty: 1Addto|||",
+    "shipping": "0",
+    "prodId": "24358971",
+    "domain": "no",
+    "lastScrapedTime": "2014-11-17T06: 43: 13.921Z",
+    "lastUpdatedTime": "2014-11-30T21: 14: 47.529Z",
+    "updatedPrice": "4.2"
+}"""
+val seeds=sc.parallelize(List(json
+))
 
-   val seeds2kafka = seeds.map{line=> 
-     new MEnrichMessage(line._1,line._2,line._3,line._4,line._5,line._6,line._7,line._8,line._9
-         ,line._10,line._11,line._12,line._13).toJsonModified().toString().getBytes()
-   
-   }
+//loop on seeds and apply ModifiedMEnrich on each line then apply toJsonModified .toString(). then .getBytes()
+    val seeds2kafka = seeds.map { line =>
+      MEnrichMessage.string2Message(line).toJson().toString().getBytes()
+    }
 //Producer: launch the Array[Byte]result into kafka      
    seeds2kafka.foreachPartition { p =>
       val props = new Properties()
@@ -47,6 +55,6 @@ object ManualToKafka extends App{
  // ssc.start()
  // ssc.awaitTermination()
 }
+}
 
-*/
 

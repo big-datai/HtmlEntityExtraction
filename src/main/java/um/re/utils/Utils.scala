@@ -140,7 +140,7 @@ object Utils {
       Utils.parseDouble(map_pat.get("price_updated").get.toString).get == Utils.parseDouble(map_pat.get("price").get.toString).get)
   }
 
-  def htmlsToCandidsPipe(source: RDD[(String, Map[String, String])]): RDD[Map[String, String]] = {
+  def htmlsToCandidsPipe(source: RDD[(String, Map[String, String])]): RDD[List[Map[String, String]]] = {
     val res = Utils.getCandidatesPatternsHtmlTrimed(source)
     if (DEBUGFLAG)
       res.count
@@ -177,11 +177,7 @@ object Utils {
     if (DEBUGFLAG)
       dbFiltered.count
     
-    val fin = db.flatMap(l => l)
-    if (DEBUGFLAG)
-      fin.count
-    
-    fin
+    dbFiltered  
   }
 
   def getCandidatesPatternsHtmlTrimed(source2: RDD[(String, Map[String, String])]): RDD[List[Map[String, String]]] = {

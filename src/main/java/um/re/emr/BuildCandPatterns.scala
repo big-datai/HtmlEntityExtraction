@@ -39,8 +39,10 @@ object BuildCandPatterns extends App {
 
   val source = sc.newAPIHadoopRDD(conf, classOf[EsInputFormat[Text, MapWritable]], classOf[Text], classOf[MapWritable])
   val source2 = source.map { l => (l._1.toString(), l._2.map { case (k, v) => (k.toString, v.toString) }.toMap) }.repartition(300) //sample(false, 0.001, 12345)
-  val fin = Utils.htmlsToCandidsPipe(source2)
-
+  val db = Utils.htmlsToCandidsPipe(source2)
+  val fin = db.flatMap(l => l)
+    if (Utils.DEBUGFLAG)
+      fin.count
   val conf2 = new JobConf()
   conf2.set("es.resource", "candidl/data")
   conf2.set("es.nodes", EsUtils.ESIP)

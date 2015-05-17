@@ -22,13 +22,29 @@ object HtmlsToPredictedPipe extends App {
   val sc = new SparkContext()
   val ssc = new StreamingContext(sc, Seconds(5))
 
+  var (brokers, inputTopic,outputTopic,dMapPath,modelsPath) = ("","","","","")
+  if (args.size==5) {
+	  brokers = args(0)
+	  inputTopic = args(1)
+	  outputTopic = args(2)
+	  dMapPath = args(3)
+	  modelsPath = args(4)
+  } else {
+    brokers = args(0)
+	  inputTopic = args(1)
+	  outputTopic = args(2)
+	  dMapPath = Utils.S3STORAGE + Utils.DMAP
+	  modelsPath = Utils.S3STORAGE + Utils.MODELS
+  }  
+	    
+
+  //val Array(brokers, inputTopic, outputTopic) = Array("localhost:9092", "testOut", "test2")
+  
   //TODO dmap for test
   //val dMap = sc.broadcast(sc.textFile("/Users/dmitry/umbrella/rawd/objects/dMap.txt", 1).collect().map(l => (l.split("\t")(0), l.split("\t")(1))).toMap)
-  val dMap = sc.broadcast(sc.textFile((Utils.S3STORAGE + Utils.DMAP), 1).collect().mkString("\n").split("\n").map(l => (l.split("\t")(0), l.split("\t")(1))).toMap)
+  val dMap = sc.broadcast(sc.textFile((dMapPath), 1).collect().mkString("\n").split("\n").map(l => (l.split("\t")(0), l.split("\t")(1))).toMap)
   
-  val Array(brokers, inputTopic,outputTopic) = args
-  //val Array(brokers, inputTopic, outputTopic) = Array("localhost:9092", "testOut", "test2")
-
+  
   // Create direct kafka stream with brokers and topics
   //TODO consider using multiple receivers for parallelism
   val topicsSet = inputTopic.split(",").toSet
@@ -53,7 +69,7 @@ object HtmlsToPredictedPipe extends App {
     val domain = Utils.getDomain(url)
     val domainCode = dMap.value.apply(domain)  
     //val (model, idf, selected_indices) = sc.objectFile[(GradientBoostedTreesModel, Array[Double], Array[Int])]("/Users/dmitry/umbrella/rawd/objects/Models/" + domainCode + "/part-00000", 1).first
-    val (model, idf, selected_indices) = sc.objectFile[(GradientBoostedTreesModel,Array[Double],Array[Int])](Utils.S3STORAGE + Utils.MODELS + domainCode+"/part-00000",1).first
+    val (model, idf, selected_indices) = sc.objectFile[(GradientBoostedTreesModel,Array[Double],Array[Int])](modelsPath + domainCode+"/part-00000",1).first
 
       val modelPredictions = candidList.map { candid =>
         val priceCandidate = candid.apply("priceCandidate")

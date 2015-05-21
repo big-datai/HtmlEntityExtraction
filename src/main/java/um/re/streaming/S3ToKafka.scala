@@ -15,7 +15,7 @@ import kafka.serializer.DefaultEncoder
 object S3ToKafka { //}extends App {
 
   def main(str: Array[String]) {
-    val conf=new SparkConf().setMaster("local")  
+    val conf=new SparkConf().setMaster("local[*]")  
                             .setAppName("CountingSheep")
                             .set("spark.executor.memory", "1g")
     val sc = new SparkContext(conf)

@@ -39,7 +39,7 @@ object DFTransformer {
     var flag = false
     if (Utils.isTrueCandid(row._2, row._2))
       flag = true
-    new DataSchema(row, location, raw_text, url, domain, flag)
+    new DataSchema(row, location, domain, url, domain, flag)
   }
 
 }

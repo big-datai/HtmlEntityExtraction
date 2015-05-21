@@ -41,20 +41,20 @@ object TestUtils extends App {
  
   val conf = new JobConf()
   conf.set("es.resource", "htmls/data")
-  conf.set("es.query", "?q=prod_id:23799864")
+  conf.set("es.query", "?q=prodId:23799864")
   conf.set("es.nodes", EsUtils.ESIP)
 
   val source = sc.newAPIHadoopRDD(conf, classOf[EsInputFormat[Text, MapWritable]], classOf[Text], classOf[MapWritable])
   val source2 = source.map { l => (l._1.toString(), l._2.map { case (k, v) => (k.toString, v.toString) }.toMap) }
   val one = source2.take(1)
   val one_json = one.apply(0)._2.filterKeys(p =>
-    if (p == "url" || p == "price_prop1" || p == "price_patterns")
+    if (p == "url" || p == "html" || p == "patternsHtml")
       true
     else
       false)
   
-      val res = Utils.extPatternLocationPair(Utils.threePlusTrim(one_json.get("price_patterns").get.toString.dropRight(4)), Utils.threePlusTrim(one_json.get("price_prop1").get.toString), 150)
-val res2 = Utils.extPatternLocationPair((one_json.get("price_patterns").get.toString.dropRight(4)), (one_json.get("price_prop1").get.toString), 150)
+      val res = Utils.extPatternLocationPair(Utils.threePlusTrim(one_json.get("patternsHtml").get.toString.dropRight(4)), Utils.threePlusTrim(one_json.get("html").get.toString), 150)
+val res2 = Utils.extPatternLocationPair((one_json.get("patternsHtml").get.toString.dropRight(4)), (one_json.get("html").get.toString), 150)
    */
 
   val source4 = scala.io.Source.fromFile("file.html")//("sample.html")

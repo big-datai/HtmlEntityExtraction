@@ -123,7 +123,7 @@ object Utils {
       try {
         val nf = PriceParcer
         val id = l._2.get("url").toString
-        val h = l._2.get("price_prop1").toString
+        val h = l._2.get("html").toString
         val res = nf.find(id, h)
         res
       } catch {
@@ -136,14 +136,14 @@ object Utils {
    * This method checks if candidate is true and
    */
   def isTrueCandid(map_pat: Map[String, String], cand: Map[String, String]): Boolean = {
-    (map_pat.get("price") != None && map_pat.get("price_updated") != None && cand.get("priceCandidate") != None &&
-      Utils.parseDouble(cand.get("priceCandidate").get.toString) != None && Utils.parseDouble(map_pat.get("price_updated").get.toString) != None &&
+    (map_pat.get("price") != None && map_pat.get("updatedPrice") != None && cand.get("priceCandidate") != None &&
+      Utils.parseDouble(cand.get("priceCandidate").get.toString) != None && Utils.parseDouble(map_pat.get("updatedPrice").get.toString) != None &&
       Utils.parseDouble(map_pat.get("price").get.toString) != None &&
       Utils.parseDouble(cand.get("priceCandidate").get.toString).get == Utils.parseDouble((map_pat.get("price").get.toString)).get &&
-      Utils.parseDouble(map_pat.get("price_updated").get.toString).get == Utils.parseDouble(map_pat.get("price").get.toString).get)
+      Utils.parseDouble(map_pat.get("updatedPrice").get.toString).get == Utils.parseDouble(map_pat.get("price").get.toString).get)
   }
 
-  def htmlsToCandidsPipe(source: RDD[(MEnrichMessage, Map[String, String])]): RDD[(MEnrichMessage,List[Map[String, String]])] = {
+  def htmlsToCandidsPipe(source: RDD[(Array[Byte], Map[String, String])]): RDD[(Array[Byte],List[Map[String, String]])] = {
     val res = Utils.getCandidatesPatternsHtmlTrimed(source)
     if (DEBUGFLAG)
       res.count
@@ -167,7 +167,7 @@ object Utils {
         val location_pattern :Map[String,String] = Map.empty//Utils.allPatterns(pat, html, 150)
         //add to each candidate pattern
         (msg,l.tail.map { cand =>
-          cand + ("price_updated" -> map_pat.get("price_updated").get.toString) + ("price" -> map_pat.get("price").get.toString) +
+          cand + ("updatedPrice" -> map_pat.get("updatedPrice").get.toString) + ("price" -> map_pat.get("price").get.toString) +
             ("patterns" -> Utils.map2JsonString(location_pattern)) + ("length" -> length.toString)
         })
       } catch {
@@ -183,27 +183,26 @@ object Utils {
     dbFiltered  
   }
 
-  def getCandidatesPatternsHtmlTrimed(source2: RDD[(MEnrichMessage, Map[String, String])]): RDD[(MEnrichMessage,List[Map[String, String]])] = {
-    val candid = source2.map { l =>
+  def getCandidatesPatternsHtmlTrimed(source2: RDD[(Array[Byte], Map[String, String])]): RDD[(Array[Byte],List[Map[String, String]])] = {
+    val candid = source2.map { case(msg,l) =>
       try {
-        val msg = l._1
         val nf = PriceParcer
         nf.snippetSize = 150
-        val id = l._2.get("url").get
-        val price = l._2.get("price").get
-        val price_updated = l._2.get("price_updated").get
-        val html = shrinkString(l._2.get("price_prop1").get)
+        val id = l.get("url").get
+        val price = l.get("price").get
+        val updatedPrice = l.get("updatedPrice").get
+        val html = shrinkString(l.get("html").get)
         /*
-        val html_to=l._2.get("price_prop1").get
+        val html_to=l.get("html").get
         val m_webClient = new WebClient()
         val p=m_webClient.getPage(id)
         */
-        val patterns = shrinkString(l._2.get("price_patterns").get)
+        val patterns = shrinkString(l.get("patternsHtml").get)
         val res = nf.findFast(id, html)
-        val p_h = Map("patterns" -> patterns, "html" -> html, "price" -> price, "price_updated" -> price_updated)
+        val p_h = Map("patterns" -> patterns, "html" -> html, "price" -> price, "updatedPrice" -> updatedPrice)
         (msg , p_h :: res)
       } catch {
-        case _: Exception => (new MEnrichMessage,Nil)
+        case _: Exception => (new Array[Byte](0),Nil)
       }
     }
     candid

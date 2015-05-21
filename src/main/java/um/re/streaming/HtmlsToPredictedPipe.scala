@@ -55,9 +55,7 @@ object HtmlsToPredictedPipe extends App {
   val parsed = messages.map { 
     case (s, msgBytes) =>
       val msg =  MEnrichMessage.string2Message(msgBytes)
-      val msgEmptyHtml = msg //we remove the big html to keep the msg light
-      msgEmptyHtml.sethtml("")
-      val parsedMsg : (MEnrichMessage,Map[String,String]) = (msgEmptyHtml,Utils.json2Map(Json.parse(msg.toJson().toString())))
+      val parsedMsg : (Array[Byte],Map[String,String]) = (msgBytes,Utils.json2Map(Json.parse(msg.toJson().toString())))
       parsedMsg
   }
   
@@ -99,8 +97,9 @@ object HtmlsToPredictedPipe extends App {
     	    selectedCandid = (0,0,"-1")
 
       val predictedPrice = selectedCandid._3
-      msg.setModelPrice(predictedPrice)
-      msg
+      val msgObj : MEnrichMessage = MEnrichMessage.string2Message(msg) 
+      msgObj.setModelPrice(predictedPrice)
+      msgObj.toJson().toString().getBytes()
   }
 
   predictions.foreachRDD { rdd =>
@@ -111,7 +110,7 @@ object HtmlsToPredictedPipe extends App {
 
       @transient val config = new ProducerConfig(props)
       @transient val producer = new Producer[String, Array[Byte]](config)
-      p.foreach(rec => producer.send(new KeyedMessage[String, Array[Byte]](outputTopic, rec.toJson().toString().getBytes())))
+      p.foreach(rec => producer.send(new KeyedMessage[String, Array[Byte]](outputTopic, rec)))
       producer.close()
     }
   }

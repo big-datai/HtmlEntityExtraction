@@ -12,8 +12,8 @@ object tester {
 		val nf =  PriceParcer
 		val jsonStr = scala.io.Source.fromFile("C:\\test\\jsonArray.txt")("ISO_8859-1").getLines.toList.filter{l=>
 		  l.startsWith("""			"url": """)||
-		  l.startsWith("""			"price_prop1": """)||
-		  l.startsWith("""			"price_updated": """)}
+		  l.startsWith("""			"html": """)||
+		  l.startsWith("""			"updatedPrice": """)}
 		.map{l=> 
 		  val trimFrom = l.indexOf("""": """")
 		  l.substring(trimFrom+4, l.length()-1)}.toArray

@@ -30,8 +30,8 @@ object S3ToKafka { //}extends App {
 
     //loop on seeds and apply ModifiedMEnrich on each line then apply toJsonModified .toString(). then .getBytes()
 
-   // MEnrichMessage(String domain, String url, String title,  String prod_id, String price_patterns, String price, String price_prop1, String price_prop_anal,
-    //  String shipping, String last_scraped_time, String last_updated_time, String price_updated) 
+   // MEnrichMessage(String domain, String url, String title,  String prodId, String patternsHtml, String price, String html, String patternsText,
+    //  String shipping, String lastScrapedTime, String lastUpdatedTime, String updatedPrice) 
     
     val seeds2kafka = seeds.map { line =>
       MEnrichMessage.string2Message(line).toJson().toString().getBytes()

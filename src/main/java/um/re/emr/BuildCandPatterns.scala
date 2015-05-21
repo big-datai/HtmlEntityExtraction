@@ -34,7 +34,7 @@ object BuildCandPatterns extends App {
 
   val conf = new JobConf()
   conf.set("es.resource", "htmls/data")
-  conf.set("es.query", "?q=price_prop1:xml")
+  conf.set("es.query", "?q=html:xml")
   conf.set("es.nodes", EsUtils.ESIP)
 
   val source = sc.newAPIHadoopRDD(conf, classOf[EsInputFormat[Text, MapWritable]], classOf[Text], classOf[MapWritable])
@@ -43,7 +43,7 @@ object BuildCandPatterns extends App {
     val jsStr = Utils.map2JsonString(dataMap).toString()
     val msgEmptyHtml = MEnrichMessage.string2Message(jsStr)
     msgEmptyHtml.sethtml("")
-    (msgEmptyHtml,dataMap)}.repartition(300) //sample(false, 0.001, 12345)
+    (msgEmptyHtml.toJson().toString().getBytes(),dataMap)}.repartition(300) //sample(false, 0.001, 12345)
   val db = Utils.htmlsToCandidsPipe(source2)
   val fin = db.flatMap{case(msg,l) => l}
     if (Utils.DEBUGFLAG)

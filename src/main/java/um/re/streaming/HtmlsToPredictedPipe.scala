@@ -17,10 +17,15 @@ import org.apache.spark.mllib.linalg.Vectors
 import kafka.serializer.DefaultDecoder
 import com.utils.messages.MEnrichMessage
 import play.api.libs.json.Json
+import org.apache.spark._
 object HtmlsToPredictedPipe extends App {
 
-  val sc = new SparkContext()
-  val ssc = new StreamingContext(sc, Seconds(5))
+  
+ val conf=new SparkConf().setMaster("local[6]")  
+                            .setAppName("CountingSheep")
+                            .set("spark.executor.memory", "5g")
+    val sc = new SparkContext(conf)
+ 	val ssc = new StreamingContext(sc, Seconds(1))
 
   var (brokers, inputTopic,outputTopic,dMapPath,modelsPath) = ("","","","","")
   if (args.size==5) {
@@ -30,11 +35,11 @@ object HtmlsToPredictedPipe extends App {
 	  dMapPath = args(3)
 	  modelsPath = args(4)
   } else {
-    brokers = args(0)
-	  inputTopic = args(1)
-	  outputTopic = args(2)
-	  dMapPath = Utils.S3STORAGE + Utils.DMAP
-	  modelsPath = Utils.S3STORAGE + Utils.MODELS
+    brokers = "localhost:9092"
+	  inputTopic = "htmls"
+	  outputTopic = "modeled"
+	  dMapPath =  "dMap"
+	  modelsPath = "/Users/dmitry/umbrella/rawd/objects/Models/"
   }  
 	    
 
@@ -51,7 +56,8 @@ object HtmlsToPredictedPipe extends App {
   val kafkaParams = Map[String, String]("metadata.broker.list" -> brokers)
   val messages = KafkaUtils.createDirectStream[String, Array[Byte], StringDecoder, DefaultDecoder](
     ssc, kafkaParams, topicsSet)
-
+  
+  
   val parsed = messages.map { 
     case (s, msgBytes) =>
       val msg =  MEnrichMessage.string2Message(msgBytes)
@@ -99,9 +105,12 @@ object HtmlsToPredictedPipe extends App {
       val predictedPrice = selectedCandid._3
       val msgObj : MEnrichMessage = MEnrichMessage.string2Message(msg) 
       msgObj.setModelPrice(predictedPrice)
+      msgObj.sethtml("")
+      println(msgObj.toJson().toString())
       msgObj.toJson().toString().getBytes()
+      
   }
-
+  
   predictions.foreachRDD { rdd =>
     rdd.foreachPartition { p =>
       val props = new Properties()

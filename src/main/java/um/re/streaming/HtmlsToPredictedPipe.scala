@@ -1,6 +1,6 @@
 package um.re.streaming
 
-
+import org.apache.spark._
 import org.apache.spark.SparkContext
 import org.apache.spark.streaming.StreamingContext
 import org.apache.spark.streaming.kafka.KafkaUtils
@@ -18,8 +18,10 @@ import kafka.serializer.DefaultDecoder
 import com.utils.messages.MEnrichMessage
 import play.api.libs.json.Json
 object HtmlsToPredictedPipe extends App {
-
-  val sc = new SparkContext()
+   val conf=new SparkConf().setMaster("local[*]")  
+                            .setAppName("CountingSheep")
+                            .set("spark.executor.memory", "1g")
+  val sc = new SparkContext(conf)
   val ssc = new StreamingContext(sc, Seconds(5))
 
   var (brokers, inputTopic,outputTopic,dMapPath,modelsPath) = ("","","","","")

@@ -71,20 +71,20 @@ object DomAnalysisFull extends App {
     val dataHtmls = new UConf(sc, 200)
     //Read from ES
       //val allHtmls = dataHtmls.getData
-      //val tuplelDataDom = allHtmls.map (l=>((Utils.getDomain(l._1),(l._2.apply("url"),(l._2.apply("prod_id")),(l._2.apply("title"))))))
+      //val tuplelDataDom = allHtmls.map (l=>((Utils.getDomain(l._1),(l._2.apply("url"),(l._2.apply("prodId")),(l._2.apply("title"))))))
       
     //Read from S3
     val tuplelDataDom = dataHtmls.getAnalDataFS()
     
 //Join on domains that are relevant (minCandNum==80) and choosing Kth percentile of domains => according to # of urls 
     val FinalChosenDom=tuplelDataDom
-//Choose distinct (domain, prod_id)
+//Choose distinct (domain, prodId)
     val DistinctDomProd= FinalChosenDom.map(l=>(l._1,l._2._2)).distinct()
-//Choose prod_id which occur in more then 25 distinct domains => (prod_id, # of occurrences in distinct domains )
+//Choose prodId which occur in more then 25 distinct domains => (prodId, # of occurrences in distinct domains )
     val CntDom= DistinctDomProd.map(l=>(l._2,1)).reduceByKey((x, y) => x + y).filter(f=>(f._2>30)).map(l=>(l._2,l._1)).sortByKey(false).map(l=>(l._2,l._1))
-//Joining  # of occurrences of prod_id in distinct domains 
+//Joining  # of occurrences of prodId in distinct domains 
     val FinalChosenProds=FinalChosenDom.map(l=>(l._2._2,(l._2._1,l._1,l._2._3))).join(CntDom).map(l=>(l._2._1._2,(l._2._1._1,l._1,l._2._1._3),l._2._2))
-//Choosing domains that has more then 10 products where each prod_id has more then 25 distinct compatitors    
+//Choosing domains that has more then 10 products where each prodId has more then 25 distinct compatitors    
     val GrpByDom=FinalChosenProds.map(l=>(l._1,(l._2._2,l._3.toLong))).map(l=>(l._1,1)).reduceByKey((x, y) => x + y).filter(f=>(f._2>15)).join(FinalChosenProds.map(l=>(l._1,(l._2._2,l._2._3,l._3.toLong)))).map(l=>(l._1,(l._2._2._1,l._2._2._2,l._2._2._3)))
 //Saving to HDFS
     val output =GrpByDom.map(l=>(l._1,l._2._1,l._2._2,l._2._3)).distinct()

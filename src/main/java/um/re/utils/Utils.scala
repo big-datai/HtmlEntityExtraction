@@ -15,17 +15,20 @@ import com.gargoylesoftware.htmlunit.WebClient
 import com.gargoylesoftware.htmlunit.html.HtmlPage
 import com.gargoylesoftware.htmlunit.WebResponseData
 import org.apache.spark.mllib.tree.GradientBoostedTrees
+import com.utils.messages.MEnrichMessage
 object Utils {
   val S3STORAGE = "s3:/"
   val HDFSSTORAGE = "hdfs://"
   val DCANDIDS = "/rawd/objects/dcandids/"
   val DMODELS = "/rawd/objects/dmodels/"
   val DSCORES = "/rawd/objects/dscores/"
+  val MODELS = "/dpavlov/models/Models/"
+  val DMAP = "/dpavlov/models/dmap/part-00000"
   val ANALDATA = "/analysis/data/"
   val SEEDS2S3 = "/dpavlov/seeds20150516"
   val FULLR2S3 = "/dpavlov/es/full_river"
   val DEBUGFLAG = false
-
+  
   def getDomain(input: String) = {
     var url = input
     try {
@@ -120,7 +123,7 @@ object Utils {
       try {
         val nf = PriceParcer
         val id = l._2.get("url").toString
-        val h = l._2.get("price_prop1").toString
+        val h = l._2.get("html").toString
         val res = nf.find(id, h)
         res
       } catch {
@@ -133,19 +136,19 @@ object Utils {
    * This method checks if candidate is true and
    */
   def isTrueCandid(map_pat: Map[String, String], cand: Map[String, String]): Boolean = {
-    (map_pat.get("price") != None && map_pat.get("price_updated") != None && cand.get("priceCandidate") != None &&
-      Utils.parseDouble(cand.get("priceCandidate").get.toString) != None && Utils.parseDouble(map_pat.get("price_updated").get.toString) != None &&
+    (map_pat.get("price") != None && map_pat.get("updatedPrice") != None && cand.get("priceCandidate") != None &&
+      Utils.parseDouble(cand.get("priceCandidate").get.toString) != None && Utils.parseDouble(map_pat.get("updatedPrice").get.toString) != None &&
       Utils.parseDouble(map_pat.get("price").get.toString) != None &&
       Utils.parseDouble(cand.get("priceCandidate").get.toString).get == Utils.parseDouble((map_pat.get("price").get.toString)).get &&
-      Utils.parseDouble(map_pat.get("price_updated").get.toString).get == Utils.parseDouble(map_pat.get("price").get.toString).get)
+      Utils.parseDouble(map_pat.get("updatedPrice").get.toString).get == Utils.parseDouble(map_pat.get("price").get.toString).get)
   }
 
-  def htmlsToCandidsPipe(source: RDD[(String, Map[String, String])]): RDD[Map[String, String]] = {
+  def htmlsToCandidsPipe(source: RDD[(Array[Byte], Map[String, String])]): RDD[(Array[Byte],List[Map[String, String]])] = {
     val res = Utils.getCandidatesPatternsHtmlTrimed(source)
     if (DEBUGFLAG)
       res.count
     
-    val resFiltered = res.filter { l =>
+    val resFiltered = res.filter { case(msg,l) =>
       val map_pat = l.head
       val count = l.tail.filter { cand =>
         (Utils.isTrueCandid(map_pat, cand))
@@ -155,7 +158,7 @@ object Utils {
     if (DEBUGFLAG)
       resFiltered.count
       
-    val db = resFiltered.map { l =>
+    val db = resFiltered.map { case(msg,l) =>
       try {
         val map_pat = l.head
         val pat = map_pat.get("patterns").get.toString
@@ -163,10 +166,10 @@ object Utils {
         val length = html.size
         val location_pattern :Map[String,String] = Map.empty//Utils.allPatterns(pat, html, 150)
         //add to each candidate pattern
-        l.tail.map { cand =>
-          cand + ("price_updated" -> map_pat.get("price_updated").get.toString) + ("price" -> map_pat.get("price").get.toString) +
+        (msg,l.tail.map { cand =>
+          cand + ("updatedPrice" -> map_pat.get("updatedPrice").get.toString) + ("price" -> map_pat.get("price").get.toString) +
             ("patterns" -> Utils.map2JsonString(location_pattern)) + ("length" -> length.toString)
-        }
+        })
       } catch {
         case _: Exception => null
       }
@@ -177,33 +180,29 @@ object Utils {
     if (DEBUGFLAG)
       dbFiltered.count
     
-    val fin = db.flatMap(l => l)
-    if (DEBUGFLAG)
-      fin.count
-    
-    fin
+    dbFiltered  
   }
 
-  def getCandidatesPatternsHtmlTrimed(source2: RDD[(String, Map[String, String])]): RDD[List[Map[String, String]]] = {
-    val candid = source2.map { l =>
+  def getCandidatesPatternsHtmlTrimed(source2: RDD[(Array[Byte], Map[String, String])]): RDD[(Array[Byte],List[Map[String, String]])] = {
+    val candid = source2.map { case(msg,l) =>
       try {
         val nf = PriceParcer
         nf.snippetSize = 150
-        val id = l._2.get("url").get
-        val price = l._2.get("price").get
-        val price_updated = l._2.get("price_updated").get
-        val html = shrinkString(l._2.get("price_prop1").get)
+        val id = l.get("url").get
+        val price = l.get("price").get
+        val updatedPrice = l.get("updatedPrice").get
+        val html = shrinkString(l.get("html").get)
         /*
-        val html_to=l._2.get("price_prop1").get
+        val html_to=l.get("html").get
         val m_webClient = new WebClient()
         val p=m_webClient.getPage(id)
         */
-        val patterns = shrinkString(l._2.get("price_patterns").get)
+        val patterns = shrinkString(l.get("patternsHtml").get)
         val res = nf.findFast(id, html)
-        val p_h = Map("patterns" -> patterns, "html" -> html, "price" -> price, "price_updated" -> price_updated)
-        p_h :: res
+        val p_h = Map("patterns" -> patterns, "html" -> html, "price" -> price, "updatedPrice" -> updatedPrice)
+        (msg , p_h :: res)
       } catch {
-        case _: Exception => Nil
+        case _: Exception => (new Array[Byte](0),Nil)
       }
     }
     candid

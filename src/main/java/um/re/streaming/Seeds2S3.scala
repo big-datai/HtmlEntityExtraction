@@ -28,7 +28,7 @@ object Seeds2S3 extends App {
   val dataHtmls = new UConf(sc, 1)
   //Read from ES
   //val allHtmls = dataHtmls.getData
-  //val tuplelDataDom = allHtmls.map (l=>((Utils.getDomain(l._1),(l._2.apply("url"),(l._2.apply("prod_id")),(l._2.apply("title"))))))
+  //val tuplelDataDom = allHtmls.map (l=>((Utils.getDomain(l._1),(l._2.apply("url"),(l._2.apply("prodId")),(l._2.apply("title"))))))
 
   //Read from S3 (full_river data from ES that i've saved into S3)
  

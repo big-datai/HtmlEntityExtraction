@@ -36,7 +36,7 @@ object TestWrite2ES {
 	 
 	 val conf = new JobConf()
 	 conf.set("es.resource", "htmls/data")
-	 conf.set("es.query", "?q=prod_id:23799864")
+	 conf.set("es.query", "?q=prodId:23799864")
 	 conf.set("es.nodes", EsUtils.ESIP)
   
 	 val conf_s = new SparkConf().setAppName("es").setMaster("local[8]").set("spark.serializer", classOf[KryoSerializer].getName)
@@ -44,7 +44,7 @@ object TestWrite2ES {
 	 conf_s.set("spark.kryo.registrator", "um.re.es.emr.MyRegistrator")
 	 val sc = new SparkContext(conf_s)
 	 sc.hadoopConfiguration.set("es.nodes", EsUtils.ESIP)
-	 sc.hadoopConfiguration.set("es.query", "?q=price_prop1:xml")
+	 sc.hadoopConfiguration.set("es.query", "?q=html:xml")
 	 sc.hadoopConfiguration.set("es.resource", "htmls/data")
 
 	 val source = sc.newAPIHadoopRDD(conf, classOf[EsInputFormat[Text, MapWritable]], classOf[Text], classOf[MapWritable])
@@ -53,7 +53,7 @@ object TestWrite2ES {
 	 	val nf = PriceParcer
 	 	val doc = r._2.map{case (k, v) => (k.toString, v.toString) }.toMap
 	 	val url = doc.get("url").get
-	 	val html = doc.get("price_prop1").get
+	 	val html = doc.get("html").get
 	 	nf.findM(url, html)
 	 }.map{m=>
 	 val mw = Utils.toWritable(m)

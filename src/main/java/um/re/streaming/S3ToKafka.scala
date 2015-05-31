@@ -17,13 +17,15 @@ object S3ToKafka { //}extends App {
   def main(str: Array[String]) {
     val conf = new SparkConf().setMaster("local[*]")
       .setAppName("CountingSheep")
-      .set("spark.executor.memory", "1g")
+      .set("spark.executor.memory", "5g")
     val sc = new SparkContext(conf)
-    val Array(brokers, topic) = Array("54.83.9.85:9092", "seeds")
-
-    //Read Seeds From S3  
-    val path = Utils.S3STORAGE + "/dpavlov/seeds20150516"
-    //val path = "/Users/dmitry/umbrella/seeds_sample"
+    
+    //local
+    val Array(brokers, topic) = Array("localhost:9092", "seeds")
+    val path = "/Users/dmitry/umbrella/seeds_sample"
+    
+//    val Array(brokers, topic) = Array("54.83.9.85:9092", "seeds")
+//    val path = Utils.S3STORAGE + "/dpavlov/seeds20150516"
     val seeds = sc.objectFile[(String)](path, 200)
 
     val seeds2kafka = seeds.map { line =>

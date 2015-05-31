@@ -45,9 +45,9 @@ object HtmlsToPredictedPipe extends App {
   } else {
     brokers = "localhost:9092"
     inputTopic = "htmls"
-    outputTopic = "modeled"
+    outputTopic = "preds"
     dMapPath = "dMap"
-    modelsPath = "/Users/dmitry/umbrella/rawd/objects/Models/"
+    modelsPath = "/Users/dmitry/umbrella/Models/"
   }
 
   //val Array(brokers, inputTopic, outputTopic) = Array("localhost:9092", "testOut", "test2")

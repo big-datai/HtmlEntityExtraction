@@ -148,7 +148,7 @@ object Utils {
     if (DEBUGFLAG)
       res.count
     
-    val resFiltered = res.filter { case(msg,l) =>
+    /*val resFiltered = res.filter { case(msg,l) =>
       val map_pat = l.head
       val count = l.tail.filter { cand =>
         (Utils.isTrueCandid(map_pat, cand))
@@ -157,8 +157,8 @@ object Utils {
     }
     if (DEBUGFLAG)
       resFiltered.count
-      
-    val db = resFiltered.map { case(msg,l) =>
+    */  
+    val db = res/*Filtered*/.map { case(msg,l) =>
       try {
         val map_pat = l.head
         val pat = map_pat.get("patterns").get.toString

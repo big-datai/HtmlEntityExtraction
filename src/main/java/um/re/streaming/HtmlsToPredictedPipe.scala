@@ -69,6 +69,7 @@ object HtmlsToPredictedPipe extends App {
       val parsedMsg: (Array[Byte], Map[String, String]) = (msgBytes, Utils.json2Map(Json.parse(msg.toJson().toString())))
       parsedMsg
   }
+ // val parsedFiltered = parsed.filter{case(msg,msgMap) => dMap.value.keySet.contains(Utils.getDomain(msgMap.apply("url"))) }
 
   val candidates = parsed.transform(rdd => Utils.htmlsToCandidsPipe(rdd))
 
@@ -116,14 +117,14 @@ object HtmlsToPredictedPipe extends App {
   }
 
   predictions.map { msgObj =>
-    val modelPrice = msgObj.getModelPrice()
-    val updatedPrice = msgObj.getUpdatedPrice()
+    val modelPrice = Utils.parseDouble(msgObj.getModelPrice())
+    val updatedPrice = Utils.parseDouble(msgObj.getUpdatedPrice())
     var status = ""
 
-    if (modelPrice.equals("-1")) {
+    if (modelPrice.get == -1.0) {
       status = "allFalseCandids"
     } else {
-      if (modelPrice.toDouble == updatedPrice.toDouble)
+      if (updatedPrice != None && modelPrice != None && (modelPrice.get == updatedPrice.get) )
         status = "modeledEqualsUpdated"
       else
         status = "modeledNotEqualsUpdated"
@@ -145,8 +146,7 @@ object HtmlsToPredictedPipe extends App {
   parsed.count().foreachRDD(rdd => { parsedMessagesCounter += rdd.first() })
   candidates.count().foreachRDD(rdd => { candidatesMessagesCounter += rdd.first() })
   predictions.count().foreachRDD(rdd => { predictionsMessagesCounter += rdd.first() })
-  output.count().foreachRDD { rdd =>
-    { outputMessagesCounter += rdd.first() }
+  output.count().foreachRDD { rdd => { outputMessagesCounter += rdd.first() }
     println("!@!@!@!@!   inputMessagesCounter " + inputMessagesCounter)
     println("!@!@!@!@!   parsedMessagesCounter " + parsedMessagesCounter)
     println("!@!@!@!@!   candidatesMessagesCounter " + candidatesMessagesCounter)

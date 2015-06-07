@@ -48,7 +48,7 @@ object HtmlsToPredictedPipe extends App {
     inputTopic = "htmls"
     outputTopic = "preds"
     dMapPath = "dMapNew"
-    modelsPath = "/Users/dmitry/umbrella/rawd/objects/Models/"
+    modelsPath = "/Users/dmitry/umbrella/Models/"
   }
 
   val dMap = sc.broadcast(sc.textFile((dMapPath), 1).collect().mkString("\n").split("\n").map(l => (l.split("\t")(0), l.split("\t")(1))).toMap)

@@ -148,7 +148,8 @@ object Utils {
     if (DEBUGFLAG)
       res.count
     
-    /*val resFiltered = res.filter { case(msg,l) =>
+    /* this filter was relevant for learning phase
+    val resFiltered = res.filter { case(msg,l) =>
       val map_pat = l.head
       val count = l.tail.filter { cand =>
         (Utils.isTrueCandid(map_pat, cand))
@@ -176,7 +177,7 @@ object Utils {
     }
     if (DEBUGFLAG)
       db.count
-    val dbFiltered = db.filter(l => l != null)
+    val dbFiltered = db.filter(l => (l != null)&& !l._2.isEmpty)
     if (DEBUGFLAG)
       dbFiltered.count
     

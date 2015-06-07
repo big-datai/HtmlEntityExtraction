@@ -27,6 +27,7 @@ object HtmlsToPredictedPipe extends App {
 
   var inputMessagesCounter = 0L
   var parsedMessagesCounter = 0L
+  var filterSuccesfulUpdatePriceMessagesCounter = 0L
   var candidatesMessagesCounter = 0L
   var predictionsMessagesCounter = 0L
   var outputMessagesCounter = 0L
@@ -45,15 +46,11 @@ object HtmlsToPredictedPipe extends App {
   } else {
     brokers = "localhost:9092"
     inputTopic = "htmls"
-    outputTopic = "modeled"
-    dMapPath = "dMap"
+    outputTopic = "preds"
+    dMapPath = "dMapNew"
     modelsPath = "/Users/dmitry/umbrella/rawd/objects/Models/"
   }
 
-  //val Array(brokers, inputTopic, outputTopic) = Array("localhost:9092", "testOut", "test2")
-
-  //TODO dmap for test
-  //val dMap = sc.broadcast(sc.textFile("/Users/dmitry/umbrella/rawd/objects/dMap.txt", 1).collect().map(l => (l.split("\t")(0), l.split("\t")(1))).toMap)
   val dMap = sc.broadcast(sc.textFile((dMapPath), 1).collect().mkString("\n").split("\n").map(l => (l.split("\t")(0), l.split("\t")(1))).toMap)
 
   // Create direct kafka stream with brokers and topics
@@ -69,17 +66,17 @@ object HtmlsToPredictedPipe extends App {
       val parsedMsg: (Array[Byte], Map[String, String]) = (msgBytes, Utils.json2Map(Json.parse(msg.toJson().toString())))
       parsedMsg
   }
- // val parsedFiltered = parsed.filter{case(msg,msgMap) => dMap.value.keySet.contains(Utils.getDomain(msgMap.apply("url"))) }
-
+  //TODO this below filter doesn't filter all zeros , need to fix
+  val filterSuccesfulUpdatePrice = parsed.filter{case(msg,msgMap) => !msgMap.apply("updatedPrice").equals("0.0")}
+  
   val candidates = parsed.transform(rdd => Utils.htmlsToCandidsPipe(rdd))
 
   val predictions = candidates.map {
     case (msg, candidList) =>
-      //TODO test path
+      try{
       val url = candidList.head.apply("url")
       val domain = Utils.getDomain(url)
       val domainCode = dMap.value.apply(domain)
-      //val (model, idf, selected_indices) = sc.objectFile[(GradientBoostedTreesModel, Array[Double], Array[Int])]("/Users/dmitry/umbrella/rawd/objects/Models/" + domainCode + "/part-00000", 1).first
       val (model, idf, selected_indices) = sc.objectFile[(GradientBoostedTreesModel, Array[Double], Array[Int])](modelsPath + domainCode + "/part-00000", 1).first
 
       val modelPredictions = candidList.map { candid =>
@@ -114,7 +111,12 @@ object HtmlsToPredictedPipe extends App {
       msgObj.setModelPrice(predictedPrice)
       msgObj.sethtml("")
       msgObj
-  }
+      }
+      catch {
+        //TODO better log exceptions
+        case _: Exception => null
+      }
+  }.filter(_!=null)
 
   predictions.map { msgObj =>
     val modelPrice = Utils.parseDouble(msgObj.getModelPrice())
@@ -144,11 +146,13 @@ object HtmlsToPredictedPipe extends App {
 
   input.count().foreachRDD(rdd => { inputMessagesCounter += rdd.first() })
   parsed.count().foreachRDD(rdd => { parsedMessagesCounter += rdd.first() })
+  filterSuccesfulUpdatePrice.count().foreachRDD(rdd => { filterSuccesfulUpdatePriceMessagesCounter += rdd.first() })
   candidates.count().foreachRDD(rdd => { candidatesMessagesCounter += rdd.first() })
   predictions.count().foreachRDD(rdd => { predictionsMessagesCounter += rdd.first() })
   output.count().foreachRDD { rdd => { outputMessagesCounter += rdd.first() }
     println("!@!@!@!@!   inputMessagesCounter " + inputMessagesCounter)
     println("!@!@!@!@!   parsedMessagesCounter " + parsedMessagesCounter)
+    println("!@!@!@!@!   filterSuccesfulUpdatePriceMessagesCounter " + parsedMessagesCounter)
     println("!@!@!@!@!   candidatesMessagesCounter " + candidatesMessagesCounter)
     println("!@!@!@!@!   predictionsMessagesCounter " + predictionsMessagesCounter)
     println("!@!@!@!@!   outputMessagesCounter " + outputMessagesCounter)

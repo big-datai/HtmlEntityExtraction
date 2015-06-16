@@ -17,14 +17,11 @@ import kafka.serializer.DefaultDecoder
 import com.utils.messages.MEnrichMessage
 import play.api.libs.json.Json
 import org.apache.spark._
-object HtmlsToPredictedPipe extends App {
+object Htmls2PredsPipe extends App {
 
-  val conf = new SparkConf().setMaster("local[6]")
-    .setAppName("CountingSheep")
-    .set("spark.executor.memory", "5g")
-  val sc = new SparkContext(conf)
-  val ssc = new StreamingContext(sc, Seconds(5))
-
+  val conf = new SparkConf()
+  	.setAppName(getClass.getSimpleName)
+  
   var inputMessagesCounter = 0L
   var parsedMessagesCounter = 0L
   var filterSuccesfulUpdatePriceMessagesCounter = 0L
@@ -49,7 +46,10 @@ object HtmlsToPredictedPipe extends App {
     outputTopic = "preds"
     dMapPath = "dMapNew"
     modelsPath = "/Users/dmitry/umbrella/Models/"
+    conf.setMaster("local[*]")
   }
+  val sc = new SparkContext(conf)
+  val ssc = new StreamingContext(sc, Seconds(5))
 
   val dMap = sc.broadcast(sc.textFile((dMapPath), 1).collect().mkString("\n").split("\n").map(l => (l.split("\t")(0), l.split("\t")(1))).toMap)
 
@@ -60,16 +60,12 @@ object HtmlsToPredictedPipe extends App {
   val input = KafkaUtils.createDirectStream[String, Array[Byte], StringDecoder, DefaultDecoder](
     ssc, kafkaParams, topicsSet)
 
-  val parsed = input.map {
-    case (s, msgBytes) =>
-      val msg = MEnrichMessage.string2Message(msgBytes)
-      val parsedMsg: (Array[Byte], Map[String, String]) = (msgBytes, Utils.json2Map(Json.parse(msg.toJson().toString())))
-      parsedMsg
-  }
+  val parsed = Utils.parseMEnrichMessage(input)
   //TODO this below filter doesn't filter all zeros , need to fix
-  val filterSuccesfulUpdatePrice = parsed.filter{case(msg,msgMap) => !msgMap.apply("updatedPrice").equals("0.0")}
+  val filterSuccesfulUpdatePrice = parsed.filter{case(msg,msgMap) => 
+    (Utils.parseDouble(msgMap.apply("updatedPrice")).get-0.0).abs > 0.001}
   
-  val candidates = parsed.transform(rdd => Utils.htmlsToCandidsPipe(rdd))
+  val candidates = filterSuccesfulUpdatePrice.transform(rdd => Utils.htmlsToCandidsPipe(rdd))
 
   val predictions = candidates.map {
     case (msg, candidList) =>

@@ -27,7 +27,7 @@ object S3ToKafka { //}extends App {
 //    val Array(brokers, topic) = Array("54.83.9.85:9092", "seeds")
 //    val path = Utils.S3STORAGE + "/dpavlov/seeds20150516"
     val seeds = sc.objectFile[(String)](path, 200)
-
+    //for load testing for(i<- 1 to 100){
     val seeds2kafka = seeds.map { line =>
       MEnrichMessage.string2Message(line).toJson().toString().getBytes()
     }
@@ -42,7 +42,7 @@ object S3ToKafka { //}extends App {
       p.foreach(rec => producer.send(new KeyedMessage[String, Array[Byte]](topic, rec)))
       producer.close()
     }
-
+    //for testing  println(i*seeds2kafka.count) }
   }
 }
 

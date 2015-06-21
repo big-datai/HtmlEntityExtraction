@@ -14,7 +14,7 @@ import um.re.utils.Utils
 object Push2Cassandra extends App {
   val conf = new SparkConf(true)
     .setAppName(getClass.getSimpleName)
-    
+
   var (brokers, cassandraHost, inputTopic, keySpace, tableRT, tableH) = ("", "", "", "", "", "")
   if (args.size == 6) {
     brokers = args(0)
@@ -33,23 +33,45 @@ object Push2Cassandra extends App {
     conf.setMaster("local[*]")
   }
   conf.set("spark.cassandra.connection.host", cassandraHost)
+  var inputMessagesCounter = 0L
+  var historicalFeedCounter = 0L
+  var realTimeFeedCounter = 0L
+  var exceptionCounter = 0L
   val sc = new SparkContext(conf)
 
   val ssc = new StreamingContext(sc, Seconds(5))
+  try {
+    // Create direct kafka stream with brokers and topics
+    val topicsSet = inputTopic.split(",").toSet
+    val kafkaParams = Map[String, String]("metadata.broker.list" -> brokers)
+    val inputMessages = KafkaUtils.createDirectStream[String, Array[Byte], StringDecoder, DefaultDecoder](
+      ssc, kafkaParams, topicsSet)
 
-  // Create direct kafka stream with brokers and topics
-  val topicsSet = inputTopic.split(",").toSet
-  val kafkaParams = Map[String, String]("metadata.broker.list" -> brokers)
-  val messages = KafkaUtils.createDirectStream[String, Array[Byte], StringDecoder, DefaultDecoder](
-    ssc, kafkaParams, topicsSet)
+    inputMessages.count().foreachRDD(rdd => { inputMessagesCounter += rdd.first() })
+    
+    val historicalFeed = Utils.parseMEnrichMessage(inputMessages).map {
+      case (msg, msgMap) =>
+        val date = new java.util.Date()
+        (msgMap.apply("prodId"), msgMap.apply("domain"), date, Utils.getPriceFromMsgMap(msgMap), msgMap.apply("title"))
+    }
+    historicalFeed.saveToCassandra(keySpace, tableH)
+    historicalFeed.count().foreachRDD(rdd => { historicalFeedCounter += rdd.first() })
+    
+    val realTimeFeed = historicalFeed.map(t => (t._1, t._2, t._4, t._5))
+    realTimeFeed.saveToCassandra(keySpace, tableRT)
+    realTimeFeed.count().foreachRDD{rdd => { realTimeFeedCounter += rdd.first() }
+    	println("!@!@!@!@!   inputMessagesCounter " + inputMessagesCounter)
+    	println("!@!@!@!@!   historicalFeedCounter " + historicalFeedCounter)
+    	println("!@!@!@!@!   realTimeFeedCounter " + realTimeFeedCounter)
+    	println("!@!@!@!@!   exceptionCounter " + exceptionCounter)
+    }
 
-  val tableData = Utils.parseMEnrichMessage(messages).map {
-    case (msg, msgMap) =>
-      val date = new java.util.Date()
-      (msgMap.apply("prodId"), msgMap.apply("domain"), date, Utils.getPriceFromMsgMap(msgMap), msgMap.apply("title"))
+  } catch {
+    case e:Exception => {
+      exceptionCounter+=1
+    }
   }
-  tableData.saveToCassandra(keySpace, tableH)
-  tableData.map(t => (t._1, t._2, t._4, t._5)).saveToCassandra(keySpace, tableRT)
+
   ssc.start()
   ssc.awaitTermination()
 

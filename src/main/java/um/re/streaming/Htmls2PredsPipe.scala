@@ -158,17 +158,8 @@ object Htmls2PredsPipe extends App {
   }
 
   output.foreachRDD { rdd =>
-    rdd.foreachPartition { p =>
-      val props = new Properties()
-      props.put("metadata.broker.list", brokers)
-      props.put("serializer.class", "kafka.serializer.DefaultEncoder")
-
-      @transient val config = new ProducerConfig(props)
-      @transient val producer = new Producer[String, Array[Byte]](config)
-      p.foreach(rec => producer.send(new KeyedMessage[String, Array[Byte]](outputTopic, rec)))
-      producer.close()
+    Utils.pushByteRDD2Kafka(rdd, outputTopic, brokers)
     }
-  }
 
   ssc.start()
   ssc.awaitTermination()

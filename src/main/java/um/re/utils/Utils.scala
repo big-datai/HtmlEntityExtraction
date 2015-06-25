@@ -17,6 +17,10 @@ import com.gargoylesoftware.htmlunit.WebResponseData
 import org.apache.spark.mllib.tree.GradientBoostedTrees
 import com.utils.messages.MEnrichMessage
 import org.apache.spark.streaming.dstream.DStream
+import java.util.Properties
+import kafka.producer.ProducerConfig
+import kafka.producer.Producer
+import kafka.producer.KeyedMessage
 object Utils {
   val S3STORAGE = "s3:/"
   val HDFSSTORAGE = "hdfs://"
@@ -357,7 +361,7 @@ object Utils {
     sc.parallelize(List(domainNameGrp), 1).saveAsTextFile("hdfs:///pavlovout/dscores/test/")
   }
 
-  def parseMEnrichMessage(dstream: DStream[(String, Array[Byte])]) : DStream[(Array[Byte],Map[String,String])] = {
+  def parseMEnrichMessage(dstream: DStream[(String, Array[Byte])]): DStream[(Array[Byte], Map[String, String])] = {
     dstream.map {
       case (s, msgBytes) =>
         val msg = MEnrichMessage.string2Message(msgBytes)
@@ -365,11 +369,29 @@ object Utils {
         parsedMsg
     }
   }
-  def getPriceFromMsgMap(msgMap:Map[String,String]):Double = {
+  def getPriceFromMsgMap(msgMap: Map[String, String]): Double = {
     //TODO currently we use updatedPrice , this method created to handle logic to decide which price to push on
     val updatedPrice = parseDouble(msgMap.apply("updatedPrice"))
     updatedPrice.get
   }
+  def gcd(a: Int, b: Int): Int = if (b == 0) a.abs else gcd(b, a % b)
+  def lcm(a: Int, b: Int) = (a * b).abs / gcd(a, b)
+  def lcm(numSet: Set[Int]): Long = {
+    numSet.reduce(lcm(_, _))
+  }
   
+  def pushByteRDD2Kafka(rdd:RDD[Array[Byte]],outputTopic:String,brokers:String)={
+    rdd.foreachPartition { p =>
+        val props = new Properties()
+        props.put("metadata.broker.list", brokers)
+        props.put("serializer.class", "kafka.serializer.DefaultEncoder")
+
+        @transient val config = new ProducerConfig(props)
+        @transient val producer = new Producer[String, Array[Byte]](config)
+        p.foreach(rec => producer.send(new KeyedMessage[String, Array[Byte]](outputTopic, rec)))
+        producer.close()
+      }
+  }
+
 }   
 

@@ -63,7 +63,7 @@ object Htmls2PredsPipe extends App {
       ssc, kafkaParams, topicsSet)
 
     val parsed = Utils.parseMEnrichMessage(input)
-    //TODO this below filter doesn't filter all zeros , need to fix
+    
     val filterSuccesfulUpdatePrice = parsed.filter {
       case (msg, msgMap) =>
         println("xxxxxxxxxx " + Utils.parseDouble(msgMap.apply("updatedPrice")).get.toInt)

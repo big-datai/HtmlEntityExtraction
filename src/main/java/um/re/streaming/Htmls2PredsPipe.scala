@@ -24,30 +24,35 @@ object Htmls2PredsPipe extends App {
 
   var inputMessagesCounter = 0L
   var parsedMessagesCounter = 0L
-  var filterSuccesfulUpdatePriceMessagesCounter = 0L
+  var filteredMessagesCounter = 0L
   var candidatesMessagesCounter = 0L
   var predictionsMessagesCounter = 0L
   var outputMessagesCounter = 0L
 
+  var missingModelCounter = 0L
+  var patternFailedCounter = 0L
+  var bothFailedCounter = 0L
   var allFalseCandidsCounter = 0L
-  var modeledEqualsUpdatedCounter = 0L
-  var modeledNotEqualsUpdatedCounter = 0L
+  var modeledPatternEqualsCounter = 0L
+  var modelPatternConflictCounter = 0L
 
   var exceptionCounter = 0L
 
-  var (brokers, inputTopic, outputTopic, dMapPath, modelsPath) = ("", "", "", "", "")
-  if (args.size == 5) {
+  var (brokers, inputTopic, outputTopic, dMapPath, modelsPath ,statusFilters) = ("", "", "", "", "", "")
+  if (args.size == 6) {
     brokers = args(0)
     inputTopic = args(1)
     outputTopic = args(2)
     dMapPath = args(3)
     modelsPath = args(4)
+    statusFilters = args(5)
   } else {
     brokers = "localhost:9092"
     inputTopic = "htmls"
     outputTopic = "preds"
     dMapPath = "dMapNew"
     modelsPath = "/Users/dmitry/umbrella/Models/"
+    statusFilters = "bothFailed"
     conf.setMaster("local[*]")
   }
   val sc = new SparkContext(conf)
@@ -64,13 +69,7 @@ object Htmls2PredsPipe extends App {
 
     val parsed = Utils.parseMEnrichMessage(input)
     
-    val filterSuccesfulUpdatePrice = parsed.filter {
-      case (msg, msgMap) =>
-        println("xxxxxxxxxx " + Utils.parseDouble(msgMap.apply("updatedPrice")).get.toInt)
-        (Utils.parseDouble(msgMap.apply("updatedPrice")).get.toInt != 0)
-    }
-
-    val candidates = filterSuccesfulUpdatePrice.transform(rdd => Utils.htmlsToCandidsPipe(rdd))
+    val candidates = parsed.transform(rdd => Utils.htmlsToCandidsPipe(rdd))
 
     val predictions = candidates.map {
       case (msg, candidList) =>
@@ -114,52 +113,86 @@ object Htmls2PredsPipe extends App {
           msgObj
         } catch {
           //TODO better log exceptions
-          case _: Exception => null
+          case _: Exception => {
+            val msgObj: MEnrichMessage = MEnrichMessage.string2Message(msg)
+            msgObj.setModelPrice("-2")
+            msgObj.sethtml("")
+            msgObj
+          }
         }
-    }.filter(_ != null)
+    }
 
-    predictions.map { msgObj =>
+    val messagesWithStatus = predictions.map { msgObj =>
       val modelPrice = Utils.parseDouble(msgObj.getModelPrice())
       val updatedPrice = Utils.parseDouble(msgObj.getUpdatedPrice())
       var status = ""
+      var allFalseCandids = false
+      var missingModel = false
+      var patternFailed = false
+      var modeledPatternEquals = false
 
-      if (modelPrice.get == -1.0) {
+      if (modelPrice.get == -1.0)
+        allFalseCandids = true
+      if (modelPrice.get == -2.0)
+        missingModel = true
+      if (updatedPrice.get.toInt == 0)
+        patternFailed = true
+      if (!patternFailed && !missingModel && !allFalseCandids && ((modelPrice.get - updatedPrice.get) < 0.009))
+        modeledPatternEquals = true
+
+      if (modeledPatternEquals)
+        status = "modeledPatternEquals"
+      else if (!allFalseCandids && !missingModel && !patternFailed)
+        status = "modelPatternConflict"
+      else if ((allFalseCandids || missingModel) && patternFailed)
+        status = "bothFailed"
+      else if (patternFailed)
+        status = "patternFailed"
+      else if (missingModel)
+        status = "missingModel"
+      else if (allFalseCandids)
         status = "allFalseCandids"
-      } else {
-        if (updatedPrice != None && modelPrice != None && (modelPrice.get == updatedPrice.get))
-          status = "modeledEqualsUpdated"
-        else
-          status = "modeledNotEqualsUpdated"
-      }
-      status
-    }.countByValue().foreachRDD { rdd =>
+      (status,msgObj)
+    }.cache
+    
+    messagesWithStatus.map(_._1).countByValue().foreachRDD { rdd =>
       rdd.foreach {
         case (counterType, count) =>
           counterType match {
-            case "allFalseCandids"         => allFalseCandidsCounter += count
-            case "modeledEqualsUpdated"    => modeledEqualsUpdatedCounter += count
-            case "modeledNotEqualsUpdated" => modeledNotEqualsUpdatedCounter += count
+            case "modeledPatternEquals" => modeledPatternEqualsCounter += count
+            case "modelPatternConflict" => modelPatternConflictCounter += count
+            case "bothFailed"           => bothFailedCounter += count
+            case "patternFailed"        => patternFailedCounter += count
+            case "missingModel"         => missingModelCounter += count
+            case "allFalseCandids"      => allFalseCandidsCounter += count
           }
       }
     }
-    val output = predictions.map(msgObj => msgObj.toJson().toString().getBytes())
-
+    val filteredMessages = messagesWithStatus.filter{case(status,msgObj) => !statusFilters.contains(status)}
+    val output = filteredMessages.map{case(status,msgObj) => msgObj.toJson().toString().getBytes()}
+    
     input.count().foreachRDD(rdd => { inputMessagesCounter += rdd.first() })
     parsed.count().foreachRDD(rdd => { parsedMessagesCounter += rdd.first() })
-    filterSuccesfulUpdatePrice.count().foreachRDD(rdd => { filterSuccesfulUpdatePriceMessagesCounter += rdd.first() })
     candidates.count().foreachRDD(rdd => { candidatesMessagesCounter += rdd.first() })
     predictions.count().foreachRDD(rdd => { predictionsMessagesCounter += rdd.first() })
+    filteredMessages.count().foreachRDD(rdd => { filteredMessagesCounter += rdd.first() })
     output.count().foreachRDD { rdd =>
       { outputMessagesCounter += rdd.first() }
       println("!@!@!@!@!   inputMessagesCounter " + inputMessagesCounter)
       println("!@!@!@!@!   parsedMessagesCounter " + parsedMessagesCounter)
-      println("!@!@!@!@!   filterSuccesfulUpdatePriceMessagesCounter " + filterSuccesfulUpdatePriceMessagesCounter)
       println("!@!@!@!@!   candidatesMessagesCounter " + candidatesMessagesCounter)
       println("!@!@!@!@!   predictionsMessagesCounter " + predictionsMessagesCounter)
+      println("!@!@!@!@!   filteredMessagesCounter " + filteredMessagesCounter)
       println("!@!@!@!@!   outputMessagesCounter " + outputMessagesCounter)
+      
+      println("!@!@!@!@!   modeledPatternEqualsCounter " + modeledPatternEqualsCounter)
+      println("!@!@!@!@!   modelPatternConflictCounter " + modelPatternConflictCounter)
+      println("!@!@!@!@!   bothFailedCounter " + bothFailedCounter)
+      println("!@!@!@!@!   patternFailedCounter " + patternFailedCounter)
+      println("!@!@!@!@!   missingModelCounter " + missingModelCounter)
       println("!@!@!@!@!   allFalseCandidsCounter " + allFalseCandidsCounter)
-      println("!@!@!@!@!   modeledEqualsUpdatedCounter " + modeledEqualsUpdatedCounter)
-      println("!@!@!@!@!   modeledNotEqualsUpdatedCounter " + modeledNotEqualsUpdatedCounter)
+      
+      
       println("!@!@!@!@!   exceptionCounter " + exceptionCounter)
     }
 

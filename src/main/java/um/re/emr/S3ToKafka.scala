@@ -33,8 +33,8 @@ object S3ToKafka { //}extends App {
     }
     val sc = new SparkContext(conf)
     try {
-
-      val rawSeeds = sc.objectFile[(String)](inputPath, numPartitions.toInt)
+      
+      val rawSeeds = sc.objectFile[(String)](inputPath, numPartitions.toInt).cache
       val parsedSeeds = rawSeeds.map { line =>
         try { MEnrichMessage.string2Message(line).toJson().toString().getBytes() }
         catch {
@@ -48,7 +48,9 @@ object S3ToKafka { //}extends App {
     } catch {
       case e: Exception => {
         println("########  Somthing went wrong :( ")
-        e.printStackTrace()
+        println("#?#?#?#?#?#?#  ExceptionLocalizedMessage : "+ e.getLocalizedMessage+
+            "\n#?#?#?#?#?#?#  ExceptionMessage : "+e.getMessage+
+            "\n#?#?#?#?#?#?#  ExceptionStackTrace : "+e.getStackTraceString)
       }
     }
   }

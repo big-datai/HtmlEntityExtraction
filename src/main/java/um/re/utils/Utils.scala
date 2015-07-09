@@ -115,8 +115,11 @@ object Utils {
       val map = js.as[Map[String, String]]
       map //Json.stringify(asJson)
     } catch {
-      case _: Exception => {
-        println("Could not parth")
+      case e: Exception => {
+        println("Could not parse jsontMap")
+        println("#?#?#?#?#?#?#  ExceptionLocalizedMessage : "+ e.getLocalizedMessage+
+            "\n#?#?#?#?#?#?#  ExceptionMessage : "+e.getMessage+
+            "\n#?#?#?#?#?#?#  ExceptionStackTrace : "+e.getStackTraceString)
         null
       }
     }

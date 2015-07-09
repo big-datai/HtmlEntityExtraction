@@ -117,6 +117,12 @@ object Utils {
     } catch {
       case e: Exception => {
         println("Could not parse jsontMap")
+        
+        try{
+        println(js.toString())
+        }catch{
+          case _:Exception =>{}        
+        }
         println("#?#?#?#?#?#?#  ExceptionLocalizedMessage : "+ e.getLocalizedMessage+
             "\n#?#?#?#?#?#?#  ExceptionMessage : "+e.getMessage+
             "\n#?#?#?#?#?#?#  ExceptionStackTrace : "+e.getStackTraceString)

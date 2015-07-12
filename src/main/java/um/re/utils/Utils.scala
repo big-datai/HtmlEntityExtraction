@@ -375,6 +375,7 @@ object Utils {
     dstream.map {
       case (s, msgBytes) =>
         val msg = MEnrichMessage.string2Message(msgBytes)
+        println(msg.toJson())
         val parsedMsg: (Array[Byte], Map[String, String]) = (msgBytes, Utils.json2Map(Json.parse(msg.toJson().toString())))
         parsedMsg
     }

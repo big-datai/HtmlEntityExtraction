@@ -117,6 +117,12 @@ object Utils {
     } catch {
       case e: Exception => {
         println("Could not parse jsontMap")
+        
+        try{
+        println(js.toString())
+        }catch{
+          case _:Exception =>{}        
+        }
         println("#?#?#?#?#?#?#  ExceptionLocalizedMessage : "+ e.getLocalizedMessage+
             "\n#?#?#?#?#?#?#  ExceptionMessage : "+e.getMessage+
             "\n#?#?#?#?#?#?#  ExceptionStackTrace : "+e.getStackTraceString)
@@ -369,6 +375,7 @@ object Utils {
     dstream.map {
       case (s, msgBytes) =>
         val msg = MEnrichMessage.string2Message(msgBytes)
+        println(msg.toJson())
         val parsedMsg: (Array[Byte], Map[String, String]) = (msgBytes, Utils.json2Map(Json.parse(msg.toJson().toString())))
         parsedMsg
     }

@@ -44,7 +44,7 @@ object Htmls2PredsPipe {
     val ssc = new StreamingContext(sc, Seconds(5))
 
     //counters and accumulators
-        var inputMessagesCounter = 0L
+    var inputMessagesCounter = 0L
     var parsedMessagesCounter = 0L
     var filteredMessagesCounter = 0L
     var candidatesMessagesCounter = 0L
@@ -57,7 +57,7 @@ object Htmls2PredsPipe {
     val allFalseCandidsCounter = ssc.sparkContext.accumulator(0L)
     val modeledPatternEqualsCounter = ssc.sparkContext.accumulator(0L)
     val modelPatternConflictCounter = ssc.sparkContext.accumulator(0L)
-    
+
     var exceptionCounter = 0L
 
     //Broadcast variables
@@ -76,7 +76,7 @@ object Htmls2PredsPipe {
       // Create direct kafka stream with brokers and topics
       //TODO consider using multiple receivers for parallelism
       val topicsSet = inputTopic.split(",").toSet
-      val kafkaParams = Map[String, String]("metadata.broker.list" -> brokers)
+      val kafkaParams = Map[String, String]("metadata.broker.list" -> brokers, "auto.offset.reset" -> "smallest")
       val input = KafkaUtils.createDirectStream[String, Array[Byte], StringDecoder, DefaultDecoder](
         ssc, kafkaParams, topicsSet)
 

@@ -30,7 +30,7 @@ object Utils {
   val MODELS = "/dpavlov/models/Models/"
   val DMAP = "/dpavlov/models/dmap/part-00000"
   val ANALDATA = "/analysis/data/"
-  val SEEDS2S3 = "/dpavlov/seeds20150602"
+  val SEEDS2S3 = "/dpavlov/seeds20150709"
   val FULLR2S3 = "/dpavlov/es/full_river"
   val DEBUGFLAG = false
 

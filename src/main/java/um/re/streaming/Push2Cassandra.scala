@@ -44,11 +44,11 @@ object Push2Cassandra {
     try {
       // Create direct kafka stream with brokers and topics
       val topicsSet = inputTopic.split(",").toSet
-      val kafkaParams = Map[String, String]("metadata.broker.list" -> brokers)
+      val kafkaParams = Map[String, String]("metadata.broker.list" -> brokers, "auto.offset.reset" -> "smallest")
       val inputMessages = KafkaUtils.createDirectStream[String, Array[Byte], StringDecoder, DefaultDecoder](
         ssc, kafkaParams, topicsSet)
 
-      inputMessages.count().foreachRDD(rdd => { inputMessagesCounter += rdd.first() })
+//      inputMessages.count().foreachRDD(rdd => { inputMessagesCounter += rdd.first() })
 
       val historicalFeed = Utils.parseMEnrichMessage(inputMessages).map {
         case (msg, msgMap) =>
@@ -56,18 +56,18 @@ object Push2Cassandra {
           (msgMap.apply("prodId"), msgMap.apply("domain"), date, Utils.getPriceFromMsgMap(msgMap), msgMap.apply("title"))
       }
       historicalFeed.saveToCassandra(keySpace, tableH)
-      historicalFeed.count().foreachRDD(rdd => { historicalFeedCounter += rdd.first() })
+//    historicalFeed.count().foreachRDD(rdd => { historicalFeedCounter += rdd.first() })
 
       val realTimeFeed = historicalFeed.map(t => (t._1, t._2, t._4, t._5))
       realTimeFeed.saveToCassandra(keySpace, tableRT)
-      realTimeFeed.count().foreachRDD { rdd =>
+/*      realTimeFeed.count().foreachRDD { rdd =>
         { realTimeFeedCounter += rdd.first() }
         println("!@!@!@!@!   inputMessagesCounter " + inputMessagesCounter)
         println("!@!@!@!@!   historicalFeedCounter " + historicalFeedCounter)
         println("!@!@!@!@!   realTimeFeedCounter " + realTimeFeedCounter)
         println("!@!@!@!@!   exceptionCounter " + exceptionCounter)
       }
-
+*/
     } catch {
       case e: Exception => {
         exceptionCounter += 1

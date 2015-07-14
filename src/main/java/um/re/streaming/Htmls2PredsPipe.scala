@@ -168,7 +168,7 @@ object Htmls2PredsPipe {
         (status, msgObj)
       }.cache
 
-      messagesWithStatus.map(_._1).countByValue().foreachRDD { rdd =>
+      /*messagesWithStatus.map(_._1).countByValue().foreachRDD { rdd =>
         rdd.foreach {
           case (counterType, count) =>
             counterType match {
@@ -180,11 +180,11 @@ object Htmls2PredsPipe {
               case "allFalseCandids"      => allFalseCandidsCounter += count
             }
         }
-      }
+      }*/
       val filteredMessages = messagesWithStatus.filter { case (status, msgObj) => !statusFilters.contains(status) }
       val output = filteredMessages.map { case (status, msgObj) => msgObj.toJson().toString().getBytes() }
 
-      input.count().foreachRDD(rdd => { inputMessagesCounter += rdd.first() })
+      /*input.count().foreachRDD(rdd => { inputMessagesCounter += rdd.first() })
       parsed.count().foreachRDD(rdd => { parsedMessagesCounter += rdd.first() })
       candidates.count().foreachRDD(rdd => { candidatesMessagesCounter += rdd.first() })
       predictions.count().foreachRDD(rdd => { predictionsMessagesCounter += rdd.first() })
@@ -206,7 +206,7 @@ object Htmls2PredsPipe {
         println("!@!@!@!@!   allFalseCandidsCounter " + allFalseCandidsCounter.value)
 
         println("!@!@!@!@!   exceptionCounter " + exceptionCounter)
-      }
+      }*/
 
       output.foreachRDD { rdd =>
         Utils.pushByteRDD2Kafka(rdd, outputTopic, brokers)

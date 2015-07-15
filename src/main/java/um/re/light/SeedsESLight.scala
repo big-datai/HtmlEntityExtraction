@@ -1,16 +1,9 @@
-package um.re.streaming
+package um.re.light
 
 import org.apache.spark.SparkContext
 import org.apache.spark._
-import org.apache.spark.streaming.StreamingContext
-import org.apache.spark.streaming.kafka.KafkaUtils
-import kafka.serializer.StringDecoder
 import kafka.producer._
-import org.apache.spark.streaming.Seconds
-import java.util.Properties
 import um.re.utils.Utils
-import com.utils.messages.MEnrichMessage
-import kafka.serializer.DefaultEncoder
 
 object Seeds2ESLight extends App{
 

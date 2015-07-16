@@ -56,8 +56,8 @@ object Push2Cassandra {
         case (msg, msgMap) =>
          // val date = new java.util.Date()
           
-          //yyyy-mm-dd'T'HH:mm:ssZ
-          val date = DateTime.parse(msgMap.apply("lastUpdatedTime"),DateTimeFormat.forPattern("yyyy-mm-dd'T'HH:mm:ssZ"));
+          //yyyy-mm-dd'T'HH:mm:ssZ  2015-07-15T16:25:52.325Z
+          val date = DateTime.parse(msgMap.apply("lastUpdatedTime")).toDate()//,DateTimeFormat.forPattern("yyyy-mm-dd'T'HH:mm:ssZ"));
           (msgMap.apply("prodId"), msgMap.apply("domain"), date, Utils.getPriceFromMsgMap(msgMap), msgMap.apply("title"))
       }
       historicalFeed.saveToCassandra(keySpace, tableH)

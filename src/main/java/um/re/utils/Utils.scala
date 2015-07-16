@@ -34,7 +34,6 @@ object Utils {
   val FULLR2S3 = "/dpavlov/es/full_river"
   val DEBUGFLAG = false
 
-
   def getDomain(input: String) = {
     var url = input
     try {
@@ -117,15 +116,15 @@ object Utils {
     } catch {
       case e: Exception => {
         println("Could not parse jsontMap")
-        
-        try{
-        println(js.toString())
-        }catch{
-          case _:Exception =>{}        
+
+        try {
+          println(js.toString())
+        } catch {
+          case _: Exception => {}
         }
-        println("#?#?#?#?#?#?#  ExceptionLocalizedMessage : "+ e.getLocalizedMessage+
-            "\n#?#?#?#?#?#?#  ExceptionMessage : "+e.getMessage+
-            "\n#?#?#?#?#?#?#  ExceptionStackTrace : "+e.getStackTraceString)
+        println("#?#?#?#?#?#?#  ExceptionLocalizedMessage : " + e.getLocalizedMessage +
+          "\n#?#?#?#?#?#?#  ExceptionMessage : " + e.getMessage +
+          "\n#?#?#?#?#?#?#  ExceptionStackTrace : " + e.getStackTraceString)
         null
       }
     }
@@ -390,18 +389,24 @@ object Utils {
   def lcm(numSet: Set[Int]): Long = {
     numSet.reduce(lcm(_, _))
   }
-  
-  def pushByteRDD2Kafka(rdd:RDD[Array[Byte]],outputTopic:String,brokers:String)={
-    rdd.foreachPartition { p =>
-        val props = new Properties()
-        props.put("metadata.broker.list", brokers)
-        props.put("serializer.class", "kafka.serializer.DefaultEncoder")
 
-        @transient val config = new ProducerConfig(props)
-        @transient val producer = new Producer[String, Array[Byte]](config)
-        p.foreach(rec => producer.send(new KeyedMessage[String, Array[Byte]](outputTopic, rec)))
-        producer.close()
+  def pushByteRDD2Kafka(rdd: RDD[Array[Byte]], outputTopic: String,  brokers: String,logTopic: String = "logs") = {
+    rdd.foreachPartition { p =>
+      val props = new Properties()
+      props.put("metadata.broker.list", brokers)
+      props.put("serializer.class", "kafka.serializer.DefaultEncoder")
+
+      @transient val config = new ProducerConfig(props)
+      @transient val producer = new Producer[String, Array[Byte]](config)
+      p.foreach { rec =>
+        if (MEnrichMessage.string2Message(rec).getM_errorMessage.equals(""))
+          producer.send(new KeyedMessage[String, Array[Byte]](outputTopic, rec))
+        else
+          producer.send(new KeyedMessage[String, Array[Byte]](logTopic, rec))
       }
+
+      producer.close()
+    }
   }
 
 }   

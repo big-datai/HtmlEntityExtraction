@@ -1,18 +1,13 @@
-package um.re.streaming
+package um.re.emr
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.SparkContext
 import org.apache.spark.SparkConf
 import org.apache.spark.SparkContext._
-import org.apache.spark.serializer.KryoSerializer
-import org.apache.spark.mllib.linalg.{ Vector, Vectors }
-import org.apache.spark.mllib.stat.Statistics
-import um.re.transform.Transformer
 import um.re.utils.Utils
-import um.re.transform.Transformer
 import um.re.utils.{ UConf }
 import um.re.utils.Utils
-import org.apache.hadoop.io.compress.GzipCodec
+import org.apache.spark.rdd.RDD.rddToPairRDDFunctions
 object Seeds2S3 extends App {
 
   val conf_s = new SparkConf()

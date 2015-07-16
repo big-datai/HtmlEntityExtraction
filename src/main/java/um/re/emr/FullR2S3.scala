@@ -1,4 +1,4 @@
-package um.re.streaming
+package um.re.emr
 
 import org.apache.spark.SparkContext
 import org.apache.spark.SparkConf

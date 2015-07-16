@@ -1,4 +1,4 @@
-package um.re.streaming
+package um.re.bin
 
 import org.apache.spark.SparkContext
 import org.apache.spark.streaming.StreamingContext
@@ -6,8 +6,8 @@ import org.apache.spark.streaming.kafka.KafkaUtils
 import kafka.serializer.StringDecoder
 import kafka.producer._
 import org.apache.spark.streaming.Seconds
-import java.util.Properties
 import kafka.serializer.DefaultDecoder
+import um.re.bin.Msg
 
 object KafkaConsumer extends App {
   val sc = new SparkContext()

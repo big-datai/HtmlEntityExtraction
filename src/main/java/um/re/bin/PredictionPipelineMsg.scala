@@ -1,4 +1,4 @@
-package um.re.streaming
+package um.re.bin
 
 import org.apache.spark.SparkContext
 import org.apache.spark.streaming.StreamingContext
@@ -10,10 +10,10 @@ import java.util.Properties
 import um.re.utils.Utils
 import org.apache.spark.mllib.tree.model.GradientBoostedTreesModel
 import org.apache.spark.mllib.feature.HashingTF
-import org.apache.spark.rdd.RDD
 import um.re.transform.Transformer
 import org.apache.spark.mllib.linalg.Vectors
 import kafka.serializer.DefaultDecoder
+import um.re.bin.Msg
 
 object PredictionPipelineMsg extends App {
 

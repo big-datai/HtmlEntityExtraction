@@ -10,6 +10,8 @@ import com.datastax.spark.connector.cql.CassandraConnector
 import com.datastax.spark.connector._
 import com.datastax.spark.connector.streaming._
 import um.re.utils.Utils
+import org.joda.time.DateTime
+import org.joda.time.format.DateTimeFormat
 
 object Push2Cassandra {
   def main(args: Array[String]) {
@@ -40,34 +42,37 @@ object Push2Cassandra {
     var exceptionCounter = 0L
     val sc = new SparkContext(conf)
 
-    val ssc = new StreamingContext(sc, Seconds(5))
+    val ssc = new StreamingContext(sc, Seconds(2))
     try {
       // Create direct kafka stream with brokers and topics
       val topicsSet = inputTopic.split(",").toSet
-      val kafkaParams = Map[String, String]("metadata.broker.list" -> brokers)
+      val kafkaParams = Map[String, String]("metadata.broker.list" -> brokers, "auto.offset.reset" -> "smallest")
       val inputMessages = KafkaUtils.createDirectStream[String, Array[Byte], StringDecoder, DefaultDecoder](
         ssc, kafkaParams, topicsSet)
 
-      inputMessages.count().foreachRDD(rdd => { inputMessagesCounter += rdd.first() })
+//      inputMessages.count().foreachRDD(rdd => { inputMessagesCounter += rdd.first() })
 
       val historicalFeed = Utils.parseMEnrichMessage(inputMessages).map {
         case (msg, msgMap) =>
-          val date = new java.util.Date()
+         // val date = new java.util.Date()
+          
+          //yyyy-mm-dd'T'HH:mm:ssZ  2015-07-15T16:25:52.325Z
+          val date = DateTime.parse(msgMap.apply("lastUpdatedTime")).toDate()//,DateTimeFormat.forPattern("yyyy-mm-dd'T'HH:mm:ssZ"));
           (msgMap.apply("prodId"), msgMap.apply("domain"), date, Utils.getPriceFromMsgMap(msgMap), msgMap.apply("title"))
       }
       historicalFeed.saveToCassandra(keySpace, tableH)
-      historicalFeed.count().foreachRDD(rdd => { historicalFeedCounter += rdd.first() })
+//    historicalFeed.count().foreachRDD(rdd => { historicalFeedCounter += rdd.first() })
 
       val realTimeFeed = historicalFeed.map(t => (t._1, t._2, t._4, t._5))
       realTimeFeed.saveToCassandra(keySpace, tableRT)
-      realTimeFeed.count().foreachRDD { rdd =>
+/*      realTimeFeed.count().foreachRDD { rdd =>
         { realTimeFeedCounter += rdd.first() }
         println("!@!@!@!@!   inputMessagesCounter " + inputMessagesCounter)
         println("!@!@!@!@!   historicalFeedCounter " + historicalFeedCounter)
         println("!@!@!@!@!   realTimeFeedCounter " + realTimeFeedCounter)
         println("!@!@!@!@!   exceptionCounter " + exceptionCounter)
       }
-
+*/
     } catch {
       case e: Exception => {
         exceptionCounter += 1

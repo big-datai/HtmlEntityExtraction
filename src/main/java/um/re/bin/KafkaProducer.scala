@@ -1,4 +1,4 @@
-package um.re.streaming
+package um.re.bin
 
 import java.util.Properties
 import kafka.producer.ProducerConfig
@@ -7,7 +7,8 @@ import kafka.producer.KeyedMessage
 import org.apache.spark.SparkContext
 import org.apache.spark.streaming.StreamingContext
 import org.apache.spark.streaming.Seconds
-import scala.reflect.io.Streamable.Bytes
+import kafka.producer._
+import um.re.bin.Msg
 
 object KafkaProducer extends App {
 

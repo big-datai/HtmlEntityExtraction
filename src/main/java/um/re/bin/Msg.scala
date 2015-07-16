@@ -1,4 +1,4 @@
-package um.re.streaming
+package um.re.bin
 
 import org.apache.commons.io.output.ByteArrayOutputStream
 import java.io.ObjectOutputStream

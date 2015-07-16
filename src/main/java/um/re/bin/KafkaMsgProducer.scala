@@ -1,4 +1,4 @@
-package um.re.streaming
+package um.re.bin
 
 import java.util.Properties
 import kafka.producer.ProducerConfig
@@ -8,6 +8,8 @@ import org.apache.spark.SparkContext
 import org.apache.spark.streaming.StreamingContext
 import org.apache.spark.streaming.Seconds
 import scala.Array.canBuildFrom
+import kafka.producer._
+import um.re.bin.Msg
 
 object KafkaMsgProducer extends App {
   val sc = new SparkContext()

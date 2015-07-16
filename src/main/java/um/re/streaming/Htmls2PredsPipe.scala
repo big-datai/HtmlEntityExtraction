@@ -23,7 +23,7 @@ object Htmls2PredsPipe {
       .setAppName(getClass.getSimpleName)
     
     var (brokers, inputTopic, outputTopic, logTopic, dMapPath, modelsPath, statusFilters) = ("", "", "", "", "", "", "")
-    //if (args.size == 7) {
+    if (args.size == 7) {
       brokers = args(0)
       inputTopic = args(1)
       outputTopic = args(2)
@@ -31,8 +31,8 @@ object Htmls2PredsPipe {
       dMapPath = args(4)
       modelsPath = args(5)
       statusFilters = args(6)
-      conf.setMaster("local[*]")
-    /*} else {
+    
+    } else {
       //by default all in root folder of hdfs
       brokers = "54.83.9.85:9092"
       inputTopic = "htmls"
@@ -42,9 +42,9 @@ object Htmls2PredsPipe {
       modelsPath = "/Models/"
       statusFilters = "bothFailed"
       conf.setMaster("yarn-client")
-    }*/
+    }
     val sc = new SparkContext(conf)
-    val ssc = new StreamingContext(sc, Seconds(5))
+    val ssc = new StreamingContext(sc, Seconds(2))
 
     //counters and accumulators
     val inputMessagesCounter = ssc.sparkContext.accumulator(0L)
@@ -178,7 +178,7 @@ object Htmls2PredsPipe {
         (status, msgObj)
       }.cache
 
-      messagesWithStatus.map(_._1).countByValue().foreachRDD { rdd =>
+      /*messagesWithStatus.map(_._1).countByValue().foreachRDD { rdd =>
         rdd.foreach {
           case (counterType, count) =>
             counterType match {
@@ -189,11 +189,12 @@ object Htmls2PredsPipe {
               case "missingModel"         => missingModelCounter += count
               case "allFalseCandids"      => allFalseCandidsCounter += count
             }
-        }
-      }
-      val output = messagesWithStatus.map { case (status, msgObj) => msgObj.toJson().toString().getBytes() }
+        }*/
+      
+      val filteredMessages = messagesWithStatus.filter { case (status, msgObj) => !statusFilters.contains(status) }
+      val output = filteredMessages.map { case (status, msgObj) => msgObj.toJson().toString().getBytes() }
 
-      input.count().foreachRDD(rdd => { inputMessagesCounter += rdd.first() })
+      /*input.count().foreachRDD(rdd => { inputMessagesCounter += rdd.first() })
       parsed.count().foreachRDD(rdd => { parsedMessagesCounter += rdd.first() })
       candidates.count().foreachRDD(rdd => { candidatesMessagesCounter += rdd.first() })
       predictions.count().foreachRDD(rdd => { predictionsMessagesCounter += rdd.first() })
@@ -213,7 +214,7 @@ object Htmls2PredsPipe {
         println("!@!@!@!@!   allFalseCandidsCounter " + allFalseCandidsCounter.value)
 
         println("!@!@!@!@!   exceptionCounter " + exceptionCounter)
-      }
+      }*/
 
       output.foreachRDD { rdd =>
         Utils.pushByteRDD2Kafka(rdd, outputTopic, brokers, logTopic)

@@ -1,11 +1,9 @@
-package um.re.streaming
+package um.re.bin
 
 import org.apache.spark.mllib.util.MLUtils
 import org.apache.spark.SparkContext
 import org.apache.spark.mllib.tree.configuration.BoostingStrategy
 import org.apache.spark.mllib.tree.GradientBoostedTrees
-import org.apache.spark.mllib.linalg.Vector
-import org.apache.spark.mllib.tree.model.GradientBoostedTreesModel
 import um.re.transform.Transformer
 
 object predTest extends App {

@@ -41,7 +41,7 @@ object Htmls2PredsPipe {
       conf.setMaster("yarn-client")
     }
     val sc = new SparkContext(conf)
-    val ssc = new StreamingContext(sc, Seconds(5))
+    val ssc = new StreamingContext(sc, Seconds(2))
 
     //counters and accumulators
     var inputMessagesCounter = 0L

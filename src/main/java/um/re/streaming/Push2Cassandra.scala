@@ -10,6 +10,8 @@ import com.datastax.spark.connector.cql.CassandraConnector
 import com.datastax.spark.connector._
 import com.datastax.spark.connector.streaming._
 import um.re.utils.Utils
+import org.joda.time.DateTime
+import org.joda.time.format.DateTimeFormat
 
 object Push2Cassandra {
   def main(args: Array[String]) {
@@ -40,7 +42,7 @@ object Push2Cassandra {
     var exceptionCounter = 0L
     val sc = new SparkContext(conf)
 
-    val ssc = new StreamingContext(sc, Seconds(5))
+    val ssc = new StreamingContext(sc, Seconds(2))
     try {
       // Create direct kafka stream with brokers and topics
       val topicsSet = inputTopic.split(",").toSet
@@ -52,7 +54,9 @@ object Push2Cassandra {
 
       val historicalFeed = Utils.parseMEnrichMessage(inputMessages).map {
         case (msg, msgMap) =>
-          val date = new java.util.Date()
+         // val date = new java.util.Date()
+          
+          val date = DateTime.parse(msgMap.apply("lastUpdatedTime"),DateTimeFormat.forPattern("2015-07-15T16:25:52.325Z"));
           (msgMap.apply("prodId"), msgMap.apply("domain"), date, Utils.getPriceFromMsgMap(msgMap), msgMap.apply("title"))
       }
       historicalFeed.saveToCassandra(keySpace, tableH)

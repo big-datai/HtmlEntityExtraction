@@ -22,10 +22,10 @@ object Htmls2PredsDev {
   def main(args: Array[String]) {
     val conf = new SparkConf()
       .setAppName(getClass.getSimpleName)
-    
+
     var (timeInterval, brokers, inputTopic, outputTopic, logTopic, dMapPath, modelsPath, statusFilters) = ("", "", "", "", "", "", "", "")
-    //if (args.size == 8) {
-      timeInterval = args(0) 
+    if (/*args.size == 8*/false) {
+      timeInterval = args(0)
       brokers = args(1)
       inputTopic = args(2)
       outputTopic = args(3)
@@ -33,19 +33,18 @@ object Htmls2PredsDev {
       dMapPath = args(5)
       modelsPath = args(6)
       statusFilters = args(7)
-      conf.setMaster("local[*]")
-    /*} else {
+    } else {
       //by default all in root folder of hdfs
       timeInterval = "2"
-      brokers = "54.83.9.85:9092"
+      brokers = "localhost:9092" //"54.83.9.85:9092"
       inputTopic = "htmls"
       outputTopic = "preds"
       logTopic = "logs"
-      dMapPath = "/dMapNew"
-      modelsPath = "/Models/"
+      dMapPath = "/Users/mike/umbrella/dMapNew" // "/dMapNew"
+      modelsPath = "/Users/mike/umbrella/Models/" //"/Models/"
       statusFilters = "bothFailed"
-      conf.setMaster("yarn-client")
-    }*/
+      conf.setMaster("local[*]") //conf.setMaster("yarn-client")
+    }
     val sc = new SparkContext(conf)
     val ssc = new StreamingContext(sc, Seconds(timeInterval.toInt))
 
@@ -56,7 +55,7 @@ object Htmls2PredsDev {
     val candidatesMessagesCounter = ssc.sparkContext.accumulator(0L)
     val predictionsMessagesCounter = ssc.sparkContext.accumulator(0L)
     val filteredMessagesCounter = ssc.sparkContext.accumulator(0L)
-    val outputMessagesCounter = ssc.sparkContext.accumulator(0L)
+    val loggedMessagesCounter = ssc.sparkContext.accumulator(0L)
 
     val missingModelCounter = ssc.sparkContext.accumulator(0L)
     val patternFailedCounter = ssc.sparkContext.accumulator(0L)
@@ -95,8 +94,8 @@ object Htmls2PredsDev {
         case (msg, candidList) =>
           try {
             //Update candidates accumulator 
-            candidatesMessagesCounter+=1
-            
+            candidatesMessagesCounter += 1
+
             val url = candidList.head.apply("url")
             val domain = Utils.getDomain(url)
             val domainCode = dMapBC.value.apply(domain)
@@ -151,8 +150,8 @@ object Htmls2PredsDev {
 
       val messagesWithStatus = predictions.map { msgObj =>
         //Update predictions accumulator
-        predictionsMessagesCounter+=1
-        
+        predictionsMessagesCounter += 1
+
         val modelPrice = Utils.parseDouble(msgObj.getModelPrice())
         val updatedPrice = Utils.parseDouble(msgObj.getUpdatedPrice())
         var status = ""
@@ -160,7 +159,7 @@ object Htmls2PredsDev {
         var missingModel = false
         var patternFailed = false
         var modeledPatternEquals = false
-        
+
         //raise flags for status logic
         if (modelPrice.get == -1.0)
           allFalseCandids = true
@@ -170,32 +169,27 @@ object Htmls2PredsDev {
           patternFailed = true
         if (!patternFailed && !missingModel && !allFalseCandids && ((modelPrice.get - updatedPrice.get) < 0.009))
           modeledPatternEquals = true
-        
+
         //Set status and update their accumulators
-        if (modeledPatternEquals){
+        if (modeledPatternEquals) {
           status = "modeledPatternEquals"
-          modeledPatternEqualsCounter+=1
-        }
-        else if (!allFalseCandids && !missingModel && !patternFailed){
+          modeledPatternEqualsCounter += 1
+        } else if (!allFalseCandids && !missingModel && !patternFailed) {
           status = "modelPatternConflict"
-          modelPatternConflictCounter+=1
-        }
-        else if ((allFalseCandids || missingModel) && patternFailed){
+          modelPatternConflictCounter += 1
+        } else if ((allFalseCandids || missingModel) && patternFailed) {
           status = "bothFailed"
-          bothFailedCounter+=1
-          }
-        else if (patternFailed){
+          bothFailedCounter += 1
+        } else if (patternFailed) {
           status = "patternFailed"
-          patternFailedCounter+=1
-          }
-        else if (missingModel){
+          patternFailedCounter += 1
+        } else if (missingModel) {
           status = "missingModel"
-          missingModelCounter+=1
-          }
-        else if (allFalseCandids){
+          missingModelCounter += 1
+        } else if (allFalseCandids) {
           status = "allFalseCandids"
-          allFalseCandidsCounter+=1
-          }
+          allFalseCandidsCounter += 1
+        }
         if (statusFilters.contains(status)) {
           msgObj.setM_errorLocation("Package: " + this.getClass.getPackage.getName + " Name: " + this.getClass.getName + " Step: statusing")
           msgObj.setM_errorMessage(status)
@@ -203,33 +197,48 @@ object Htmls2PredsDev {
         (status, msgObj)
       }
 
-      val filteredMessages = messagesWithStatus.filter { case (status, msgObj) => !statusFilters.contains(status) }
-      val output = filteredMessages.map { case (status, msgObj) => 
-        filteredMessagesCounter+=1
-        val msgBytes = msgObj.toJson().toString().getBytes()
-        outputMessagesCounter+=1
-        msgBytes }
+      messagesWithStatus.foreachRDD { rdd =>
+        rdd.foreachPartition { p =>
+          val props = new Properties()
+          props.put("metadata.broker.list", brokers)
+          props.put("serializer.class", "kafka.serializer.DefaultEncoder")
 
-        ssc.sparkContext.parallelize(Seq(1),1).foreach { x => 
-        //println("!@!@!@!@!   inputMessagesCounter " + inputMessagesCounter)
-        //println("!@!@!@!@!   parsedMessagesCounter " + parsedMessagesCounter)
-        println("!@!@!@!@!   candidatesMessagesCounter " + candidatesMessagesCounter)
-        println("!@!@!@!@!   predictionsMessagesCounter " + predictionsMessagesCounter)
-        println("!@!@!@!@!   outputMessagesCounter " + outputMessagesCounter)
+          @transient val config = new ProducerConfig(props)
+          @transient val producer = new Producer[String, Array[Byte]](config)
+          p.foreach {
+            case (status, msgObj) =>
+              val rec = msgObj.toJson().toString().getBytes()
+              if (!statusFilters.contains(status)) {
+                producer.send(new KeyedMessage[String, Array[Byte]](outputTopic, rec))
+                filteredMessagesCounter += 1
+              } else {
+                producer.send(new KeyedMessage[String, Array[Byte]](logTopic, rec))
+                loggedMessagesCounter += 1
+              }
+          }
 
-        println("!@!@!@!@!   modeledPatternEqualsCounter " + modeledPatternEqualsCounter.value)
-        println("!@!@!@!@!   modelPatternConflictCounter " + modelPatternConflictCounter.value)
-        println("!@!@!@!@!   bothFailedCounter " + bothFailedCounter.value)
-        println("!@!@!@!@!   patternFailedCounter " + patternFailedCounter.value)
-        println("!@!@!@!@!   missingModelCounter " + missingModelCounter.value)
-        println("!@!@!@!@!   allFalseCandidsCounter " + allFalseCandidsCounter.value)
-
-        println("!@!@!@!@!   exceptionCounter " + exceptionCounter)
+          producer.close()
         }
-      
-      output.foreachRDD { rdd =>
-        Utils.pushByteRDD2Kafka(rdd, outputTopic, brokers, logTopic)
       }
+
+      ssc.sparkContext.parallelize(Seq(1),1).foreach { x => 
+      //println("!@!@!@!@!   inputMessagesCounter " + inputMessagesCounter)
+      //println("!@!@!@!@!   parsedMessagesCounter " + parsedMessagesCounter)
+      println("!@!@!@!@!   candidatesMessagesCounter " + candidatesMessagesCounter)
+      println("!@!@!@!@!   predictionsMessagesCounter " + predictionsMessagesCounter)
+      println("!@!@!@!@!   filteredMessagesCounter " + filteredMessagesCounter)
+      println("!@!@!@!@!   loggedMessagesCounter " + loggedMessagesCounter)
+
+      println("!@!@!@!@!   modeledPatternEqualsCounter " + modeledPatternEqualsCounter.value)
+      println("!@!@!@!@!   modelPatternConflictCounter " + modelPatternConflictCounter.value)
+      println("!@!@!@!@!   bothFailedCounter " + bothFailedCounter.value)
+      println("!@!@!@!@!   patternFailedCounter " + patternFailedCounter.value)
+      println("!@!@!@!@!   missingModelCounter " + missingModelCounter.value)
+      println("!@!@!@!@!   allFalseCandidsCounter " + allFalseCandidsCounter.value)
+
+      println("!@!@!@!@!   exceptionCounter " + exceptionCounter)
+        }
+
     } catch {
       case e: Exception => {
         exceptionCounter += 1

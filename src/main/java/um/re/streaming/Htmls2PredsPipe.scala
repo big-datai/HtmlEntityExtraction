@@ -17,23 +17,25 @@ import kafka.serializer.DefaultDecoder
 import com.utils.messages.MEnrichMessage
 import play.api.libs.json.Json
 import org.apache.spark._
+
 object Htmls2PredsPipe {
   def main(args: Array[String]) {
     val conf = new SparkConf()
       .setAppName(getClass.getSimpleName)
-    
-    var (brokers, inputTopic, outputTopic, logTopic, dMapPath, modelsPath, statusFilters) = ("", "", "", "", "", "", "")
-    if (args.size == 7) {
-      brokers = args(0)
-      inputTopic = args(1)
-      outputTopic = args(2)
-      logTopic = args(3)
-      dMapPath = args(4)
-      modelsPath = args(5)
-      statusFilters = args(6)
-    
+
+    var (timeInterval, brokers, inputTopic, outputTopic, logTopic, dMapPath, modelsPath, statusFilters) = ("", "", "", "", "", "", "", "")
+    if (args.size == 8) {
+      timeInterval = args(0)
+      brokers = args(1)
+      inputTopic = args(2)
+      outputTopic = args(3)
+      logTopic = args(4)
+      dMapPath = args(5)
+      modelsPath = args(6)
+      statusFilters = args(7)
     } else {
       //by default all in root folder of hdfs
+      timeInterval = "2"
       brokers = "54.83.9.85:9092"
       inputTopic = "htmls"
       outputTopic = "preds"
@@ -44,14 +46,16 @@ object Htmls2PredsPipe {
       conf.setMaster("yarn-client")
     }
     val sc = new SparkContext(conf)
-    val ssc = new StreamingContext(sc, Seconds(2))
+    val ssc = new StreamingContext(sc, Seconds(timeInterval.toInt))
 
     //counters and accumulators
-    val inputMessagesCounter = ssc.sparkContext.accumulator(0L)
-    val parsedMessagesCounter = ssc.sparkContext.accumulator(0L)
+    //TODO update input and parsed counters
+    //val inputMessagesCounter = ssc.sparkContext.accumulator(0L)
+    //val parsedMessagesCounter = ssc.sparkContext.accumulator(0L)
     val candidatesMessagesCounter = ssc.sparkContext.accumulator(0L)
     val predictionsMessagesCounter = ssc.sparkContext.accumulator(0L)
-    val outputMessagesCounter = ssc.sparkContext.accumulator(0L)
+    val filteredMessagesCounter = ssc.sparkContext.accumulator(0L)
+    val loggedMessagesCounter = ssc.sparkContext.accumulator(0L)
 
     val missingModelCounter = ssc.sparkContext.accumulator(0L)
     val patternFailedCounter = ssc.sparkContext.accumulator(0L)
@@ -76,7 +80,7 @@ object Htmls2PredsPipe {
 
     try {
       // Create direct kafka stream with brokers and topics
-      //TODO consider using multiple receivers for parallelism
+      //TODO consider using createKafkaaStream which uses the high level consumer API
       val topicsSet = inputTopic.split(",").toSet
       val kafkaParams = Map[String, String]("metadata.broker.list" -> brokers, "auto.offset.reset" -> "smallest")
       val input = KafkaUtils.createDirectStream[String, Array[Byte], StringDecoder, DefaultDecoder](
@@ -89,6 +93,9 @@ object Htmls2PredsPipe {
       val predictions = candidates.map {
         case (msg, candidList) =>
           try {
+            //Update candidates accumulator 
+            candidatesMessagesCounter += 1
+
             val url = candidList.head.apply("url")
             val domain = Utils.getDomain(url)
             val domainCode = dMapBC.value.apply(domain)
@@ -142,6 +149,9 @@ object Htmls2PredsPipe {
       }
 
       val messagesWithStatus = predictions.map { msgObj =>
+        //Update predictions accumulator
+        predictionsMessagesCounter += 1
+
         val modelPrice = Utils.parseDouble(msgObj.getModelPrice())
         val updatedPrice = Utils.parseDouble(msgObj.getUpdatedPrice())
         var status = ""
@@ -150,6 +160,7 @@ object Htmls2PredsPipe {
         var patternFailed = false
         var modeledPatternEquals = false
 
+        //raise flags for status logic
         if (modelPrice.get == -1.0)
           allFalseCandids = true
         if (modelPrice.get == -2.0)
@@ -159,66 +170,75 @@ object Htmls2PredsPipe {
         if (!patternFailed && !missingModel && !allFalseCandids && ((modelPrice.get - updatedPrice.get) < 0.009))
           modeledPatternEquals = true
 
-        if (modeledPatternEquals)
+        //Set status and update their accumulators
+        if (modeledPatternEquals) {
           status = "modeledPatternEquals"
-        else if (!allFalseCandids && !missingModel && !patternFailed)
+          modeledPatternEqualsCounter += 1
+        } else if (!allFalseCandids && !missingModel && !patternFailed) {
           status = "modelPatternConflict"
-        else if ((allFalseCandids || missingModel) && patternFailed)
+          modelPatternConflictCounter += 1
+        } else if ((allFalseCandids || missingModel) && patternFailed) {
           status = "bothFailed"
-        else if (patternFailed)
+          bothFailedCounter += 1
+        } else if (patternFailed) {
           status = "patternFailed"
-        else if (missingModel)
+          patternFailedCounter += 1
+        } else if (missingModel) {
           status = "missingModel"
-        else if (allFalseCandids)
+          missingModelCounter += 1
+        } else if (allFalseCandids) {
           status = "allFalseCandids"
+          allFalseCandidsCounter += 1
+        }
         if (statusFilters.contains(status)) {
           msgObj.setM_errorLocation("Package: " + this.getClass.getPackage.getName + " Name: " + this.getClass.getName + " Step: statusing")
           msgObj.setM_errorMessage(status)
         }
         (status, msgObj)
-      }.cache
-
-      /*messagesWithStatus.map(_._1).countByValue().foreachRDD { rdd =>
-        rdd.foreach {
-          case (counterType, count) =>
-            counterType match {
-              case "modeledPatternEquals" => modeledPatternEqualsCounter += count
-              case "modelPatternConflict" => modelPatternConflictCounter += count
-              case "bothFailed"           => bothFailedCounter += count
-              case "patternFailed"        => patternFailedCounter += count
-              case "missingModel"         => missingModelCounter += count
-              case "allFalseCandids"      => allFalseCandidsCounter += count
-            }
-        }*/
-      
-      val filteredMessages = messagesWithStatus.filter { case (status, msgObj) => !statusFilters.contains(status) }
-      val output = filteredMessages.map { case (status, msgObj) => msgObj.toJson().toString().getBytes() }
-
-      /*input.count().foreachRDD(rdd => { inputMessagesCounter += rdd.first() })
-      parsed.count().foreachRDD(rdd => { parsedMessagesCounter += rdd.first() })
-      candidates.count().foreachRDD(rdd => { candidatesMessagesCounter += rdd.first() })
-      predictions.count().foreachRDD(rdd => { predictionsMessagesCounter += rdd.first() })
-      output.count().foreachRDD { rdd =>
-        { outputMessagesCounter += rdd.first() }
-        println("!@!@!@!@!   inputMessagesCounter " + inputMessagesCounter)
-        println("!@!@!@!@!   parsedMessagesCounter " + parsedMessagesCounter)
-        println("!@!@!@!@!   candidatesMessagesCounter " + candidatesMessagesCounter)
-        println("!@!@!@!@!   predictionsMessagesCounter " + predictionsMessagesCounter)
-        println("!@!@!@!@!   outputMessagesCounter " + outputMessagesCounter)
-
-        println("!@!@!@!@!   modeledPatternEqualsCounter " + modeledPatternEqualsCounter.value)
-        println("!@!@!@!@!   modelPatternConflictCounter " + modelPatternConflictCounter.value)
-        println("!@!@!@!@!   bothFailedCounter " + bothFailedCounter.value)
-        println("!@!@!@!@!   patternFailedCounter " + patternFailedCounter.value)
-        println("!@!@!@!@!   missingModelCounter " + missingModelCounter.value)
-        println("!@!@!@!@!   allFalseCandidsCounter " + allFalseCandidsCounter.value)
-
-        println("!@!@!@!@!   exceptionCounter " + exceptionCounter)
-      }*/
-
-      output.foreachRDD { rdd =>
-        Utils.pushByteRDD2Kafka(rdd, outputTopic, brokers, logTopic)
       }
+
+      messagesWithStatus.foreachRDD { rdd =>
+        rdd.foreachPartition { p =>
+          val props = new Properties()
+          props.put("metadata.broker.list", brokers)
+          props.put("serializer.class", "kafka.serializer.DefaultEncoder")
+
+          @transient val config = new ProducerConfig(props)
+          @transient val producer = new Producer[String, Array[Byte]](config)
+          p.foreach {
+            case (status, msgObj) =>
+              val rec = msgObj.toJson().toString().getBytes()
+              if (!statusFilters.contains(status)) {
+                producer.send(new KeyedMessage[String, Array[Byte]](outputTopic, rec))
+                filteredMessagesCounter += 1
+              } else {
+                producer.send(new KeyedMessage[String, Array[Byte]](logTopic, rec))
+                loggedMessagesCounter += 1
+              }
+          }
+
+          producer.close()
+        }
+      }
+
+      ssc.sparkContext.parallelize(Seq(1),1).foreach { x => 
+      //println("!@!@!@!@!   inputMessagesCounter " + inputMessagesCounter)
+      //println("!@!@!@!@!   parsedMessagesCounter " + parsedMessagesCounter)
+      println("!@!@!@!@!   candidatesMessagesCounter " + candidatesMessagesCounter)
+      println("!@!@!@!@!   predictionsMessagesCounter " + predictionsMessagesCounter)
+      println("!@!@!@!@!   filteredMessagesCounter " + filteredMessagesCounter)
+      println("!@!@!@!@!   loggedMessagesCounter " + loggedMessagesCounter)
+
+      println("!@!@!@!@!   modeledPatternEqualsCounter " + modeledPatternEqualsCounter.value)
+      println("!@!@!@!@!   modelPatternConflictCounter " + modelPatternConflictCounter.value)
+      println("!@!@!@!@!   bothFailedCounter " + bothFailedCounter.value)
+      println("!@!@!@!@!   patternFailedCounter " + patternFailedCounter.value)
+      println("!@!@!@!@!   missingModelCounter " + missingModelCounter.value)
+      println("!@!@!@!@!   allFalseCandidsCounter " + allFalseCandidsCounter.value)
+
+      println("!@!@!@!@!   exceptionCounter " + exceptionCounter)
+        }
+
     } catch {
       case e: Exception => {
         exceptionCounter += 1

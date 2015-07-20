@@ -43,7 +43,16 @@ object Htmls2PredsPipe {
       dMapPath = "/dMapNew"
       modelsPath = "/Models/"
       statusFilters = "bothFailed"
-      conf.setMaster("yarn-client")
+      conf.setMaster("yarn-client")/*
+      timeInterval = "20"
+      brokers = "localhost:9092"
+      inputTopic = "htmls"
+      outputTopic = "preds"
+      logTopic = "logs"
+      dMapPath = "/Users/mike/umbrella/dMapNew"
+      modelsPath = "/Users/mike/umbrella/Models/"
+      statusFilters = "bothFailed"
+      conf.setMaster("local[*]")*/
     }
     val sc = new SparkContext(conf)
     val ssc = new StreamingContext(sc, Seconds(timeInterval.toInt))
@@ -193,58 +202,36 @@ object Htmls2PredsPipe {
         if (statusFilters.contains(status)) {
           msgObj.setM_errorLocation("Package: " + this.getClass.getPackage.getName + " Name: " + this.getClass.getName + " Step: statusing")
           msgObj.setM_errorMessage(status)
-        }
-        (status, msgObj)
+          filteredMessagesCounter += 1
+        } else
+          loggedMessagesCounter += 1
+        msgObj.toJson().toString().getBytes
       }
 
       messagesWithStatus.foreachRDD { rdd =>
-        rdd.foreachPartition { p =>
-          val props = new Properties()
-          props.put("metadata.broker.list", brokers)
-          props.put("serializer.class", "kafka.serializer.DefaultEncoder")
+        Utils.pushByteRDD2Kafka(rdd, outputTopic, brokers, logTopic)
+        //println("!@!@!@!@!   inputMessagesCounter " + inputMessagesCounter)
+        //println("!@!@!@!@!   parsedMessagesCounter " + parsedMessagesCounter)
+        println("!@!@!@!@!   candidatesMessagesCounter " + candidatesMessagesCounter)
+        println("!@!@!@!@!   predictionsMessagesCounter " + predictionsMessagesCounter)
+        println("!@!@!@!@!   filteredMessagesCounter " + filteredMessagesCounter)
+        println("!@!@!@!@!   loggedMessagesCounter " + loggedMessagesCounter)
 
-          @transient val config = new ProducerConfig(props)
-          @transient val producer = new Producer[String, Array[Byte]](config)
-          p.foreach {
-            case (status, msgObj) =>
-              val rec = msgObj.toJson().toString().getBytes()
-              if (!statusFilters.contains(status)) {
-                producer.send(new KeyedMessage[String, Array[Byte]](outputTopic, rec))
-                filteredMessagesCounter += 1
-              } else {
-                producer.send(new KeyedMessage[String, Array[Byte]](logTopic, rec))
-                loggedMessagesCounter += 1
-              }
-          }
+        println("!@!@!@!@!   modeledPatternEqualsCounter " + modeledPatternEqualsCounter.value)
+        println("!@!@!@!@!   modelPatternConflictCounter " + modelPatternConflictCounter.value)
+        println("!@!@!@!@!   bothFailedCounter " + bothFailedCounter.value)
+        println("!@!@!@!@!   patternFailedCounter " + patternFailedCounter.value)
+        println("!@!@!@!@!   missingModelCounter " + missingModelCounter.value)
+        println("!@!@!@!@!   allFalseCandidsCounter " + allFalseCandidsCounter.value)
 
-          producer.close()
-        }
+        println("!@!@!@!@!   exceptionCounter " + exceptionCounter)
       }
-
-      ssc.sparkContext.parallelize(Seq(1),1).foreach { x => 
-      //println("!@!@!@!@!   inputMessagesCounter " + inputMessagesCounter)
-      //println("!@!@!@!@!   parsedMessagesCounter " + parsedMessagesCounter)
-      println("!@!@!@!@!   candidatesMessagesCounter " + candidatesMessagesCounter)
-      println("!@!@!@!@!   predictionsMessagesCounter " + predictionsMessagesCounter)
-      println("!@!@!@!@!   filteredMessagesCounter " + filteredMessagesCounter)
-      println("!@!@!@!@!   loggedMessagesCounter " + loggedMessagesCounter)
-
-      println("!@!@!@!@!   modeledPatternEqualsCounter " + modeledPatternEqualsCounter.value)
-      println("!@!@!@!@!   modelPatternConflictCounter " + modelPatternConflictCounter.value)
-      println("!@!@!@!@!   bothFailedCounter " + bothFailedCounter.value)
-      println("!@!@!@!@!   patternFailedCounter " + patternFailedCounter.value)
-      println("!@!@!@!@!   missingModelCounter " + missingModelCounter.value)
-      println("!@!@!@!@!   allFalseCandidsCounter " + allFalseCandidsCounter.value)
-
-      println("!@!@!@!@!   exceptionCounter " + exceptionCounter)
-        }
 
     } catch {
       case e: Exception => {
         exceptionCounter += 1
         println("########  Somthing went wrong :( ")
-        println("#?#?#?#?#?#?#  ExceptionLocalizedMessage : " + e.getLocalizedMessage +
-          "\n#?#?#?#?#?#?#  ExceptionMessage : " + e.getMessage +
+        println("#?#?#?#?#?#?#  ExceptionMessage : " + e.getMessage +
           "\n#?#?#?#?#?#?#  ExceptionStackTrace : " + e.getStackTraceString)
       }
     }

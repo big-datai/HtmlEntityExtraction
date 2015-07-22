@@ -17,11 +17,12 @@ import kafka.serializer.DefaultDecoder
 import com.utils.messages.MEnrichMessage
 import play.api.libs.json.Json
 import org.apache.spark._
+import com.utils.aws.AWSUtils
 object Htmls2PredsPipe {
   def main(args: Array[String]) {
     val conf = new SparkConf()
       .setAppName(getClass.getSimpleName)
-    
+
     var (brokers, inputTopic, outputTopic, logTopic, dMapPath, modelsPath, statusFilters) = ("", "", "", "", "", "", "")
     if (args.size == 7) {
       brokers = args(0)
@@ -31,7 +32,7 @@ object Htmls2PredsPipe {
       dMapPath = args(4)
       modelsPath = args(5)
       statusFilters = args(6)
-    
+
     } else {
       //by default all in root folder of hdfs
       brokers = "54.83.9.85:9092"
@@ -45,6 +46,8 @@ object Htmls2PredsPipe {
     }
     val sc = new SparkContext(conf)
     val ssc = new StreamingContext(sc, Seconds(2))
+
+    brokers = AWSUtils.getPrivateIp(brokers.substring(0, brokers.length() - 5)) + ":9092"
 
     //counters and accumulators
     val inputMessagesCounter = ssc.sparkContext.accumulator(0L)
@@ -78,7 +81,7 @@ object Htmls2PredsPipe {
       // Create direct kafka stream with brokers and topics
       //TODO consider using multiple receivers for parallelism
       val topicsSet = inputTopic.split(",").toSet
-      val kafkaParams = Map[String, String]("metadata.broker.list" -> brokers, "auto.offset.reset" -> "smallest")
+      val kafkaParams = Map[String, String]("metadata.broker.list" -> brokers, "auto.offset.reset" -> "largest")
       val input = KafkaUtils.createDirectStream[String, Array[Byte], StringDecoder, DefaultDecoder](
         ssc, kafkaParams, topicsSet)
 
@@ -190,7 +193,7 @@ object Htmls2PredsPipe {
               case "allFalseCandids"      => allFalseCandidsCounter += count
             }
         }*/
-      
+
       val filteredMessages = messagesWithStatus.filter { case (status, msgObj) => !statusFilters.contains(status) }
       val output = filteredMessages.map { case (status, msgObj) => msgObj.toJson().toString().getBytes() }
 

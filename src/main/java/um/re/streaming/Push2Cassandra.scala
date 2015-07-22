@@ -12,6 +12,7 @@ import com.datastax.spark.connector.streaming._
 import um.re.utils.Utils
 import org.joda.time.DateTime
 import org.joda.time.format.DateTimeFormat
+import com.utils.aws.AWSUtils
 
 object Push2Cassandra {
   def main(args: Array[String]) {
@@ -43,6 +44,7 @@ object Push2Cassandra {
     val sc = new SparkContext(conf)
 
     val ssc = new StreamingContext(sc, Seconds(2))
+     brokers = AWSUtils.getPrivateIp(brokers.substring(0, brokers.length() - 5)) + ":9092"
     try {
       // Create direct kafka stream with brokers and topics
       val topicsSet = inputTopic.split(",").toSet

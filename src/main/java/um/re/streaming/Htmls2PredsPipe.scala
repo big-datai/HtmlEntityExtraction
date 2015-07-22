@@ -18,6 +18,7 @@ import com.utils.messages.MEnrichMessage
 import play.api.libs.json.Json
 import org.apache.spark._
 import scala.collection.immutable.HashMap
+import com.utils.aws.AWSUtils
 
 object Htmls2PredsPipe {
   def main(args: Array[String]) {
@@ -41,19 +42,22 @@ object Htmls2PredsPipe {
       fromOffset = "smallest"
       inputTopic = "htmls"
       outputTopic = "preds"
-      logTopic = "logs"
+      logTopic = "sparkLogs"
       modelsPath = "/ModelsObject/"
-      statusFilters = "modeledPatternEquals"
+      statusFilters = "modeledPatternEquals"+",modelPatternConflict,patternFailed,missingModel,allFalseCandids"
       conf.setMaster("yarn-client") /*
       timeInterval = "20"
       brokers = "localhost:9092"
+      fromOffset = "smallest"
       inputTopic = "htmls"
       outputTopic = "preds"
       logTopic = "logs"
       modelsPath = "/Users/mike/umbrella/ModelsObject/"
-      statusFilters = "bothFailed"
+      statusFilters = "modeledPatternEquals,modelPatternConflict,patternFailed,missingModel,allFalseCandids"
       conf.setMaster("local[*]")*/
     }
+    brokers = AWSUtils.getPrivateIp(brokers.substring(0, brokers.length() - 5)) + ":9092"
+    
     val sc = new SparkContext(conf)
     val ssc = new StreamingContext(sc, Seconds(timeInterval.toInt))
 

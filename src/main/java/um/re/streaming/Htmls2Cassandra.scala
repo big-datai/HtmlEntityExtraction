@@ -21,6 +21,7 @@ import org.joda.time.DateTime
 import com.datastax.spark.connector.streaming._
 import com.datastax.spark.connector.SomeColumns
 import scala.collection.immutable.HashMap
+import com.utils.aws.AWSUtils
 
 object Htmls2Cassandra {
   def main(args: Array[String]) {
@@ -42,30 +43,33 @@ object Htmls2Cassandra {
       tableH = args(10)
     } else {
       //by default all in root folder of hdfs
-      timeInterval = "2"
+      /*timeInterval = "2"
       brokers = "54.83.9.85:9092"
       fromOffset = "smallest"
       inputTopic = "htmls"
-      logTopic = "logs"
+      logTopic = "sparkLogs"
       modelsPath = "/ModelsObject/"
-      statusFilters = "modeledPatternEquals"
+      statusFilters = "modeledPatternEquals"+",modelPatternConflict,patternFailed,missingModel,allFalseCandids"
       cassandraHost = "107.20.157.48"
       keySpace = "demo"
       tableRT = "real_time_market_prices"
       tableH = "historical_prices" 
-      conf.setMaster("yarn-client") /*
+      conf.setMaster("yarn-client") */
       timeInterval = "20"
       brokers = "localhost:9092"
+      fromOffset = "smallest"
       inputTopic = "htmls"
-      logTopic = "logs"
-      modelsPath = "/Users/mike/umbrella/ModelsObject/"
-      statusFilters = "modeledPatternEquals"
-      cassandraHost = "107.20.157.48"
+      logTopic = "sparkLogs"
+      modelsPath = "/Users/mike/umbrella/ModelsObject.tar.gz"
+      statusFilters = "modeledPatternEquals"+",modelPatternConflict,patternFailed,missingModel,allFalseCandids"
+      cassandraHost = "localhost"
       keySpace = "demo"
       tableRT = "real_time_market_prices"
       tableH = "historical_prices" 
-      conf.setMaster("local[*]")*/
+      conf.setMaster("local[*]")
     }
+    brokers = AWSUtils.getPrivateIp(brokers.substring(0, brokers.length() - 5)) + ":9092"
+    
     conf.set("spark.cassandra.connection.host", cassandraHost)
     
     val sc = new SparkContext(conf)
@@ -224,7 +228,8 @@ object Htmls2Cassandra {
           val row = (msgMap.apply("prodId"), msgMap.apply("domain"), date, Utils.getPriceFromMsgMap(msgMap), msgMap.apply("title"))
           historicalFeedCounter+=1
           row
-      }
+      }.cache
+      
       historicalFeed.saveToCassandra(keySpace, tableH,SomeColumns("sys_prod_id","store_id","tmsp","price","sys_prod_title"))
       val realTimeFeed = historicalFeed.map{t => 
         val row = (t._1, t._2, t._4, t._5)

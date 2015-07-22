@@ -27,7 +27,7 @@ object S3ToKafka { //}extends App {
     } else {
       brokers = "localhost:9092"
       outputTopic = "seeds"
-      inputPath = "/Users/dmitry/umbrella/seeds_sample"
+      inputPath = "/Users/mike/umbrella/seeds_sample"
       numPartitions = "200"
       conf.setMaster("local[*]")
     }

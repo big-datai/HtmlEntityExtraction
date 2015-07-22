@@ -399,7 +399,7 @@ object Utils {
       @transient val config = new ProducerConfig(props)
       @transient val producer = new Producer[String, Array[Byte]](config)
       p.foreach { rec =>
-        if (MEnrichMessage.string2Message(rec).getM_errorMessage.equals(""))
+        if (MEnrichMessage.string2Message(rec).getM_errorMessage.equals("")&&(!outputTopic.equals("")))
           producer.send(new KeyedMessage[String, Array[Byte]](outputTopic, rec))
         else
           producer.send(new KeyedMessage[String, Array[Byte]](logTopic, rec))

@@ -17,43 +17,57 @@ import kafka.serializer.DefaultDecoder
 import com.utils.messages.MEnrichMessage
 import play.api.libs.json.Json
 import org.apache.spark._
+import org.joda.time.DateTime
+import com.datastax.spark.connector.streaming._
+import com.datastax.spark.connector.SomeColumns
 import scala.collection.immutable.HashMap
 
-object Htmls2PredsPipe {
+object Htmls2Cassandra {
   def main(args: Array[String]) {
     val conf = new SparkConf()
       .setAppName(getClass.getSimpleName)
 
-    var (timeInterval, brokers, inputTopic, fromOffset, outputTopic, logTopic, modelsPath, statusFilters) = ("", "", "", "", "", "", "", "")
-    if (args.size == 8) {
+    var (timeInterval, brokers, inputTopic, fromOffset, logTopic, modelsPath, statusFilters, cassandraHost, keySpace, tableRT, tableH) = ("","","","","","","","","","","")
+    if (args.size == 11) {
       timeInterval = args(0)
       brokers = args(1)
       inputTopic = args(2)
       fromOffset = args(3)
-      outputTopic = args(4)
-      logTopic = args(5)
-      modelsPath = args(6)
-      statusFilters = args(7)
+      logTopic = args(4)
+      modelsPath = args(5)
+      statusFilters = args(6)
+      cassandraHost = args(7)
+      keySpace = args(8)
+      tableRT =args(9)
+      tableH = args(10)
     } else {
       //by default all in root folder of hdfs
       timeInterval = "2"
       brokers = "54.83.9.85:9092"
       fromOffset = "smallest"
       inputTopic = "htmls"
-      outputTopic = "preds"
       logTopic = "logs"
       modelsPath = "/ModelsObject/"
       statusFilters = "modeledPatternEquals"
+      cassandraHost = "107.20.157.48"
+      keySpace = "demo"
+      tableRT = "real_time_market_prices"
+      tableH = "historical_prices" 
       conf.setMaster("yarn-client") /*
       timeInterval = "20"
       brokers = "localhost:9092"
       inputTopic = "htmls"
-      outputTopic = "preds"
       logTopic = "logs"
       modelsPath = "/Users/mike/umbrella/ModelsObject/"
-      statusFilters = "bothFailed"
+      statusFilters = "modeledPatternEquals"
+      cassandraHost = "107.20.157.48"
+      keySpace = "demo"
+      tableRT = "real_time_market_prices"
+      tableH = "historical_prices" 
       conf.setMaster("local[*]")*/
     }
+    conf.set("spark.cassandra.connection.host", cassandraHost)
+    
     val sc = new SparkContext(conf)
     val ssc = new StreamingContext(sc, Seconds(timeInterval.toInt))
 
@@ -65,6 +79,9 @@ object Htmls2PredsPipe {
     val predictionsMessagesCounter = ssc.sparkContext.accumulator(0L)
     val filteredMessagesCounter = ssc.sparkContext.accumulator(0L)
     val loggedMessagesCounter = ssc.sparkContext.accumulator(0L)
+    val historicalFeedCounter = ssc.sparkContext.accumulator(0L)
+    val realTimeFeedCounter = ssc.sparkContext.accumulator(0L)
+    
 
     val missingModelCounter = ssc.sparkContext.accumulator(0L)
     val patternFailedCounter = ssc.sparkContext.accumulator(0L)
@@ -76,6 +93,7 @@ object Htmls2PredsPipe {
     var exceptionCounter = 0L
 
     //Broadcast variables
+    
     val modelsHashMap = ssc.sparkContext.objectFile[HashMap[String,(GradientBoostedTreesModel, Array[Double], Array[Int])]](modelsPath, 1).first
     val modelsBC = ssc.sparkContext.broadcast(modelsHashMap)
 
@@ -196,16 +214,36 @@ object Htmls2PredsPipe {
           loggedMessagesCounter += 1
         } else
           filteredMessagesCounter += 1
-        msgObj.toJson().toString().getBytes
+        (status,msgObj.toJson().toString().getBytes)
+      }.cache
+      
+      val historicalFeed = Utils.parseMEnrichMessage(messagesWithStatus.filter{case(status,msg) => statusFilters.contains(status)}).map {
+        case (msg, msgMap) =>
+          //yyyy-mm-dd'T'HH:mm:ssZ  2015-07-15T16:25:52.325Z
+          val date = DateTime.parse(msgMap.apply("lastUpdatedTime")).toDate()//,DateTimeFormat.forPattern("yyyy-mm-dd'T'HH:mm:ssZ"));
+          val row = (msgMap.apply("prodId"), msgMap.apply("domain"), date, Utils.getPriceFromMsgMap(msgMap), msgMap.apply("title"))
+          historicalFeedCounter+=1
+          row
       }
+      historicalFeed.saveToCassandra(keySpace, tableH,SomeColumns("sys_prod_id","store_id","tmsp","price","sys_prod_title"))
+      val realTimeFeed = historicalFeed.map{t => 
+        val row = (t._1, t._2, t._4, t._5)
+        realTimeFeedCounter+=1
+        row
+        }
+      realTimeFeed.saveToCassandra(keySpace, tableRT,SomeColumns("sys_prod_id","store_id","price","sys_prod_title"))
+      
 
-      messagesWithStatus.foreachRDD { rdd =>
-        Utils.pushByteRDD2Kafka(rdd, outputTopic, brokers, logTopic)
+      messagesWithStatus.filter{case(status,msg) => !statusFilters.contains(status)}.map{case(status,msg) => msg}.
+      foreachRDD { rdd =>
+        Utils.pushByteRDD2Kafka(rdd, "", brokers, logTopic)
         //println("!@!@!@!@!   inputMessagesCounter " + inputMessagesCounter)
         //println("!@!@!@!@!   parsedMessagesCounter " + parsedMessagesCounter)
         println("!@!@!@!@!   candidatesMessagesCounter " + candidatesMessagesCounter)
         println("!@!@!@!@!   predictionsMessagesCounter " + predictionsMessagesCounter)
         println("!@!@!@!@!   filteredMessagesCounter " + filteredMessagesCounter)
+        println("!@!@!@!@!   historicalFeedCounter " + historicalFeedCounter)
+        println("!@!@!@!@!   realTimeFeedCounter " + realTimeFeedCounter)
         println("!@!@!@!@!   loggedMessagesCounter " + loggedMessagesCounter)
 
         println("!@!@!@!@!   modeledPatternEqualsCounter " + modeledPatternEqualsCounter.value)

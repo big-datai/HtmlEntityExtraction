@@ -21,6 +21,8 @@ import java.util.Properties
 import kafka.producer.ProducerConfig
 import kafka.producer.Producer
 import kafka.producer.KeyedMessage
+import org.apache.kafka.clients.producer
+import org.apache.kafka.clients.producer.ProducerRecord
 object Utils {
   val S3STORAGE = "s3:/"
   val HDFSSTORAGE = "hdfs://"
@@ -390,17 +392,19 @@ object Utils {
     numSet.reduce(lcm(_, _))
   }
 
-  def pushByteRDD2Kafka(rdd: RDD[Array[Byte]], outputTopic: String,  brokers: String,logTopic: String = "logs") = {
+  def pushByteRDD2Kafka(rdd: RDD[Array[Byte]], outputTopic: String, brokers: String, logTopic: String = "logs") = {
     rdd.foreachPartition { p =>
       val props = new Properties()
       props.put("metadata.broker.list", brokers)
       props.put("serializer.class", "kafka.serializer.DefaultEncoder")
+      props.put("partition.assignment.strategy", "kafka.serializer.DefaultEncoder")
 
       @transient val config = new ProducerConfig(props)
+      val r = scala.util.Random
       @transient val producer = new Producer[String, Array[Byte]](config)
       p.foreach { rec =>
         if (MEnrichMessage.string2Message(rec).getM_errorMessage.equals(""))
-          producer.send(new KeyedMessage[String, Array[Byte]](outputTopic, rec))
+          producer.send(new KeyedMessage(outputTopic, null, r.nextInt(3000), rec))
         else
           producer.send(new KeyedMessage[String, Array[Byte]](logTopic, rec))
       }

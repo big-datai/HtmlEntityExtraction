@@ -404,7 +404,7 @@ object Utils {
       @transient val producer = new Producer[String, Array[Byte]](config)
       p.foreach { rec =>
         if (MEnrichMessage.string2Message(rec).getM_errorMessage.equals(""))
-          producer.send(new KeyedMessage(outputTopic, null, r.nextInt(3000), rec))
+          producer.send(new KeyedMessage(outputTopic, r.nextInt(3000).toString, r.nextInt(3000), rec))
         else
           producer.send(new KeyedMessage[String, Array[Byte]](logTopic, rec))
       }

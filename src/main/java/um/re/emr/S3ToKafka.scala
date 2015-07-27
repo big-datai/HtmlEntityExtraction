@@ -11,6 +11,7 @@ import java.util.Properties
 import um.re.utils.Utils
 import com.utils.messages.MEnrichMessage
 import kafka.serializer.DefaultEncoder
+import com.utils.aws.AWSUtils
 
 object S3ToKafka { //}extends App {
 
@@ -34,6 +35,8 @@ object S3ToKafka { //}extends App {
     val sc = new SparkContext(conf)
     try {
       
+      brokers = AWSUtils.getPrivateIp(brokers.substring(0, brokers.length() - 5)) + ":9092"
+ 
       val rawSeeds = sc.objectFile[(String)](inputPath, numPartitions.toInt).cache
       val parsedSeeds = rawSeeds.map { line =>
         try { MEnrichMessage.string2Message(line).toJson().toString().getBytes() }

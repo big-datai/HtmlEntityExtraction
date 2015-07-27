@@ -21,8 +21,8 @@ import java.util.Properties
 import kafka.producer.ProducerConfig
 import kafka.producer.Producer
 import kafka.producer.KeyedMessage
-import org.apache.kafka.clients.producer
-import org.apache.kafka.clients.producer.ProducerRecord
+import com.utils.queue.KafkaProducer
+
 object Utils {
   val S3STORAGE = "s3:/"
   val HDFSSTORAGE = "hdfs://"
@@ -397,16 +397,15 @@ object Utils {
       val props = new Properties()
       props.put("metadata.broker.list", brokers)
       props.put("serializer.class", "kafka.serializer.DefaultEncoder")
-      props.put("partition.assignment.strategy", "kafka.serializer.DefaultEncoder")
 
       @transient val config = new ProducerConfig(props)
       val r = scala.util.Random
-      @transient val producer = new Producer[String, Array[Byte]](config)
+      @transient val producer = new Producer[AnyRef, AnyRef](config)
       p.foreach { rec =>
         if (MEnrichMessage.string2Message(rec).getM_errorMessage.equals(""))
-          producer.send(new KeyedMessage(outputTopic, r.nextInt(3000).toString, r.nextInt(3000), rec))
+          producer.send(new KeyedMessage(outputTopic, null, r.nextInt(3000).toString.getBytes, rec))
         else
-          producer.send(new KeyedMessage[String, Array[Byte]](logTopic, rec))
+          producer.send(new KeyedMessage(logTopic, rec))
       }
 
       producer.close()

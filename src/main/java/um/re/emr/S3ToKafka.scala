@@ -11,6 +11,7 @@ import java.util.Properties
 import um.re.utils.Utils
 import com.utils.messages.MEnrichMessage
 import kafka.serializer.DefaultEncoder
+import com.utils.aws.AWSUtils
 
 object S3ToKafka { //}extends App {
 
@@ -31,6 +32,20 @@ object S3ToKafka { //}extends App {
       numPartitions = "200"
       conf.setMaster("local[*]")
     }
+    // try getting inner IPs
+    try{
+      val brokerIP = brokers.split(":")(0) 
+      val brokerPort = brokers.split(":")(1) 
+      val innerBroker = AWSUtils.getPrivateIp(brokerIP) + ":"+brokerPort
+      brokers = innerBroker
+    } catch {
+      case e: Exception => {
+        println("#?#?#?#?#?#?#  Couldn't get inner broker IP, using : "+brokers +
+              "\n#?#?#?#?#?#?#  ExceptionMessage : " + e.getMessage +
+              "\n#?#?#?#?#?#?#  ExceptionStackTrace : " + e.getStackTraceString)
+      }
+    }
+    
     val sc = new SparkContext(conf)
     try {
       

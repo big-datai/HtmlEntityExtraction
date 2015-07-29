@@ -12,6 +12,7 @@ import com.datastax.spark.connector.streaming._
 import um.re.utils.Utils
 import org.joda.time.DateTime
 import org.joda.time.format.DateTimeFormat
+import com.utils.aws.AWSUtils
 
 object Push2Cassandra {
   def main(args: Array[String]) {
@@ -34,6 +35,28 @@ object Push2Cassandra {
       tableRT = "real_time_market_prices"
       tableH = "historical_prices"
       conf.setMaster("local[*]")
+    }
+        try {
+      val brokerIP = brokers.split(":")(0)
+      val brokerPort = brokers.split(":")(1)
+      val innerBroker = AWSUtils.getPrivateIp(brokerIP) + ":" + brokerPort
+      brokers = innerBroker
+    } catch {
+      case e: Exception => {
+        println("#?#?#?#?#?#?#  Couldn't get inner broker IP, using : " + brokers +
+          "\n#?#?#?#?#?#?#  ExceptionMessage : " + e.getMessage +
+          "\n#?#?#?#?#?#?#  ExceptionStackTrace : " + e.getStackTraceString)
+      }
+    }
+    try {
+      val innerCassandraHost = AWSUtils.getPrivateIp(cassandraHost)
+      cassandraHost = innerCassandraHost
+    } catch {
+      case e: Exception => {
+        println("#?#?#?#?#?#?#  Couldn't get inner Cassandra IP, using : " + cassandraHost +
+          "\n#?#?#?#?#?#?#  ExceptionMessage : " + e.getMessage +
+          "\n#?#?#?#?#?#?#  ExceptionStackTrace : " + e.getStackTraceString)
+      }
     }
     conf.set("spark.cassandra.connection.host", cassandraHost)
     var inputMessagesCounter = 0L

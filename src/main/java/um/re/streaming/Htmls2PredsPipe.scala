@@ -56,7 +56,18 @@ object Htmls2PredsPipe {
       statusFilters = "modeledPatternEquals,modelPatternConflict,patternFailed,missingModel,allFalseCandids"
       conf.setMaster("local[*]")*/
     }
-    brokers = AWSUtils.getPrivateIp(brokers.substring(0, brokers.length() - 5)) + ":9092"
+    try {
+      val brokerIP = brokers.split(":")(0)
+      val brokerPort = brokers.split(":")(1)
+      val innerBroker = AWSUtils.getPrivateIp(brokerIP) + ":" + brokerPort
+      brokers = innerBroker
+    } catch {
+      case e: Exception => {
+        println("#?#?#?#?#?#?#  Couldn't get inner broker IP, using : " + brokers +
+          "\n#?#?#?#?#?#?#  ExceptionMessage : " + e.getMessage +
+          "\n#?#?#?#?#?#?#  ExceptionStackTrace : " + e.getStackTraceString)
+      }
+    }
     
     val sc = new SparkContext(conf)
     val ssc = new StreamingContext(sc, Seconds(timeInterval.toInt))

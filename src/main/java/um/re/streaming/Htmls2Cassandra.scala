@@ -28,7 +28,7 @@ object Htmls2Cassandra {
     val conf = new SparkConf()
       .setAppName(getClass.getSimpleName)
 
-    var (timeInterval, brokers, inputTopic, fromOffset, logTopic, modelsPath, statusFilters, cassandraHost, keySpace, tableRT, tableH) = ("","","","","","","","","","","")
+    var (timeInterval, brokers, inputTopic, fromOffset, logTopic, modelsPath, statusFilters, cassandraHost, keySpace, tableRT, tableH, stopMessagesThreshold) = ("", "", "", "", "", "", "", "", "", "", "", "")
     if (args.size == 11) {
       timeInterval = args(0)
       brokers = args(1)
@@ -39,8 +39,9 @@ object Htmls2Cassandra {
       statusFilters = args(6)
       cassandraHost = args(7)
       keySpace = args(8)
-      tableRT =args(9)
+      tableRT = args(9)
       tableH = args(10)
+      //stopMessagesThreshold = args(11)
     } else {
       //by default all in root folder of hdfs
       /*timeInterval = "2"
@@ -55,23 +56,46 @@ object Htmls2Cassandra {
       tableRT = "real_time_market_prices"
       tableH = "historical_prices" 
       conf.setMaster("yarn-client") */
-      timeInterval = "20"
+      timeInterval = "2"
       brokers = "localhost:9092"
       fromOffset = "smallest"
       inputTopic = "htmls"
       logTopic = "sparkLogs"
-      modelsPath = "/Users/mike/umbrella/ModelsObject.tar.gz"
-      statusFilters = "modeledPatternEquals"+",modelPatternConflict,patternFailed,missingModel,allFalseCandids"
+      modelsPath = "/Users/mike/umbrella/ModelsObject/"
+      statusFilters = "modeledPatternEquals" + ",modelPatternConflict,patternFailed,missingModel,allFalseCandids"
       cassandraHost = "localhost"
       keySpace = "demo"
       tableRT = "real_time_market_prices"
-      tableH = "historical_prices" 
+      tableH = "historical_prices"
+      //stopMessagesThreshold = "50" //"5000000"
       conf.setMaster("local[*]")
     }
-    brokers = AWSUtils.getPrivateIp(brokers.substring(0, brokers.length() - 5)) + ":9092"
-    
+    // try getting inner IPs
+    try {
+      val brokerIP = brokers.split(":")(0)
+      val brokerPort = brokers.split(":")(1)
+      val innerBroker = AWSUtils.getPrivateIp(brokerIP) + ":" + brokerPort
+      brokers = innerBroker
+    } catch {
+      case e: Exception => {
+        println("#?#?#?#?#?#?#  Couldn't get inner broker IP, using : " + brokers +
+          "\n#?#?#?#?#?#?#  ExceptionMessage : " + e.getMessage +
+          "\n#?#?#?#?#?#?#  ExceptionStackTrace : " + e.getStackTraceString)
+      }
+    }
+    try {
+      val innerCassandraHost = AWSUtils.getPrivateIp(cassandraHost)
+      cassandraHost = innerCassandraHost
+    } catch {
+      case e: Exception => {
+        println("#?#?#?#?#?#?#  Couldn't get inner Cassandra IP, using : " + cassandraHost +
+          "\n#?#?#?#?#?#?#  ExceptionMessage : " + e.getMessage +
+          "\n#?#?#?#?#?#?#  ExceptionStackTrace : " + e.getStackTraceString)
+      }
+    }
+
     conf.set("spark.cassandra.connection.host", cassandraHost)
-    
+
     val sc = new SparkContext(conf)
     val ssc = new StreamingContext(sc, Seconds(timeInterval.toInt))
 
@@ -85,7 +109,6 @@ object Htmls2Cassandra {
     val loggedMessagesCounter = ssc.sparkContext.accumulator(0L)
     val historicalFeedCounter = ssc.sparkContext.accumulator(0L)
     val realTimeFeedCounter = ssc.sparkContext.accumulator(0L)
-    
 
     val missingModelCounter = ssc.sparkContext.accumulator(0L)
     val patternFailedCounter = ssc.sparkContext.accumulator(0L)
@@ -97,8 +120,8 @@ object Htmls2Cassandra {
     var exceptionCounter = 0L
 
     //Broadcast variables
-    
-    val modelsHashMap = ssc.sparkContext.objectFile[HashMap[String,(GradientBoostedTreesModel, Array[Double], Array[Int])]](modelsPath, 1).first
+
+    val modelsHashMap = ssc.sparkContext.objectFile[HashMap[String, (GradientBoostedTreesModel, Array[Double], Array[Int])]](modelsPath, 1).first
     val modelsBC = ssc.sparkContext.broadcast(modelsHashMap)
 
     try {
@@ -218,48 +241,59 @@ object Htmls2Cassandra {
           loggedMessagesCounter += 1
         } else
           filteredMessagesCounter += 1
-        (status,msgObj.toJson().toString().getBytes)
+        (status, msgObj.toJson().toString().getBytes)
       }.cache
-      
-      val historicalFeed = Utils.parseMEnrichMessage(messagesWithStatus.filter{case(status,msg) => statusFilters.contains(status)}).map {
+
+      val historicalFeed = Utils.parseMEnrichMessage(messagesWithStatus.filter { case (status, msg) => statusFilters.contains(status) }).map {
         case (msg, msgMap) =>
           //yyyy-mm-dd'T'HH:mm:ssZ  2015-07-15T16:25:52.325Z
-          val date = DateTime.parse(msgMap.apply("lastUpdatedTime")).toDate()//,DateTimeFormat.forPattern("yyyy-mm-dd'T'HH:mm:ssZ"));
+          val date = DateTime.parse(msgMap.apply("lastUpdatedTime")).toDate() //,DateTimeFormat.forPattern("yyyy-mm-dd'T'HH:mm:ssZ"));
           val row = (msgMap.apply("prodId"), msgMap.apply("domain"), date, Utils.getPriceFromMsgMap(msgMap), msgMap.apply("title"))
-          historicalFeedCounter+=1
+          historicalFeedCounter += 1
           row
       }.cache
-      
-      historicalFeed.saveToCassandra(keySpace, tableH,SomeColumns("sys_prod_id","store_id","tmsp","price","sys_prod_title"))
-      val realTimeFeed = historicalFeed.map{t => 
+
+      historicalFeed.saveToCassandra(keySpace, tableH, SomeColumns("sys_prod_id", "store_id", "tmsp", "price", "sys_prod_title"))
+      val realTimeFeed = historicalFeed.map { t =>
         val row = (t._1, t._2, t._4, t._5)
-        realTimeFeedCounter+=1
+        realTimeFeedCounter += 1
         row
-        }
-      realTimeFeed.saveToCassandra(keySpace, tableRT,SomeColumns("sys_prod_id","store_id","price","sys_prod_title"))
-      
-
-      messagesWithStatus.filter{case(status,msg) => !statusFilters.contains(status)}.map{case(status,msg) => msg}.
-      foreachRDD { rdd =>
-        Utils.pushByteRDD2Kafka(rdd, "", brokers, logTopic)
-        //println("!@!@!@!@!   inputMessagesCounter " + inputMessagesCounter)
-        //println("!@!@!@!@!   parsedMessagesCounter " + parsedMessagesCounter)
-        println("!@!@!@!@!   candidatesMessagesCounter " + candidatesMessagesCounter)
-        println("!@!@!@!@!   predictionsMessagesCounter " + predictionsMessagesCounter)
-        println("!@!@!@!@!   filteredMessagesCounter " + filteredMessagesCounter)
-        println("!@!@!@!@!   historicalFeedCounter " + historicalFeedCounter)
-        println("!@!@!@!@!   realTimeFeedCounter " + realTimeFeedCounter)
-        println("!@!@!@!@!   loggedMessagesCounter " + loggedMessagesCounter)
-
-        println("!@!@!@!@!   modeledPatternEqualsCounter " + modeledPatternEqualsCounter.value)
-        println("!@!@!@!@!   modelPatternConflictCounter " + modelPatternConflictCounter.value)
-        println("!@!@!@!@!   bothFailedCounter " + bothFailedCounter.value)
-        println("!@!@!@!@!   patternFailedCounter " + patternFailedCounter.value)
-        println("!@!@!@!@!   missingModelCounter " + missingModelCounter.value)
-        println("!@!@!@!@!   allFalseCandidsCounter " + allFalseCandidsCounter.value)
-
-        println("!@!@!@!@!   exceptionCounter " + exceptionCounter)
       }
+      realTimeFeed.saveToCassandra(keySpace, tableRT, SomeColumns("sys_prod_id", "store_id", "price", "sys_prod_title"))
+
+      // TODO test with kafka logging on big batches
+      /*
+      messagesWithStatus
+      //.filter { case (status, msg) => !statusFilters.contains(status) }.map { case (status, msg) => msg }
+      .foreachRDD { rdd =>
+          //Utils.pushByteRDD2Kafka(rdd, "", brokers, logTopic)
+          //println("!@!@!@!@!   inputMessagesCounter " + inputMessagesCounter)
+          //println("!@!@!@!@!   parsedMessagesCounter " + parsedMessagesCounter)
+          println("!@!@!@!@!   candidatesMessagesCounter " + candidatesMessagesCounter)
+          println("!@!@!@!@!   predictionsMessagesCounter " + predictionsMessagesCounter)
+          println("!@!@!@!@!   filteredMessagesCounter " + filteredMessagesCounter)
+          println("!@!@!@!@!   historicalFeedCounter " + historicalFeedCounter)
+          println("!@!@!@!@!   realTimeFeedCounter " + realTimeFeedCounter)
+          println("!@!@!@!@!   loggedMessagesCounter " + loggedMessagesCounter)
+
+          println("!@!@!@!@!   modeledPatternEqualsCounter " + modeledPatternEqualsCounter.value)
+          println("!@!@!@!@!   modelPatternConflictCounter " + modelPatternConflictCounter.value)
+          println("!@!@!@!@!   bothFailedCounter " + bothFailedCounter.value)
+          println("!@!@!@!@!   patternFailedCounter " + patternFailedCounter.value)
+          println("!@!@!@!@!   missingModelCounter " + missingModelCounter.value)
+          println("!@!@!@!@!   allFalseCandidsCounter " + allFalseCandidsCounter.value)
+
+          println("!@!@!@!@!   exceptionCounter " + exceptionCounter)
+      }*/  
+      /*
+      messagesWithStatus.foreachRDD{rdd =>
+        // check stop condition
+          if (candidatesMessagesCounter.value >= stopMessagesThreshold.toLong) {
+            println("~!~!~!~!~ Reached messages stop threshold , threshold is : " + stopMessagesThreshold + " , candidatesMessagesCounter value : " + candidatesMessagesCounter.value +
+              "\n~!~!~!~!~ Shutting Down...")
+            ssc.stop(true,true)
+          }
+        }*/
 
     } catch {
       case e: Exception => {

@@ -28,10 +28,24 @@ object S3ToKafka { //}extends App {
     } else {
       brokers = "localhost:9092"
       outputTopic = "seeds"
-      inputPath = "/Users/dmitry/umbrella/seeds_sample"
+      inputPath = "/Users/mike/umbrella/seeds_sample"
       numPartitions = "200"
       conf.setMaster("local[*]")
     }
+    // try getting inner IPs
+    try{
+      val brokerIP = brokers.split(":")(0) 
+      val brokerPort = brokers.split(":")(1) 
+      val innerBroker = AWSUtils.getPrivateIp(brokerIP) + ":"+brokerPort
+      brokers = innerBroker
+    } catch {
+      case e: Exception => {
+        println("#?#?#?#?#?#?#  Couldn't get inner broker IP, using : "+brokers +
+              "\n#?#?#?#?#?#?#  ExceptionMessage : " + e.getMessage +
+              "\n#?#?#?#?#?#?#  ExceptionStackTrace : " + e.getStackTraceString)
+      }
+    }
+    
     val sc = new SparkContext(conf)
     try {
       

@@ -1,6 +1,6 @@
 package um.re.light
 
-
+/*
 import org.apache.spark.SparkContext
 import org.apache.spark._
 import kafka.producer._
@@ -123,3 +123,4 @@ object ReduceLoadCassQueries extends App{
 */
 println(b)
 }
+*/

@@ -10,6 +10,9 @@ import com.datastax.spark.connector.cql.CassandraConnector
 import com.datastax.spark.connector._
 import com.datastax.spark.connector.streaming._
 import um.re.utils.Utils
+import org.joda.time.DateTime
+import org.joda.time.format.DateTimeFormat
+import com.utils.aws.AWSUtils
 
 object Push2Cassandra {
   def main(args: Array[String]) {
@@ -33,6 +36,28 @@ object Push2Cassandra {
       tableH = "historical_prices"
       conf.setMaster("local[*]")
     }
+        try {
+      val brokerIP = brokers.split(":")(0)
+      val brokerPort = brokers.split(":")(1)
+      val innerBroker = AWSUtils.getPrivateIp(brokerIP) + ":" + brokerPort
+      brokers = innerBroker
+    } catch {
+      case e: Exception => {
+        println("#?#?#?#?#?#?#  Couldn't get inner broker IP, using : " + brokers +
+          "\n#?#?#?#?#?#?#  ExceptionMessage : " + e.getMessage +
+          "\n#?#?#?#?#?#?#  ExceptionStackTrace : " + e.getStackTraceString)
+      }
+    }
+    try {
+      val innerCassandraHost = AWSUtils.getPrivateIp(cassandraHost)
+      cassandraHost = innerCassandraHost
+    } catch {
+      case e: Exception => {
+        println("#?#?#?#?#?#?#  Couldn't get inner Cassandra IP, using : " + cassandraHost +
+          "\n#?#?#?#?#?#?#  ExceptionMessage : " + e.getMessage +
+          "\n#?#?#?#?#?#?#  ExceptionStackTrace : " + e.getStackTraceString)
+      }
+    }
     conf.set("spark.cassandra.connection.host", cassandraHost)
     var inputMessagesCounter = 0L
     var historicalFeedCounter = 0L
@@ -40,7 +65,8 @@ object Push2Cassandra {
     var exceptionCounter = 0L
     val sc = new SparkContext(conf)
 
-    val ssc = new StreamingContext(sc, Seconds(5))
+    val ssc = new StreamingContext(sc, Seconds(2))
+     brokers = AWSUtils.getPrivateIp(brokers.substring(0, brokers.length() - 5)) + ":9092"
     try {
       // Create direct kafka stream with brokers and topics
       val topicsSet = inputTopic.split(",").toSet
@@ -52,7 +78,10 @@ object Push2Cassandra {
 
       val historicalFeed = Utils.parseMEnrichMessage(inputMessages).map {
         case (msg, msgMap) =>
-          val date = new java.util.Date()
+         // val date = new java.util.Date()
+          
+          //yyyy-mm-dd'T'HH:mm:ssZ  2015-07-15T16:25:52.325Z
+          val date = DateTime.parse(msgMap.apply("lastUpdatedTime")).toDate()//,DateTimeFormat.forPattern("yyyy-mm-dd'T'HH:mm:ssZ"));
           (msgMap.apply("prodId"), msgMap.apply("domain"), date, Utils.getPriceFromMsgMap(msgMap), msgMap.apply("title"))
       }
       historicalFeed.saveToCassandra(keySpace, tableH)

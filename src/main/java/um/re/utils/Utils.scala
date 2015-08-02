@@ -21,6 +21,8 @@ import java.util.Properties
 import kafka.producer.ProducerConfig
 import kafka.producer.Producer
 import kafka.producer.KeyedMessage
+import com.utils.queue.KafkaProducer
+
 object Utils {
   val S3STORAGE = "s3:/"
   val HDFSSTORAGE = "hdfs://"
@@ -33,7 +35,6 @@ object Utils {
   val SEEDS2S3 = "/dpavlov/seeds20150709"
   val FULLR2S3 = "/dpavlov/es/full_river"
   val DEBUGFLAG = false
-
 
   def getDomain(input: String) = {
     var url = input
@@ -117,15 +118,15 @@ object Utils {
     } catch {
       case e: Exception => {
         println("Could not parse jsontMap")
-        
-        try{
-        println(js.toString())
-        }catch{
-          case _:Exception =>{}        
+
+        try {
+          println(js.toString())
+        } catch {
+          case _: Exception => {}
         }
-        println("#?#?#?#?#?#?#  ExceptionLocalizedMessage : "+ e.getLocalizedMessage+
-            "\n#?#?#?#?#?#?#  ExceptionMessage : "+e.getMessage+
-            "\n#?#?#?#?#?#?#  ExceptionStackTrace : "+e.getStackTraceString)
+        println("#?#?#?#?#?#?#  ExceptionLocalizedMessage : " + e.getLocalizedMessage +
+          "\n#?#?#?#?#?#?#  ExceptionMessage : " + e.getMessage +
+          "\n#?#?#?#?#?#?#  ExceptionStackTrace : " + e.getStackTraceString)
         null
       }
     }
@@ -390,18 +391,25 @@ object Utils {
   def lcm(numSet: Set[Int]): Long = {
     numSet.reduce(lcm(_, _))
   }
-  
-  def pushByteRDD2Kafka(rdd:RDD[Array[Byte]],outputTopic:String,brokers:String)={
-    rdd.foreachPartition { p =>
-        val props = new Properties()
-        props.put("metadata.broker.list", brokers)
-        props.put("serializer.class", "kafka.serializer.DefaultEncoder")
 
-        @transient val config = new ProducerConfig(props)
-        @transient val producer = new Producer[String, Array[Byte]](config)
-        p.foreach(rec => producer.send(new KeyedMessage[String, Array[Byte]](outputTopic, rec)))
-        producer.close()
+  def pushByteRDD2Kafka(rdd: RDD[Array[Byte]], outputTopic: String, brokers: String, logTopic: String = "logs") = {
+    rdd.foreachPartition { p =>
+      val props = new Properties()
+      props.put("metadata.broker.list", brokers)
+      props.put("serializer.class", "kafka.serializer.DefaultEncoder")
+
+      @transient val config = new ProducerConfig(props)
+      val r = scala.util.Random
+      @transient val producer = new Producer[AnyRef, AnyRef](config)
+      p.foreach { rec =>
+        if (MEnrichMessage.string2Message(rec).getM_errorMessage.equals(""))
+          producer.send(new KeyedMessage(outputTopic, null, r.nextInt(3000).toString.getBytes, rec))
+        else
+          producer.send(new KeyedMessage(logTopic, rec))
       }
+
+      producer.close()
+    }
   }
 
 }   

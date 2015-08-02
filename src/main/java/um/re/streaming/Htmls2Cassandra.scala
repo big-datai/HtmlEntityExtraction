@@ -28,19 +28,20 @@ object Htmls2Cassandra {
     val conf = new SparkConf()
       .setAppName(getClass.getSimpleName)
 
-    var (timeInterval, brokers, inputTopic, fromOffset, logTopic, modelsPath, statusFilters, cassandraHost, keySpace, tableRT, tableH, stopMessagesThreshold) = ("", "", "", "", "", "", "", "", "", "", "", "")
-    if (args.size == 11) {
+    var (timeInterval, brokers, inputTopic, fromOffset, logTopic, modelsPath, logStatusFilters, cassandraHost, keySpace, tableRT, tableH, dbStatusFilters, stopMessagesThreshold) = ("", "", "", "", "", "", "", "", "", "", "", "","")
+    if (args.size == 12) {
       timeInterval = args(0)
       brokers = args(1)
       inputTopic = args(2)
       fromOffset = args(3)
       logTopic = args(4)
       modelsPath = args(5)
-      statusFilters = args(6)
+      logStatusFilters = args(6)
       cassandraHost = args(7)
       keySpace = args(8)
       tableRT = args(9)
       tableH = args(10)
+      dbStatusFilters = args(11)
       //stopMessagesThreshold = args(11)
     } else {
       //by default all in root folder of hdfs
@@ -62,11 +63,12 @@ object Htmls2Cassandra {
       inputTopic = "htmls"
       logTopic = "sparkLogs"
       modelsPath = "/Users/mike/umbrella/ModelsObject/"
-      statusFilters = "modeledPatternEquals" + ",modelPatternConflict,patternFailed,missingModel,allFalseCandids"
+      logStatusFilters = "bothFailed,minorModelPatternConflict,majorModelPatternConflict,patternFailed,missingModel,allFalseCandids"
       cassandraHost = "localhost"
       keySpace = "demo"
       tableRT = "real_time_market_prices"
       tableH = "historical_prices"
+      dbStatusFilters = "modeledPatternEquals,minorModelPatternConflict,majorModelPatternConflict,patternFailed,missingModel,allFalseCandids"
       //stopMessagesThreshold = "50" //"5000000"
       conf.setMaster("local[*]")
     }
@@ -116,6 +118,8 @@ object Htmls2Cassandra {
     val allFalseCandidsCounter = ssc.sparkContext.accumulator(0L)
     val modeledPatternEqualsCounter = ssc.sparkContext.accumulator(0L)
     val modelPatternConflictCounter = ssc.sparkContext.accumulator(0L)
+    val minorModelPatternConflictCounter = ssc.sparkContext.accumulator(0L)
+    val majorModelPatternConflictCounter = ssc.sparkContext.accumulator(0L)
 
     var exceptionCounter = 0L
 
@@ -187,7 +191,6 @@ object Htmls2Cassandra {
               msgObj.setM_exception(e.getMessage)
               msgObj.setM_stackTrace(e.getStackTraceString)
               msgObj.setM_errorLocation("Package: " + this.getClass.getPackage.getName + " Name: " + this.getClass.getName + " Step: predictions")
-              msgObj.setM_issue("ERROR")
               msgObj
             }
           }
@@ -220,7 +223,13 @@ object Htmls2Cassandra {
           status = "modeledPatternEquals"
           modeledPatternEqualsCounter += 1
         } else if (!allFalseCandids && !missingModel && !patternFailed) {
-          status = "modelPatternConflict"
+          if ((updatedPrice.get-modelPrice.get).abs/math.max(updatedPrice.get,modelPrice.get)<=0.1) {
+          status = "minorModelPatternConflict"
+          minorModelPatternConflictCounter += 1
+          } else {
+            status = "majorModelPatternConflict"
+            majorModelPatternConflictCounter += 1
+          }
           modelPatternConflictCounter += 1
         } else if ((allFalseCandids || missingModel) && patternFailed) {
           status = "bothFailed"
@@ -235,32 +244,35 @@ object Htmls2Cassandra {
           status = "allFalseCandids"
           allFalseCandidsCounter += 1
         }
-        if (!statusFilters.contains(status)) {
+        msgObj.setM_issue(status)
+        if (!logStatusFilters.contains(status)) {
           msgObj.setM_errorLocation("Package: " + this.getClass.getPackage.getName + " Name: " + this.getClass.getName + " Step: statusing")
           msgObj.setM_errorMessage(status)
           loggedMessagesCounter += 1
-        } else
+        } 
+        if (!dbStatusFilters.contains(status)) 
           filteredMessagesCounter += 1
         (status, msgObj.toJson().toString().getBytes)
-      }.cache
+      }//.cache
 
-      val historicalFeed = Utils.parseMEnrichMessage(messagesWithStatus.filter { case (status, msg) => statusFilters.contains(status) }).map {
+      val historicalFeed = Utils.parseMEnrichMessage(messagesWithStatus.filter { case (status, msg) => dbStatusFilters.contains(status) }).map {
         case (msg, msgMap) =>
           //yyyy-mm-dd'T'HH:mm:ssZ  2015-07-15T16:25:52.325Z
           val date = DateTime.parse(msgMap.apply("lastUpdatedTime")).toDate() //,DateTimeFormat.forPattern("yyyy-mm-dd'T'HH:mm:ssZ"));
           val row = (msgMap.apply("prodId"), msgMap.apply("domain"), date, Utils.getPriceFromMsgMap(msgMap), msgMap.apply("title"))
           historicalFeedCounter += 1
           row
-      }.cache
+      }//.cache
 
       historicalFeed.saveToCassandra(keySpace, tableH, SomeColumns("sys_prod_id", "store_id", "tmsp", "price", "sys_prod_title"))
-      val realTimeFeed = historicalFeed.map { t =>
+      
+      /*val realTimeFeed = historicalFeed.map { t =>
         val row = (t._1, t._2, t._4, t._5)
         realTimeFeedCounter += 1
         row
       }
       realTimeFeed.saveToCassandra(keySpace, tableRT, SomeColumns("sys_prod_id", "store_id", "price", "sys_prod_title"))
-
+      */
       // TODO test with kafka logging on big batches
       /*
       messagesWithStatus

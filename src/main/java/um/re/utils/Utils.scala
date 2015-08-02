@@ -380,9 +380,19 @@ object Utils {
     }
   }
   def getPriceFromMsgMap(msgMap: Map[String, String]): Double = {
-    //TODO currently we use updatedPrice , this method created to handle logic to decide which price to push on
-    val updatedPrice = parseDouble(msgMap.apply("updatedPrice"))
-    updatedPrice.get
+    //TODO this method created to handle logic to decide which price to push on
+    //at the moment we use model price if the pattern failed(==0) or the distance betwen both of them smaller than 10% 
+    val updatedPrice = parseDouble(msgMap.apply("updatedPrice")).get
+    val modelPrice = parseDouble(msgMap.apply("modelPrice")).get
+    val status = msgMap.apply("issue")
+    status match {
+      case "modeledPatternEqualsCounter" => modelPrice
+      case "minorModelPatternConflict" => modelPrice
+      case "majorModelPatternConflict" => updatedPrice
+      case "patternFailed" => modelPrice
+      case "missingModel" => updatedPrice
+      case "allFalseCandids" => updatedPrice
+    }
   }
   def gcd(a: Int, b: Int): Int = if (b == 0) a.abs else gcd(b, a % b)
   def lcm(a: Int, b: Int) = (a * b).abs / gcd(a, b)

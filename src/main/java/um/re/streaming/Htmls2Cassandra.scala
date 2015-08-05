@@ -44,19 +44,6 @@ object Htmls2Cassandra {
       dbStatusFilters = args(11)
       //stopMessagesThreshold = args(11)
     } else {
-      //by default all in root folder of hdfs
-      /*timeInterval = "2"
-      brokers = "54.83.9.85:9092"
-      fromOffset = "smallest"
-      inputTopic = "htmls"
-      logTopic = "sparkLogs"
-      modelsPath = "/ModelsObject/"
-      statusFilters = "modeledPatternEquals"+",modelPatternConflict,patternFailed,missingModel,allFalseCandids"
-      cassandraHost = "107.20.157.48"
-      keySpace = "demo"
-      tableRT = "real_time_market_prices"
-      tableH = "historical_prices" 
-      conf.setMaster("yarn-client") */
       timeInterval = "2"
       brokers = "localhost:9092"
       fromOffset = "smallest"
@@ -97,7 +84,7 @@ object Htmls2Cassandra {
     }
 
     conf.set("spark.cassandra.connection.host", cassandraHost)
-
+    
     val sc = new SparkContext(conf)
     val ssc = new StreamingContext(sc, Seconds(timeInterval.toInt))
 
@@ -135,7 +122,6 @@ object Htmls2Cassandra {
       val kafkaParams = Map[String, String]("metadata.broker.list" -> brokers, "auto.offset.reset" -> fromOffset)
       val input = KafkaUtils.createDirectStream[String, Array[Byte], StringDecoder, DefaultDecoder](
         ssc, kafkaParams, topicsSet)
-
       val parsed = Utils.parseMEnrichMessage(input)
 
       val candidates = parsed.transform(rdd => Utils.htmlsToCandidsPipe(rdd))
@@ -200,8 +186,8 @@ object Htmls2Cassandra {
         //Update predictions accumulator
         predictionsMessagesCounter += 1
 
-        val modelPrice = Utils.parseDouble(msgObj.getModelPrice())
-        val updatedPrice = Utils.parseDouble(msgObj.getUpdatedPrice())
+        val modelPrice = Utils.parseDouble(msgObj.getModelPrice()).get
+        val updatedPrice = Utils.parseDouble(msgObj.getUpdatedPrice()).get
         var status = ""
         var allFalseCandids = false
         var missingModel = false
@@ -209,13 +195,13 @@ object Htmls2Cassandra {
         var modeledPatternEquals = false
 
         //raise flags for status logic
-        if (modelPrice.get == -1.0)
+        if (modelPrice == -1.0)
           allFalseCandids = true
-        if (modelPrice.get == -2.0)
+        if (modelPrice == -2.0)
           missingModel = true
-        if (updatedPrice.get.toInt == 0)
+        if (updatedPrice.toInt == 0)
           patternFailed = true
-        if (!patternFailed && !missingModel && !allFalseCandids && ((modelPrice.get - updatedPrice.get) < 0.009))
+        if (!patternFailed && !missingModel && !allFalseCandids && ((modelPrice - updatedPrice) < 0.009))
           modeledPatternEquals = true
 
         //Set status and update their accumulators
@@ -223,7 +209,7 @@ object Htmls2Cassandra {
           status = "modeledPatternEquals"
           modeledPatternEqualsCounter += 1
         } else if (!allFalseCandids && !missingModel && !patternFailed) {
-          if ((updatedPrice.get-modelPrice.get).abs/math.max(updatedPrice.get,modelPrice.get)<=0.1) {
+          if ((updatedPrice-modelPrice).abs/math.max(updatedPrice,modelPrice)<=0.1) {
           status = "minorModelPatternConflict"
           minorModelPatternConflictCounter += 1
           } else {
@@ -245,15 +231,15 @@ object Htmls2Cassandra {
           allFalseCandidsCounter += 1
         }
         msgObj.setM_issue(status)
-        if (!logStatusFilters.contains(status)) {
+        if (logStatusFilters.contains(status)) {
           msgObj.setM_errorLocation("Package: " + this.getClass.getPackage.getName + " Name: " + this.getClass.getName + " Step: statusing")
           msgObj.setM_errorMessage(status)
           loggedMessagesCounter += 1
         } 
-        if (!dbStatusFilters.contains(status)) 
+        if (dbStatusFilters.contains(status)) 
           filteredMessagesCounter += 1
         (status, msgObj.toJson().toString().getBytes)
-      }//.cache
+      }.cache
 
       val historicalFeed = Utils.parseMEnrichMessage(messagesWithStatus.filter { case (status, msg) => dbStatusFilters.contains(status) }).map {
         case (msg, msgMap) =>
@@ -262,21 +248,21 @@ object Htmls2Cassandra {
           val row = (msgMap.apply("prodId"), msgMap.apply("domain"), date, Utils.getPriceFromMsgMap(msgMap), msgMap.apply("title"))
           historicalFeedCounter += 1
           row
-      }//.cache
+      }.cache
 
       historicalFeed.saveToCassandra(keySpace, tableH, SomeColumns("sys_prod_id", "store_id", "tmsp", "price", "sys_prod_title"))
       
-      /*val realTimeFeed = historicalFeed.map { t =>
+      val realTimeFeed = historicalFeed.map { t =>
         val row = (t._1, t._2, t._4, t._5)
         realTimeFeedCounter += 1
         row
       }
       realTimeFeed.saveToCassandra(keySpace, tableRT, SomeColumns("sys_prod_id", "store_id", "price", "sys_prod_title"))
-      */
+      
       // TODO test with kafka logging on big batches
-      /*
+      
       messagesWithStatus
-      //.filter { case (status, msg) => !statusFilters.contains(status) }.map { case (status, msg) => msg }
+      .filter { case (status, msg) => logStatusFilters.contains(status) }.map { case (status, msg) => msg }
       .foreachRDD { rdd =>
           //Utils.pushByteRDD2Kafka(rdd, "", brokers, logTopic)
           //println("!@!@!@!@!   inputMessagesCounter " + inputMessagesCounter)
@@ -289,6 +275,8 @@ object Htmls2Cassandra {
           println("!@!@!@!@!   loggedMessagesCounter " + loggedMessagesCounter)
 
           println("!@!@!@!@!   modeledPatternEqualsCounter " + modeledPatternEqualsCounter.value)
+          println("!@!@!@!@!   minorModelPatternConflictCounter " + minorModelPatternConflictCounter.value)
+          println("!@!@!@!@!   majorModelPatternConflictCounter " + majorModelPatternConflictCounter.value)
           println("!@!@!@!@!   modelPatternConflictCounter " + modelPatternConflictCounter.value)
           println("!@!@!@!@!   bothFailedCounter " + bothFailedCounter.value)
           println("!@!@!@!@!   patternFailedCounter " + patternFailedCounter.value)
@@ -296,7 +284,7 @@ object Htmls2Cassandra {
           println("!@!@!@!@!   allFalseCandidsCounter " + allFalseCandidsCounter.value)
 
           println("!@!@!@!@!   exceptionCounter " + exceptionCounter)
-      }*/  
+      }
       /*
       messagesWithStatus.foreachRDD{rdd =>
         // check stop condition

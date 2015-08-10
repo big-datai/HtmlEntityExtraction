@@ -47,6 +47,7 @@ object S3ToKafka { //}extends App {
     }
     
     val sc = new SparkContext(conf)
+    
     try {
       
       brokers = AWSUtils.getPrivateIp(brokers.substring(0, brokers.length() - 5)) + ":9092"

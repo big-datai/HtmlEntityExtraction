@@ -395,6 +395,7 @@ object Utils {
         case "patternFailed"               => modelPrice
         case "missingModel"                => updatedPrice
         case "allFalseCandids"             => updatedPrice
+        case "bothFailed"             => 0.0
       }
     } catch {
       case e: Exception => {

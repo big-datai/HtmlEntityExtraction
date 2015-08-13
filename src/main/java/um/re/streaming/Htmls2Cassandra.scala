@@ -28,33 +28,33 @@ object Htmls2Cassandra {
     val conf = new SparkConf()
       .setAppName(getClass.getSimpleName)
 
-    var (timeInterval, brokers, inputTopic, fromOffset, logTopic, modelsPath, logStatusFilters, cassandraHost, keySpace, tableRT, tableH, dbStatusFilters, stopMessagesThreshold) = ("", "", "", "", "", "", "", "", "", "", "", "","")
+    var (timeInterval, brokers, inputTopic, fromOffset, modelsPath, logStatusFilters, cassandraHost, keySpace, tableRT, tableH, tableCL, dbStatusFilters, stopMessagesThreshold) = ("", "", "", "", "", "", "", "", "", "", "", "","")
     if (args.size == 12) {
       timeInterval = args(0)
       brokers = args(1)
       inputTopic = args(2)
       fromOffset = args(3)
-      logTopic = args(4)
-      modelsPath = args(5)
-      logStatusFilters = args(6)
-      cassandraHost = args(7)
-      keySpace = args(8)
-      tableRT = args(9)
-      tableH = args(10)
+      modelsPath = args(4)
+      logStatusFilters = args(5)
+      cassandraHost = args(6)
+      keySpace = args(7)
+      tableRT = args(8)
+      tableH = args(9)
+      tableCL = args(10)
       dbStatusFilters = args(11)
       //stopMessagesThreshold = args(11)
     } else {
-      timeInterval = "2"
+      timeInterval = "5"
       brokers = "localhost:9092"
       fromOffset = "smallest"
       inputTopic = "htmls"
-      logTopic = "sparkLogs"
       modelsPath = "/Users/mike/umbrella/ModelsObject/"
       logStatusFilters = "bothFailed,minorModelPatternConflict,majorModelPatternConflict,patternFailed,missingModel,allFalseCandids"
       cassandraHost = "localhost"
       keySpace = "demo"
       tableRT = "real_time_market_prices"
       tableH = "historical_prices"
+      tableCL = "core_logs"
       dbStatusFilters = "modeledPatternEquals,minorModelPatternConflict,majorModelPatternConflict,patternFailed,missingModel,allFalseCandids"
       //stopMessagesThreshold = "50" //"5000000"
       conf.setMaster("local[*]")
@@ -87,7 +87,8 @@ object Htmls2Cassandra {
     
     val sc = new SparkContext(conf)
     val ssc = new StreamingContext(sc, Seconds(timeInterval.toInt))
-
+    
+    
     //counters and accumulators
     //TODO update input and parsed counters
     //val inputMessagesCounter = ssc.sparkContext.accumulator(0L)
@@ -201,7 +202,7 @@ object Htmls2Cassandra {
           missingModel = true
         if (updatedPrice.toInt == 0)
           patternFailed = true
-        if (!patternFailed && !missingModel && !allFalseCandids && ((modelPrice - updatedPrice) < 0.009))
+        if (!patternFailed && !missingModel && !allFalseCandids && ((modelPrice - updatedPrice).abs < 0.009))
           modeledPatternEquals = true
 
         //Set status and update their accumulators
@@ -259,8 +260,18 @@ object Htmls2Cassandra {
       }
       realTimeFeed.saveToCassandra(keySpace, tableRT, SomeColumns("sys_prod_id", "store_id", "price", "sys_prod_title"))
       
-      // TODO test with kafka logging on big batches
-      
+      val coreLogs = Utils.parseMEnrichMessage(messagesWithStatus.filter { case (status, msg) => logStatusFilters.contains(status) }).map {
+        case (msg, msgMap) =>
+          //yyyy-mm-dd'T'HH:mm:ssZ  2015-07-15T16:25:52.325Z
+          val date = DateTime.parse(msgMap.apply("lastUpdatedTime")).toDate() //,DateTimeFormat.forPattern("yyyy-mm-dd'T'HH:mm:ssZ"));
+          val row = (date,msgMap.apply("errorMessage"), msgMap.apply("url"), msgMap.apply("patternsText")
+              ,msgMap.apply("domain"),msgMap.apply("price"),msgMap.apply("updatedPrice"),msgMap.apply("exception")
+              ,msgMap.apply("modelPrice"),msgMap.apply("stackTrace"),msgMap.apply("issue") ,msgMap.apply("patternsHtml")
+              ,msgMap.apply("prodId"),msgMap.apply("lastScrapedTime"),msgMap.apply("errorLocation"),msgMap.apply("title")
+              ,msgMap.apply("html"),msgMap.apply("shipping"),Utils.getPriceFromMsgMap(msgMap))
+          row
+      }.cache
+      coreLogs.saveToCassandra(keySpace, tableCL,SomeColumns("lastupdatedtime","errormessage","url","patternstext","domain","price","updatedprice","exception","modelprice","stacktrace","issue","patternshtml","prodid","lastscrapedtime","errorlocation","title","html","shipping","selectedprice"))
       messagesWithStatus
       .filter { case (status, msg) => logStatusFilters.contains(status) }.map { case (status, msg) => msg }
       .foreachRDD { rdd =>

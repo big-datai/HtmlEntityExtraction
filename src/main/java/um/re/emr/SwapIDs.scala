@@ -71,7 +71,7 @@ object SwapIDs {
     val missingMappingCMSCounter = sc.accumulator(0L)
 
     //broadcast
-    val emptyMap = new HashMap 
+    val emptyMap = new HashMap
     val mapping = emptyMap ++ sc.textFile(path2Mapping, 1).map { line =>
       val Array(origID, newID) = line.substring(1, line.length - 1).split(",")
       (origID, newID)
@@ -92,9 +92,12 @@ object SwapIDs {
 
           inputRTCounter += 1
           ((store_id, newID, price, sys_prod_title), (sys_prod_id, store_id))
-        }.filter{case (newRow, oldKey)=> 
-          validRTCounter+=1
-          !validIDsBC.value.contains(oldKey._1)}.cache
+        }.filter {case (newRow, oldKey) =>
+            if (validIDsBC.value.contains(oldKey._1)) {
+              validRTCounter += 1
+              false
+            } else true
+        }.cache
       RT.filter {
         case (newRow, oldKey) =>
           if (newRow._2.equals("missingMapping")) {
@@ -132,9 +135,12 @@ object SwapIDs {
 
           inputHPCounter += 1
           ((store_id, newID, tmsp, price, sys_prod_title), (sys_prod_id, store_id, tmsp))
-        }.filter{case (newRow, oldKey)=>
-          validHPCounter+=1
-          !validIDsBC.value.contains(oldKey._1)}.cache
+        }.filter {case (newRow, oldKey) =>
+            if (validIDsBC.value.contains(oldKey._1)) {
+              validHPCounter += 1
+              false
+            } else true
+        }.cache
       HP.filter {
         case (newRow, oldKey) =>
           if (newRow._2.equals("missingMapping")) {
@@ -172,9 +178,12 @@ object SwapIDs {
 
           inputCMSCounter += 1
           ((store_id, newID, store_prod_price, store_prod_title, store_prod_url), (store_id, store_prod_id))
-        }.filter{case (newRow, oldKey)=> 
-          validCMSCounter+=1
-          !validIDsBC.value.contains(oldKey._2)}.cache
+        }.filter {case (newRow, oldKey) =>
+            if (validIDsBC.value.contains(oldKey._2)) {
+              validCMSCounter += 1
+              false
+            } else true
+        }.cache
       CMS.filter {
         case (newRow, oldKey) =>
           if (newRow._2.equals("missingMapping")) {

@@ -4,30 +4,36 @@ import com.datastax.spark.connector._
 import com.utils.aws.AWSUtils
 import org.apache.spark.SparkContext
 import org.apache.spark.SparkConf
-
+import org.apache.spark.rdd.PairRDDFunctions
+import org.apache.spark.HashPartitioner
 
 /**
  * @author mike
  */
 object AutoMatcher {
-  def main(args:Array[String]){
+  def main(args: Array[String]) {
     val conf = new SparkConf()
       .setAppName(getClass.getSimpleName)
 
-    var (cassandraHost, keySpace, tableRT, tableMP, tableMPID) = ( "", "", "", "","")
-    if (args.size == 5) {
+    var (cassandraHost, keySpace, tableRT, tableMP, tableMPT, tableCMS, storeID,numParts) = ("","", "", "", "", "", "", "")
+    if (args.size == 8) {
       cassandraHost = args(0)
       keySpace = args(1)
       tableRT = args(2)
       tableMP = args(3)
-      tableMPID = args(4)
-      
+      tableMPT = args(4)
+      tableCMS = args(5)
+      storeID = args(6)
+      numParts = args(7)
     } else {
       cassandraHost = "localhost"
       keySpace = "demo"
       tableRT = "real_time_market_prices"
       tableMP = "matching_prods"
-      tableMPID = "matching_prods_by_sys_prod_id"
+      tableMPT = "matching_prods_by_tmsp"
+      tableCMS = "cms_simulator"
+      storeID = "*"
+      numParts = "20"
       conf.setMaster("local[*]")
     }
     // try getting inner IPs
@@ -42,26 +48,56 @@ object AutoMatcher {
       }
     }
 
-    //conf.set("spark.cassandra.connection.host", cassandraHost)
+    conf.set("spark.cassandra.connection.host", cassandraHost)
     val sc = new SparkContext(conf)
-    sc.setLocalProperty("spark.cassandra.connection.host", cassandraHost)
     
     //set accumulators
-    val inputRowsCounter = sc.accumulator(0L)
-    
+    val realTimeMarketPricesRowsCounter = sc.accumulator(0L)
+    val CMSRowsCounter = sc.accumulator(0L)
+    val MPRowsCounter = sc.accumulator(0L)
+    val MPTRowsCounter = sc.accumulator(0L)
     try {
-    val matches = sc.cassandraTable(keySpace, tableRT).map{row => 
-      val store_id = row.get[String]("store_id")
-      val sys_prod_id = row.get[String]("sys_prod_id")
-      val sys_prod_title = row.get[String]("sys_prod_title")
-      inputRowsCounter += 1
-      (store_id,sys_prod_title,sys_prod_id,sys_prod_title,sys_prod_id,"",1)
-      }.cache
-    matches.saveToCassandra(keySpace, tableMP
-        , SomeColumns("store_id","store_prod_title","store_prod_id","sys_prod_title","sys_prod_id","url","analyze_ind"))
-    matches.saveToCassandra(keySpace, tableMPID
-        , SomeColumns("store_id","store_prod_title","store_prod_id","sys_prod_title","sys_prod_id","url","analyze_ind"))
-    println("inputRowsCounter : "+inputRowsCounter.value)
+      val partitioner = new HashPartitioner(numParts.toInt)
+      val cms = {if (storeID.equals("*"))
+                  sc.cassandraTable(keySpace, tableCMS)
+                else
+                  sc.cassandraTable(keySpace, tableCMS).where("store_id = ?", storeID)}
+      .map{row => 
+        val store_id = row.get[String]("store_id") 
+        val store_prod_id = row.get[String]("store_prod_id")
+        //val store_prod_price = row.get[String]("store_prod_price") 
+        val store_prod_title = row.get[String]("store_prod_title")
+        val store_prod_url = row.get[String]("store_prod_url")
+        CMSRowsCounter += 1
+        (store_id+"||"+store_prod_title,(store_id,store_prod_id,store_prod_title,store_prod_url))
+        }.partitionBy(partitioner)
+      
+      val realTimeMarketPrices = sc.cassandraTable(keySpace, tableRT).map { row =>
+        val store_id = row.get[String]("store_id")
+        val sys_prod_id = row.get[String]("sys_prod_id")
+        val sys_prod_title = row.get[String]("sys_prod_title")
+        realTimeMarketPricesRowsCounter += 1
+        (store_id+"||"+sys_prod_title,(store_id, sys_prod_title, sys_prod_id))
+      }.partitionBy(partitioner)
+      
+      val matchingProds = cms.join(realTimeMarketPrices)
+        .map{case(key,((store_id,store_prod_id,store_prod_title,store_prod_url),(s, sys_prod_title, sys_prod_id))) =>
+           MPRowsCounter+=1
+          (store_id, store_prod_id , 0 , store_prod_title , sys_prod_id , sys_prod_title ,store_prod_url) }.cache
+      
+      matchingProds.saveToCassandra(keySpace, tableMP, SomeColumns("store_id", "store_prod_id" , "analyze_ind" , "store_prod_title" , "sys_prod_id" , "sys_prod_title" ,"url"))
+      
+      val matchingProdsByTmsp = matchingProds.map{case(store_id, store_prod_id, analye_ind , store_prod_title , sys_prod_id , sys_prod_title ,url)=>
+        val date = new java.util.Date
+        MPTRowsCounter+=1
+        (store_id,date ,store_prod_id, store_prod_title , sys_prod_id , sys_prod_title ,url)
+        } 
+      matchingProdsByTmsp.saveToCassandra(keySpace, tableMPT, SomeColumns("store_id","tmsp", "store_prod_id" , "store_prod_title" , "sys_prod_id" , "sys_prod_title" ,"url"))
+     
+     println("!@!@!@!@!   realTimeMarketPricesRowsCounter : " + realTimeMarketPricesRowsCounter.value+
+         "\n!@!@!@!@!   CMSRowsCounter : " + CMSRowsCounter.value+
+         "\n!@!@!@!@!   MPRowsCounter : " + MPRowsCounter.value+
+         "\n!@!@!@!@!   MPTRowsCounter : " + MPTRowsCounter.value)
     } catch {
       case e: Exception => {
         println("########  Somthing went wrong :( ")
@@ -69,6 +105,6 @@ object AutoMatcher {
           "\n#?#?#?#?#?#?#  ExceptionStackTrace : " + e.getStackTraceString)
       }
     }
-    
+
   }
 }

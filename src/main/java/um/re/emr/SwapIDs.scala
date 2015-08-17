@@ -7,6 +7,7 @@ import com.datastax.spark.connector._
 import com.datastax.spark.connector.cql.CassandraConnector
 import scala.collection.immutable.HashMap
 import scala.collection.immutable.HashSet
+import org.apache.spark.storage.StorageLevel
 /**
  * @author mike
  */
@@ -92,12 +93,13 @@ object SwapIDs {
 
           inputRTCounter += 1
           ((store_id, newID, price, sys_prod_title), (sys_prod_id, store_id))
-        }.filter {case (newRow, oldKey) =>
+        }.filter {
+          case (newRow, oldKey) =>
             if (validIDsBC.value.contains(oldKey._1)) {
               validRTCounter += 1
               false
             } else true
-        }.cache
+        }.persist(StorageLevel.MEMORY_AND_DISK)
       RT.filter {
         case (newRow, oldKey) =>
           if (newRow._2.equals("missingMapping")) {
@@ -122,50 +124,13 @@ object SwapIDs {
         session.close()
       }
       RT.unpersist(false)
-
-      // swap process for HP table 
-      val HP = sc.cassandraTable(keySpace, tableHP)
-        .map { row =>
-          val store_id = row.get[String]("store_id")
-          val sys_prod_id = row.get[String]("sys_prod_id")
-          val tmsp = row.get[java.util.Date]("tmsp")
-          val price = row.get[String]("price")
-          val sys_prod_title = row.get[String]("sys_prod_title")
-          val newID = mappingBC.value.get(sys_prod_id).getOrElse("missingMapping")
-
-          inputHPCounter += 1
-          ((store_id, newID, tmsp, price, sys_prod_title), (sys_prod_id, store_id, tmsp))
-        }.filter {case (newRow, oldKey) =>
-            if (validIDsBC.value.contains(oldKey._1)) {
-              validHPCounter += 1
-              false
-            } else true
-        }.cache
-      HP.filter {
-        case (newRow, oldKey) =>
-          if (newRow._2.equals("missingMapping")) {
-            missingMappingHPCounter += 1
-            true
-          } else
-            false
-      }.saveAsTextFile(path2Mapping.substring(0, path2Mapping.lastIndexOf("/") + 1) + "HP_missingMapping.txt")
-      HP.filter { case (newRow, oldKey) => !newRow._2.equals("missingMapping") }
-        .map { t =>
-          newHPCounter += 1
-          t._1
-        }.saveToCassandra(keySpace, tableHP, SomeColumns("store_id", "sys_prod_id", "tmsp", "price", "sys_prod_title"))
-      HP.filter { case (newRow, oldKey) => !newRow._2.equals("missingMapping") }.foreachPartition { part =>
-        val session = connector.openSession()
-        part.foreach {
-          case (newRow, oldKey) =>
-            val delete = s"DELETE FROM " + keySpace + "." + tableHP + " where     sys_prod_id='" + oldKey._1 + "' and store_id='" + oldKey._2 + "';"
-            session.execute(delete)
-            deletedHPCounter += 1
-        }
-        session.close()
-      }
-      HP.unpersist(false)
-
+      println("!@!@!@!@!        RT table           !@!@!@!@!" +
+        "\n!@!@!@!@!   inputRTCounter : " + inputRTCounter.value +
+        "\n!@!@!@!@!   validRTCounter : " + validRTCounter.value +
+        "\n!@!@!@!@!   newRTCounter : " + newRTCounter.value +
+        "\n!@!@!@!@!   deletedRTCounter : " + deletedRTCounter.value +
+        "\n!@!@!@!@!   missingMappingRTCounter : " + missingMappingRTCounter.value +
+        "\n!@!@!@!@!!@!@!@!@!!@!@!@!@!!@!@!@!@!!@!@!@!@!!@!@!@!@!")
       // swap process for CMS table 
       val CMS = sc.cassandraTable(keySpace, tableCMS)
         .map { row =>
@@ -178,12 +143,13 @@ object SwapIDs {
 
           inputCMSCounter += 1
           ((store_id, newID, store_prod_price, store_prod_title, store_prod_url), (store_id, store_prod_id))
-        }.filter {case (newRow, oldKey) =>
+        }.filter {
+          case (newRow, oldKey) =>
             if (validIDsBC.value.contains(oldKey._2)) {
               validCMSCounter += 1
               false
             } else true
-        }.cache
+        }.persist(StorageLevel.MEMORY_AND_DISK)
       CMS.filter {
         case (newRow, oldKey) =>
           if (newRow._2.equals("missingMapping")) {
@@ -208,6 +174,64 @@ object SwapIDs {
         session.close()
       }
       CMS.unpersist(false)
+      println("!@!@!@!@!        CMS table           !@!@!@!@!" +
+        "\n!@!@!@!@!   inputCMSCounter : " + inputCMSCounter.value +
+        "\n!@!@!@!@!   validCMSCounter : " + validCMSCounter.value +
+        "\n!@!@!@!@!   newCMSCounter : " + newCMSCounter.value +
+        "\n!@!@!@!@!   deletedCMSCounter : " + deletedCMSCounter.value +
+        "\n!@!@!@!@!   missingMappingCMSCounter : " + missingMappingCMSCounter.value +
+        "\n!@!@!@!@!!@!@!@!@!!@!@!@!@!!@!@!@!@!!@!@!@!@!!@!@!@!@!")
+
+      // swap process for HP table 
+      val HP = sc.cassandraTable(keySpace, tableHP)
+        .map { row =>
+          val store_id = row.get[String]("store_id")
+          val sys_prod_id = row.get[String]("sys_prod_id")
+          val tmsp = row.get[java.util.Date]("tmsp")
+          val price = row.get[String]("price")
+          val sys_prod_title = row.get[String]("sys_prod_title")
+          val newID = mappingBC.value.get(sys_prod_id).getOrElse("missingMapping")
+
+          inputHPCounter += 1
+          ((store_id, newID, tmsp, price, sys_prod_title), (sys_prod_id, store_id, tmsp))
+        }.filter {
+          case (newRow, oldKey) =>
+            if (validIDsBC.value.contains(oldKey._1)) {
+              validHPCounter += 1
+              false
+            } else true
+        }.persist(StorageLevel.MEMORY_AND_DISK)
+      HP.filter {
+        case (newRow, oldKey) =>
+          if (newRow._2.equals("missingMapping")) {
+            missingMappingHPCounter += 1
+            true
+          } else
+            false
+      }.saveAsTextFile(path2Mapping.substring(0, path2Mapping.lastIndexOf("/") + 1) + "HP_missingMapping.txt")
+      HP.filter { case (newRow, oldKey) => !newRow._2.equals("missingMapping") }
+        .map { t =>
+          newHPCounter += 1
+          t._1
+        }.saveToCassandra(keySpace, tableHP, SomeColumns("store_id", "sys_prod_id", "tmsp", "price", "sys_prod_title"))
+      HP.filter { case (newRow, oldKey) => !newRow._2.equals("missingMapping") }.foreachPartition { part =>
+        val session = connector.openSession()
+        part.foreach {
+          case (newRow, oldKey) =>
+            val delete = s"DELETE FROM " + keySpace + "." + tableHP + " where     sys_prod_id='" + oldKey._1 + "' and store_id='" + oldKey._2 + "';"
+            session.execute(delete)
+            deletedHPCounter += 1
+        }
+        session.close()
+      }
+      HP.unpersist(false)
+      println("!@!@!@!@!        HP table           !@!@!@!@!" +
+        "\n!@!@!@!@!   inputHPCounter : " + inputHPCounter.value +
+        "\n!@!@!@!@!   validHPCounter : " + validHPCounter.value +
+        "\n!@!@!@!@!   newHPCounter : " + newHPCounter.value +
+        "\n!@!@!@!@!   deletedHPCounter : " + deletedHPCounter.value +
+        "\n!@!@!@!@!   missingMappingHPCounter : " + missingMappingHPCounter.value +
+        "\n!@!@!@!@!!@!@!@!@!!@!@!@!@!!@!@!@!@!!@!@!@!@!!@!@!@!@!")
 
       println("!@!@!@!@!        RT table           !@!@!@!@!" +
         "\n!@!@!@!@!   inputRTCounter : " + inputRTCounter.value +

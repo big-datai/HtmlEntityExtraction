@@ -36,6 +36,11 @@ object Utils {
   val FULLR2S3 = "/dpavlov/es/full_river"
   val DEBUGFLAG = false
 
+  def getDateString() {
+    import java.util.Calendar
+    val d = Calendar.getInstance().getTime()
+    d.toString.replace(" ", "").replace(":", "")
+  }
   def getDomain(input: String) = {
     var url = input
     try {
@@ -389,20 +394,20 @@ object Utils {
       val modelPrice = parseDouble(msgMap.apply("modelPrice")).get
       val status = msgMap.apply("issue")
       status match {
-        case "modeledPatternEquals" => modelPrice
-        case "minorModelPatternConflict"   => modelPrice
-        case "majorModelPatternConflict"   => updatedPrice
-        case "patternFailed"               => modelPrice
-        case "missingModel"                => updatedPrice
-        case "allFalseCandids"             => updatedPrice
-        case "bothFailed"             => 0.0
+        case "modeledPatternEquals"      => modelPrice
+        case "minorModelPatternConflict" => modelPrice
+        case "majorModelPatternConflict" => updatedPrice
+        case "patternFailed"             => modelPrice
+        case "missingModel"              => updatedPrice
+        case "allFalseCandids"           => updatedPrice
+        case "bothFailed"                => 0.0
       }
     } catch {
       case e: Exception => {
         println("########  Somthing went wrong when was choosing price :( \n" + msgMap.toString())
         println("#?#?#?#?#?#?#  ExceptionMessage : " + e.getMessage +
           "\n#?#?#?#?#?#?#  ExceptionStackTrace : " + e.getStackTraceString)
-          throw e
+        throw e
       }
     }
   }

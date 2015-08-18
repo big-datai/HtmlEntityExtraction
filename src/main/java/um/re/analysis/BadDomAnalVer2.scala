@@ -11,6 +11,8 @@ import org.apache.spark.sql.DataFrame
 import um.re.utils.Utils
 
 object BadDomAnalVer2 {
+  case class Temp(domain: String, numBadSeed: Long)
+  case class Seed(domain: String, SeedPerDom: Long)
   def main(args:Array[String]) {
     val conf = new SparkConf()
       .setAppName(getClass.getSimpleName)
@@ -48,7 +50,7 @@ object BadDomAnalVer2 {
     val cc = new CassandraSQLContext(sc)
     val sqlContext = new org.apache.spark.sql.SQLContext(sc)
     import sqlContext.implicits._
-    case class Temp(domain: String, numBadSeed: Long)
+    
     
     def makeComparison(JoinedT:DataFrame,SeedDomain:DataFrame,ComparisonTypeOne:String,ComparisonTypeTwo:String,threshold:String,tempTable:String) : DataFrame
     ={
@@ -70,7 +72,7 @@ object BadDomAnalVer2 {
     val realTime =cc.sql("SELECT store_id,sys_prod_id,price FROM " + keySpace + "." + tableRT)
     val seedPerDomain=realTime.groupBy("store_id").agg(max(realTime("store_id")) as "domain", count(realTime("store_id")) as "SeedPerDom").cache
     //seedPerDomain.filter(seedPerDomain("domain") === "aceofficemachines.com").show()
-    case class Seed(domain: String, SeedPerDom: Long)
+   
     val rdd=seedPerDomain.map{l=>Seed(l.getString(0), l.getLong(1))}.cache
     val df=sqlContext.createDataFrame(rdd)
     df.registerTempTable("Seeds")

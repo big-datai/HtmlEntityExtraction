@@ -11,6 +11,8 @@ import org.apache.spark.sql.DataFrame
 import um.re.utils.Utils
 
 object BadDomAnal {
+  case class Temp(domain: String, numBadSeed: Long)
+  case class Seed(domain: String, SeedPerDom: Long)
   def main(args:Array[String]) {
     val conf = new SparkConf()
       .setAppName(getClass.getSimpleName)
@@ -46,7 +48,7 @@ object BadDomAnal {
     val cc = new CassandraSQLContext(sc)
     val sqlContext = new org.apache.spark.sql.SQLContext(sc)
     import sqlContext.implicits._
-    case class Temp(domain: String, numBadSeed: Long)
+  
     
     def makeComparison(JoinedT:DataFrame,SeedDomain:DataFrame,ComparisonTypeOne:String,ComparisonTypeTwo:String,threshold:String,tempTable:String,path:String){
       val Comp = {if (ComparisonTypeOne=="allPriceType" || ComparisonTypeTwo=="allAvgType") 
@@ -70,7 +72,7 @@ object BadDomAnal {
     val coreLogsData = cc.sql("SELECT url,domain,price,updatedprice,modelprice,prodid,lastupdatedtime FROM " + keySpace + "." + tableCL ).cache
     //calculate number of seeds per domain
     val seedPerDomain=coreLogsData.groupBy("domain").agg(max(coreLogsData("domain")) as "domain", count(coreLogsData("domain")) as "SeedPerDom").cache
-    case class Seed(domain: String, SeedPerDom: Long)
+    
     val rdd=seedPerDomain.map{l=>Seed(l.getString(0), l.getLong(1))}.cache
     val df=sqlContext.createDataFrame(rdd)
     df.registerTempTable("Seeds")

@@ -23,6 +23,9 @@ class UConf(sc: SparkContext, parts: Int) {
     sc.objectFile[(String, Map[String, String])](path, parts)
   }
 
+  def getText(path:String ="s3n://AKIAJQUAOI7EBC6Y7ESQ:JhremVoqNuEYG8YS9J+duW0hFRtX+sWjuZ0vdQlE@dpavlov/seeds170820151439825456871"){
+    sc.textFile(path).map{l=>(l,Utils.json2Map(Utils.string2Json(l)))}
+  }
   def getDataFromS3(path: String = Utils.S3STORAGE + "/dpavlov/es/source20150516") = {
     sc.objectFile[(String, Map[String, String])](path, parts)
   }

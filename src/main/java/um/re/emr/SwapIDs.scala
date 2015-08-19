@@ -28,8 +28,8 @@ object SwapIDs {
     } else {
       cassandraHost = "localhost"
       keySpace = "demo"
-      tableRT = "real_time_market_prices"
-      tableCMS = "cms_simulator"
+      tableRT = "skip" //"real_time_market_prices"
+      tableCMS = "skip" //"cms_simulator"
       tableHP = "historical_prices"
       path2Mapping = "/Users/mike/umbrella/mapping.txt"
       conf.setMaster("local[*]")
@@ -103,14 +103,14 @@ object SwapIDs {
                 false
               } else true
           }.persist(StorageLevel.MEMORY_AND_DISK)
-        RT.filter {
+        /*RT.filter {
           case (newRow, oldKey) =>
             if (newRow._2.equals("missingMapping")) {
               missingMappingRTCounter += 1
               true
             } else
               false
-        }.saveAsTextFile(path2Mapping.substring(0, path2Mapping.lastIndexOf("/") + 1) + "RT_missingMapping.txt")
+        }.saveAsTextFile(path2Mapping.substring(0, path2Mapping.lastIndexOf("/") + 1) + "RT_missingMapping.txt")*/
         RT.filter { case (newRow, oldKey) => !newRow._2.equals("missingMapping") }
           .map { t =>
             newRTCounter += 1
@@ -155,14 +155,14 @@ object SwapIDs {
                 false
               } else true
           }.persist(StorageLevel.MEMORY_AND_DISK)
-        CMS.filter {
+        /*CMS.filter {
           case (newRow, oldKey) =>
             if (newRow._2.equals("missingMapping")) {
               missingMappingCMSCounter += 1
               true
             } else
               false
-        }.saveAsTextFile(path2Mapping.substring(0, path2Mapping.lastIndexOf("/") + 1) + "CMS_missingMapping.txt")
+        }.saveAsTextFile(path2Mapping.substring(0, path2Mapping.lastIndexOf("/") + 1) + "CMS_missingMapping.txt")*/
         CMS.filter { case (newRow, oldKey) => !newRow._2.equals("missingMapping") }
           .map { t =>
             newCMSCounter += 1
@@ -191,43 +191,54 @@ object SwapIDs {
       // swap process for HP table 
       if (!tableHP.equals("skip")) {
         val HP = sc.cassandraTable(keySpace, tableHP).map { row =>
-            val store_id = row.get[String]("store_id")
-            val sys_prod_id = row.get[String]("sys_prod_id")
-            val tmsp = row.get[java.util.Date]("tmsp")
-            val price = row.get[String]("price")
-            val sys_prod_title = row.get[String]("sys_prod_title")
-            val newID = mappingBC.value.get(sys_prod_id).getOrElse("missingMapping")
-
-            inputHPCounter += 1
-            ((store_id, newID, tmsp, price, sys_prod_title), (sys_prod_id, store_id, tmsp))
-            //(store_id, sys_prod_id, tmsp, price, sys_prod_title)
-          }.filter {
-            case (newRow, oldKey) =>
-              if (validIDsBC.value.contains(oldKey._1)) {
-                validHPCounter += 1
-                false
-              } else true
-          }.persist(StorageLevel.MEMORY_AND_DISK)
-        HP.filter {
+          val store_id = row.get[String]("store_id")
+          val sys_prod_id = row.get[String]("sys_prod_id")
+          val tmsp = row.get[java.util.Date]("tmsp")
+          val price = row.get[String]("price")
+          val sys_prod_title = row.get[String]("sys_prod_title")
+          val newID = mappingBC.value.get(sys_prod_id).getOrElse("missingMapping")
+          inputHPCounter += 1
+          ((store_id, newID, tmsp, price, sys_prod_title), (sys_prod_id, store_id, tmsp))
+          //(store_id, sys_prod_id, tmsp, price, sys_prod_title)
+        }.filter {
+          case (newRow, oldKey) =>
+            if (validIDsBC.value.contains(oldKey._1)) {
+              validHPCounter += 1
+              false
+            } else true
+        } //.persist(StorageLevel.MEMORY_AND_DISK)
+        /*HP.filter {
           case (newRow, oldKey) =>
             if (newRow._2.equals("missingMapping")) {
               missingMappingHPCounter += 1
               true
             } else
               false
-        }.saveAsTextFile(path2Mapping.substring(0, path2Mapping.lastIndexOf("/") + 1) + "HP_missingMapping.txt")
+        }.saveAsTextFile(path2Mapping.substring(0, path2Mapping.lastIndexOf("/") + 1) + "HP_missingMapping.txt")*/
         HP.filter { case (newRow, oldKey) => !newRow._2.equals("missingMapping") }
           .map { t =>
             newHPCounter += 1
             t._1
           }.saveToCassandra(keySpace, tableHP, SomeColumns("store_id", "sys_prod_id", "tmsp", "price", "sys_prod_title"))
+        
         HP.foreachPartition { part =>
           val session = connector.openSession()
           part.foreach {
             case (newRow, oldKey) =>
-              val delete = s"DELETE FROM " + keySpace + "." + tableHP + " where     sys_prod_id='" + oldKey._1 + "' and store_id='" + oldKey._2 + "';"
-              session.execute(delete)
-              deletedHPCounter += 1
+             // try {
+               // val insert = s"INSERT INTO " + keySpace + "." + tableHP + " (store_id, sys_prod_id, tmsp, price, sys_prod_title) VALUES ('" + newRow._1 + "','" + newRow._2 + "'," + newRow._3.getTime + "," + newRow._4 + ",'" + newRow._5 + "');"
+                val delete = s"DELETE FROM " + keySpace + "." + tableHP + " where     sys_prod_id='" + oldKey._1 + "' and store_id='" + oldKey._2 + "';"
+                //if (!newRow._2.equals("missingMapping"))
+                //  session.execute(insert)
+                session.execute(delete)
+                deletedHPCounter += 1
+             /* } catch {
+                case e: Exception => {
+                  println("########  Somthing went wrong :( ")
+                  println("#?#?#?#?#?#?#  ExceptionMessage : " + e.getMessage +
+                    "\n#?#?#?#?#?#?#  ExceptionStackTrace : " + e.getStackTraceString)
+                }
+              }*/
           }
           session.close()
         }

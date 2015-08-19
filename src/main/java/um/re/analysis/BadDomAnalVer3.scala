@@ -9,7 +9,8 @@ import org.apache.spark.sql.functions._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.DataFrame
 import um.re.utils.Utils
-
+import java.util.Calendar
+import java.text.SimpleDateFormat
 
 object BadDomAnalVer3 {
  case class Temp(domain: String, numBadSeed: Long)
@@ -18,7 +19,7 @@ object BadDomAnalVer3 {
     val conf = new SparkConf()
       .setAppName(getClass.getSimpleName)
      var (cassandraHost, keySpace, tableCL,tableRT, threshold ,path) = ("", "", "","","","")
-    if (args.size == 4) {
+    if (args.size == 5) {
       cassandraHost = args(0)
       keySpace = args(1)
       tableCL = args(2)
@@ -31,7 +32,7 @@ object BadDomAnalVer3 {
       val tableCL = "core_logs"
       val tableRT="real_time_market_prices"
       val threshold = "0.3"
-      val path="/home/ec2-user"
+      val path="/home/ec2-user/badDomainAnal"
       conf.setMaster("local[*]")
     } 
    
@@ -119,27 +120,29 @@ object BadDomAnalVer3 {
                  coreLogsData("prodid"),
                  coreLogsData("lastupdatedtime")
                  ).cache
-                 
+    
+      val format = new SimpleDateFormat("dd-MM-y")
+      format.format(Calendar.getInstance().getTime())
     //primePrice compared to pattern price
     val PrimePatternRes= makeComparison(UpdatedCoreLogsData,SeedsDomain,"updatedprice","price",threshold,"PrimePatternComparison")
-    PrimePatternRes.rdd.coalesce(1, false).saveAsTextFile(path+"/"+"PrimePatternComparison")
+    PrimePatternRes.rdd.coalesce(1, false).saveAsTextFile(path+"/"+ format + "/PrimePatternComparison")
     //primePrice compared to model price
     val PrimeModelRes= makeComparison(UpdatedCoreLogsData,SeedsDomain,"modelprice","price",threshold,"PrimeModelComparison")
     PrimeModelRes.rdd.coalesce(1, false).saveAsTextFile(path+"/"+"PrimeModelComparison")
     //primePrice compared to selected price
     val PrimeSelectedRes= makeComparison(UpdatedCoreLogsData,SeedsDomain,"selectedprice","price",threshold,"PrimeSelectedComparison")
-    PrimeSelectedRes.rdd.coalesce(1, false).saveAsTextFile(path+"/"+"PrimeSelectedComparison")
+    PrimeSelectedRes.rdd.coalesce(1, false).saveAsTextFile(path+"/"+ format + "/PrimeSelectedComparison")
     //Pattern compared to model price price
     val PatternModelRes= makeComparison(UpdatedCoreLogsData,SeedsDomain,"updatedprice","modelprice",threshold,"PatternModelComparison")
-    PatternModelRes.rdd.coalesce(1, false).saveAsTextFile(path+"/"+"PatternModelComparison")
+    PatternModelRes.rdd.coalesce(1, false).saveAsTextFile(path+"/"+ format + "/PatternModelComparison")
     //Current selectedprice compared to all average model price
     val allAvgModelPriceRes= makeComparison(JoinedTable,SeedsDomain,"price","allAvgModelPrice",threshold,"AllModelComparison")
-    allAvgModelPriceRes.rdd.coalesce(1, false).saveAsTextFile(path+"/"+"allAvgModelPriceRes")
+    allAvgModelPriceRes.rdd.coalesce(1, false).saveAsTextFile(path+"/"+ format + "/allAvgModelPriceRes")
     //Current selectedprice compared to average pattern price
     val allAvgPatternComparisonRes = makeComparison(JoinedTable,SeedsDomain,"price","allAvgUpdatedPrice",threshold,"AllPatternComparison")
-    allAvgPatternComparisonRes.rdd.coalesce(1, false).saveAsTextFile(path+"/"+"allAvgPatternComparisonRes")
+    allAvgPatternComparisonRes.rdd.coalesce(1, false).saveAsTextFile(path+"/"+ format + "/allAvgPatternComparisonRes")
     //Current selectedprice compared to average selectedprice
     val allAvgSelectedPriceRes= makeComparison(JoinedTable,SeedsDomain,"price","allAvgSelectedPrice",threshold,"AllSelectedPriceComparison")
-    allAvgSelectedPriceRes.rdd.coalesce(1, false).saveAsTextFile(path+"/"+"allAvgSelectedPriceRes")    
+    allAvgSelectedPriceRes.rdd.coalesce(1, false).saveAsTextFile(path+"/"+ format + "/allAvgSelectedPriceRes")    
   }
 }

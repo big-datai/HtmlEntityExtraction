@@ -19,56 +19,57 @@ object S3ToKafka { //}extends App {
     val conf = new SparkConf()
       .setAppName(getClass.getSimpleName)
 
-    var (brokers, outputTopic, inputPath, numPartitions) = ("", "", "", "")
+    var (brokers, outputTopic, inputPath, numPartitions) = ("54.83.9.85:9092", "seeds", "s3n://AKIAJQUAOI7EBC6Y7ESQ:JhremVoqNuEYG8YS9J+duW0hFRtX+sWjuZ0vdQlE@dpavlov/seedsFilteredMonAug17160933UTC2015", "3000")
     if (args.size == 4) {
       brokers = args(0)
       outputTopic = args(1)
       inputPath = args(2)
       numPartitions = args(3)
     } else {
-      brokers = "localhost:9092"
+      brokers = "54.83.9.85:9092"
       outputTopic = "seeds"
-      inputPath = "/Users/mike/umbrella/seeds_sample"
-      numPartitions = "200"
-      conf.setMaster("local[*]")
+      inputPath = "s3n://AKIAJQUAOI7EBC6Y7ESQ:JhremVoqNuEYG8YS9J+duW0hFRtX+sWjuZ0vdQlE@dpavlov/seedsFilteredMonAug17160933UTC2015"
+      numPartitions = "3000"
+      //conf.setMaster("local[*]")
+      
     }
     // try getting inner IPs
-    try{
-      val brokerIP = brokers.split(":")(0) 
-      val brokerPort = brokers.split(":")(1) 
-      val innerBroker = AWSUtils.getPrivateIp(brokerIP) + ":"+brokerPort
+    try {
+      val brokerIP = brokers.split(":")(0)
+      val brokerPort = brokers.split(":")(1)
+      val innerBroker = AWSUtils.getPrivateIp(brokerIP) + ":" + brokerPort
       brokers = innerBroker
     } catch {
       case e: Exception => {
-        println("#?#?#?#?#?#?#  Couldn't get inner broker IP, using : "+brokers +
-              "\n#?#?#?#?#?#?#  ExceptionMessage : " + e.getMessage +
-              "\n#?#?#?#?#?#?#  ExceptionStackTrace : " + e.getStackTraceString)
+        println("#?#?#?#?#?#?#  Couldn't get inner broker IP, using : " + brokers +
+          "\n#?#?#?#?#?#?#  ExceptionMessage : " + e.getMessage +
+          "\n#?#?#?#?#?#?#  ExceptionStackTrace : " + e.getStackTraceString)
       }
     }
-    
+
     val sc = new SparkContext(conf)
-    
+
     try {
-      
-      brokers = AWSUtils.getPrivateIp(brokers.substring(0, brokers.length() - 5)) + ":9092"
- 
-      val rawSeeds = sc.objectFile[(String)](inputPath, numPartitions.toInt).cache
+
+      AWSUtils.getPrivateIp(brokers.substring(0, brokers.length() - 5)) + ":9092"
+
+      val rawSeeds = sc.textFile(inputPath, numPartitions.toInt) //sc.objectFile[(String)](inputPath, numPartitions.toInt).cache
       val parsedSeeds = rawSeeds.map { line =>
         try { MEnrichMessage.string2Message(line).toJson().toString().getBytes() }
         catch {
           case e: Exception => null
         }
-      }.filter { _!=null }
+      }.filter { _ != null }
       //Producer: launch the Array[Byte]result into kafka      
       Utils.pushByteRDD2Kafka(parsedSeeds, outputTopic, brokers)
-      println("!@!@!@!@!   rawSeeds Count:"+rawSeeds.count())
-      println("!@!@!@!@!   parsedSeeds Count:"+parsedSeeds.count())
+      println("!@!@!@!@!   rawSeeds Count:" + rawSeeds.count())
+      println("!@!@!@!@!   parsedSeeds Count:" + parsedSeeds.count())
     } catch {
       case e: Exception => {
         println("########  Somthing went wrong :( ")
-        println("#?#?#?#?#?#?#  ExceptionLocalizedMessage : "+ e.getLocalizedMessage+
-            "\n#?#?#?#?#?#?#  ExceptionMessage : "+e.getMessage+
-            "\n#?#?#?#?#?#?#  ExceptionStackTrace : "+e.getStackTraceString)
+        println("#?#?#?#?#?#?#  ExceptionLocalizedMessage : " + e.getLocalizedMessage +
+          "\n#?#?#?#?#?#?#  ExceptionMessage : " + e.getMessage +
+          "\n#?#?#?#?#?#?#  ExceptionStackTrace : " + e.getStackTraceString)
       }
     }
   }

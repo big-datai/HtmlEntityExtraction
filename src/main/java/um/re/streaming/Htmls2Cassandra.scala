@@ -28,7 +28,7 @@ object Htmls2Cassandra {
     val conf = new SparkConf()
       .setAppName(getClass.getSimpleName)
 
-    var (timeInterval, brokers, inputTopic, fromOffset, modelsPath, logStatusFilters, cassandraHost, keySpace, tableRT, tableH, tableCL, dbStatusFilters, stopMessagesThreshold) = ("", "", "", "", "", "", "", "", "", "", "", "","")
+    var (timeInterval, brokers, inputTopic, fromOffset, modelsPath, logStatusFilters, cassandraHost, keySpace, tableRT, tableH, tableCL, dbStatusFilters, stopMessagesThreshold) = ("", "", "", "", "", "", "", "", "", "", "", "", "")
     if (args.size == 12) {
       timeInterval = args(0)
       brokers = args(1)
@@ -84,11 +84,10 @@ object Htmls2Cassandra {
     }
 
     conf.set("spark.cassandra.connection.host", cassandraHost)
-    
+
     val sc = new SparkContext(conf)
     val ssc = new StreamingContext(sc, Seconds(timeInterval.toInt))
-    
-    
+
     //counters and accumulators
     //TODO update input and parsed counters
     //val inputMessagesCounter = ssc.sparkContext.accumulator(0L)
@@ -210,9 +209,9 @@ object Htmls2Cassandra {
           status = "modeledPatternEquals"
           modeledPatternEqualsCounter += 1
         } else if (!allFalseCandids && !missingModel && !patternFailed) {
-          if ((updatedPrice-modelPrice).abs/math.max(updatedPrice,modelPrice)<=0.1) {
-          status = "minorModelPatternConflict"
-          minorModelPatternConflictCounter += 1
+          if ((updatedPrice - modelPrice).abs / math.max(updatedPrice, modelPrice) <= 0.1) {
+            status = "minorModelPatternConflict"
+            minorModelPatternConflictCounter += 1
           } else {
             status = "majorModelPatternConflict"
             majorModelPatternConflictCounter += 1
@@ -236,8 +235,8 @@ object Htmls2Cassandra {
           msgObj.setM_errorLocation("Package: " + this.getClass.getPackage.getName + " Name: " + this.getClass.getName + " Step: statusing")
           msgObj.setM_errorMessage(status)
           loggedMessagesCounter += 1
-        } 
-        if (dbStatusFilters.contains(status)) 
+        }
+        if (dbStatusFilters.contains(status))
           filteredMessagesCounter += 1
         (status, msgObj.toJson().toString().getBytes)
       }.cache
@@ -246,35 +245,31 @@ object Htmls2Cassandra {
         case (msg, msgMap) =>
           //yyyy-mm-dd'T'HH:mm:ssZ  2015-07-15T16:25:52.325Z
           val date = DateTime.parse(msgMap.apply("lastUpdatedTime")).toDate() //,DateTimeFormat.forPattern("yyyy-mm-dd'T'HH:mm:ssZ"));
-          val row = (msgMap.apply("prodId"), msgMap.apply("domain"), date, Utils.getPriceFromMsgMap(msgMap), msgMap.apply("title"))
+          val row = (msgMap.apply("prodId"), msgMap.apply("domain"), date, Utils.getPriceFromMsgMap(msgMap), msgMap.apply("title"), msgMap.apply("url"))
           historicalFeedCounter += 1
           row
       }.cache
 
-      historicalFeed.saveToCassandra(keySpace, tableH, SomeColumns("sys_prod_id", "store_id", "tmsp", "price", "sys_prod_title"))
-      
+      historicalFeed.map { l => (l._1, l._2, l._3, l._4, l._5) }.saveToCassandra(keySpace, tableH, SomeColumns("sys_prod_id", "store_id", "tmsp", "price", "sys_prod_title"))
+
       val realTimeFeed = historicalFeed.map { t =>
         val row = (t._1, t._2, t._4, t._5)
         realTimeFeedCounter += 1
         row
       }
-      realTimeFeed.saveToCassandra(keySpace, tableRT, SomeColumns("sys_prod_id", "store_id", "price", "sys_prod_title"))
-      
+      realTimeFeed.saveToCassandra(keySpace, tableRT, SomeColumns("sys_prod_id", "store_id", "price", "sys_prod_title", "url"))
+
       val coreLogs = Utils.parseMEnrichMessage(messagesWithStatus.filter { case (status, msg) => logStatusFilters.contains(status) }).map {
         case (msg, msgMap) =>
           //yyyy-mm-dd'T'HH:mm:ssZ  2015-07-15T16:25:52.325Z
           val date = DateTime.parse(msgMap.apply("lastUpdatedTime")).toDate() //,DateTimeFormat.forPattern("yyyy-mm-dd'T'HH:mm:ssZ"));
-          val row = (date,msgMap.apply("errorMessage"), msgMap.apply("url"), msgMap.apply("patternsText")
-              ,msgMap.apply("domain"),msgMap.apply("price"),msgMap.apply("updatedPrice"),msgMap.apply("exception")
-              ,msgMap.apply("modelPrice"),msgMap.apply("stackTrace"),msgMap.apply("issue") ,msgMap.apply("patternsHtml")
-              ,msgMap.apply("prodId"),msgMap.apply("lastScrapedTime"),msgMap.apply("errorLocation"),msgMap.apply("title")
-              ,msgMap.apply("html"),msgMap.apply("shipping"),Utils.getPriceFromMsgMap(msgMap))
+          val row = (date, msgMap.apply("errorMessage"), msgMap.apply("url"), msgMap.apply("patternsText"), msgMap.apply("domain"), msgMap.apply("price"), msgMap.apply("updatedPrice"), msgMap.apply("exception"), msgMap.apply("modelPrice"), msgMap.apply("stackTrace"), msgMap.apply("issue"), msgMap.apply("patternsHtml"), msgMap.apply("prodId"), msgMap.apply("lastScrapedTime"), msgMap.apply("errorLocation"), msgMap.apply("title"), msgMap.apply("html"), msgMap.apply("shipping"), Utils.getPriceFromMsgMap(msgMap))
           row
       }.cache
-      coreLogs.saveToCassandra(keySpace, tableCL,SomeColumns("lastupdatedtime","errormessage","url","patternstext","domain","price","updatedprice","exception","modelprice","stacktrace","issue","patternshtml","prodid","lastscrapedtime","errorlocation","title","html","shipping","selectedprice"))
+      coreLogs.saveToCassandra(keySpace, tableCL, SomeColumns("lastupdatedtime", "errormessage", "url", "patternstext", "domain", "price", "updatedprice", "exception", "modelprice", "stacktrace", "issue", "patternshtml", "prodid", "lastscrapedtime", "errorlocation", "title", "html", "shipping", "selectedprice"))
       messagesWithStatus
-      .filter { case (status, msg) => logStatusFilters.contains(status) }.map { case (status, msg) => msg }
-      .foreachRDD { rdd =>
+        .filter { case (status, msg) => logStatusFilters.contains(status) }.map { case (status, msg) => msg }
+        .foreachRDD { rdd =>
           //Utils.pushByteRDD2Kafka(rdd, "", brokers, logTopic)
           //println("!@!@!@!@!   inputMessagesCounter " + inputMessagesCounter)
           //println("!@!@!@!@!   parsedMessagesCounter " + parsedMessagesCounter)
@@ -295,7 +290,7 @@ object Htmls2Cassandra {
           println("!@!@!@!@!   allFalseCandidsCounter " + allFalseCandidsCounter.value)
 
           println("!@!@!@!@!   exceptionCounter " + exceptionCounter)
-      }
+        }
       /*
       messagesWithStatus.foreachRDD{rdd =>
         // check stop condition

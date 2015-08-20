@@ -12,8 +12,8 @@ import um.re.utils.Utils
 import java.util.Calendar
 import java.text.SimpleDateFormat
 
-object BadDomAnalVer3 {
- case class Temp(domain: String, numBadSeed: Long)
+object BadDomAnalVer4 {
+  case class Temp(domain: String, numBadSeed: Long)
  case class Seed(domain: String, SeedPerDom: Long)
  def main(args:Array[String]) {
     val conf = new SparkConf()
@@ -73,8 +73,9 @@ object BadDomAnalVer3 {
     
     
     //calculate number of seeds per domain UpdatedCoreLogsData.filter(UpdatedCoreLogsData("store_id") === "abglovesandabrasives.com").count
-    val realTime =cc.sql("SELECT store_id,sys_prod_id,price FROM " + keySpace + "." + tableRT)
-    val seedPerDomain=realTime.groupBy("store_id").agg(max(realTime("store_id")) as "domain", count(realTime("store_id")) as "SeedPerDom").cache
+     val maxLastUpdatedTime = coreLogsData.agg(max(coreLogsData("lastupdatedtime"))).rdd.take(1).mkString("").take(11).drop(1)
+     val realTime = coreLogsData.filter(coreLogsData("lastupdatedtime") >= maxLastUpdatedTime).cache
+     val seedPerDomain=realTime.groupBy("domain").agg(max(realTime("domain")) as "domain", count(realTime("domain")) as "SeedPerDom").cache
     //seedPerDomain.filter(seedPerDomain("domain") === "aceofficemachines.com").show()  abglovesandabrasives.com
     
   
@@ -95,7 +96,7 @@ object BadDomAnalVer3 {
                  )
     
     //Real-time prices 
-    val realTimePrices = realTime.select(realTime("price"),realTime("sys_prod_id") as "prodid",realTime("store_id") as "domain")
+    val realTimePrices = realTime.select(realTime("price"),realTime("prodid") ,realTime("domain") )
    // coreLogsData.unpersist  
     //Join between avgPrices and realTimePrices
     val JoinedTable = allAvgIndices.join(realTimePrices,allAvgIndices("prodid")===realTimePrices("prodid")) .select(
@@ -122,27 +123,27 @@ object BadDomAnalVer3 {
                  ).cache
     
       val format = new SimpleDateFormat("dd-MM-y")
-      format.format(Calendar.getInstance().getTime())
+      val dt = format.format(Calendar.getInstance().getTime())
     //primePrice compared to pattern price
     val PrimePatternRes= makeComparison(UpdatedCoreLogsData,SeedsDomain,"updatedprice","price",threshold,"PrimePatternComparison")
-    PrimePatternRes.rdd.coalesce(1, false).saveAsTextFile(path+"/"+ format + "/PrimePatternComparison")
+    PrimePatternRes.rdd.coalesce(1, false).saveAsTextFile(path+"/"+ dt + "/PrimePatternComparison")
     //primePrice compared to model price
     val PrimeModelRes= makeComparison(UpdatedCoreLogsData,SeedsDomain,"modelprice","price",threshold,"PrimeModelComparison")
-    PrimeModelRes.rdd.coalesce(1, false).saveAsTextFile(path+"/"+"PrimeModelComparison")
+    PrimeModelRes.rdd.coalesce(1, false).saveAsTextFile(path+"/"+ dt +"/PrimeModelComparison")
     //primePrice compared to selected price
     val PrimeSelectedRes= makeComparison(UpdatedCoreLogsData,SeedsDomain,"selectedprice","price",threshold,"PrimeSelectedComparison")
-    PrimeSelectedRes.rdd.coalesce(1, false).saveAsTextFile(path+"/"+ format + "/PrimeSelectedComparison")
+    PrimeSelectedRes.rdd.coalesce(1, false).saveAsTextFile(path+"/"+ dt + "/PrimeSelectedComparison")
     //Pattern compared to model price price
     val PatternModelRes= makeComparison(UpdatedCoreLogsData,SeedsDomain,"updatedprice","modelprice",threshold,"PatternModelComparison")
-    PatternModelRes.rdd.coalesce(1, false).saveAsTextFile(path+"/"+ format + "/PatternModelComparison")
+    PatternModelRes.rdd.coalesce(1, false).saveAsTextFile(path+"/"+ dt + "/PatternModelComparison")
     //Current selectedprice compared to all average model price
     val allAvgModelPriceRes= makeComparison(JoinedTable,SeedsDomain,"price","allAvgModelPrice",threshold,"AllModelComparison")
-    allAvgModelPriceRes.rdd.coalesce(1, false).saveAsTextFile(path+"/"+ format + "/allAvgModelPriceRes")
+    allAvgModelPriceRes.rdd.coalesce(1, false).saveAsTextFile(path+"/"+ dt + "/allAvgModelPriceRes")
     //Current selectedprice compared to average pattern price
     val allAvgPatternComparisonRes = makeComparison(JoinedTable,SeedsDomain,"price","allAvgUpdatedPrice",threshold,"AllPatternComparison")
-    allAvgPatternComparisonRes.rdd.coalesce(1, false).saveAsTextFile(path+"/"+ format + "/allAvgPatternComparisonRes")
+    allAvgPatternComparisonRes.rdd.coalesce(1, false).saveAsTextFile(path+"/"+ dt + "/allAvgPatternComparisonRes")
     //Current selectedprice compared to average selectedprice
     val allAvgSelectedPriceRes= makeComparison(JoinedTable,SeedsDomain,"price","allAvgSelectedPrice",threshold,"AllSelectedPriceComparison")
-    allAvgSelectedPriceRes.rdd.coalesce(1, false).saveAsTextFile(path+"/"+ format + "/allAvgSelectedPriceRes")    
+    allAvgSelectedPriceRes.rdd.coalesce(1, false).saveAsTextFile(path+"/"+ dt + "/allAvgSelectedPriceRes")    
   }
 }

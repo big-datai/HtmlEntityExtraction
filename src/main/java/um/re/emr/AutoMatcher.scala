@@ -33,7 +33,7 @@ object AutoMatcher {
       tableMPT = "matching_prods_by_tmsp"
       tableCMS = "cms_simulator"
       storeID = "*"
-      numParts = "20"
+      numParts = "100"
       conf.setMaster("local[*]")
     }
     // try getting inner IPs
@@ -61,8 +61,7 @@ object AutoMatcher {
       val cms = {if (storeID.equals("*"))
                   sc.cassandraTable(keySpace, tableCMS)
                 else
-                  sc.cassandraTable(keySpace, tableCMS).where("store_id = ?", storeID)}
-      .map{row => 
+                  sc.cassandraTable(keySpace, tableCMS).where("store_id = ?", storeID)}.map{row => 
         val store_id = row.get[String]("store_id") 
         val store_prod_id = row.get[String]("store_prod_id")
         //val store_prod_price = row.get[String]("store_prod_price") 
@@ -80,8 +79,7 @@ object AutoMatcher {
         (store_id+"||"+sys_prod_title,(store_id, sys_prod_title, sys_prod_id))
       }.partitionBy(partitioner)
       
-      val matchingProds = cms.join(realTimeMarketPrices)
-        .map{case(key,((store_id,store_prod_id,store_prod_title,store_prod_url),(s, sys_prod_title, sys_prod_id))) =>
+      val matchingProds = cms.join(realTimeMarketPrices).map{case(key,((store_id,store_prod_id,store_prod_title,store_prod_url),(s, sys_prod_title, sys_prod_id))) =>
            MPRowsCounter+=1
           (store_id, store_prod_id , 0 , store_prod_title , sys_prod_id , sys_prod_title ,store_prod_url) }.cache
       

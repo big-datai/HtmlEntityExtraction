@@ -1,16 +1,16 @@
 
-package um.re.analysis
+package um.re.analytics
 
 import org.apache.spark.SparkConf
 import com.utils.aws.AWSUtils
 import org.apache.spark.SparkContext
 import com.datastax.spark.connector._
-import um.re.utils.Utils
 import org.apache.spark.HashPartitioner
 import org.apache.spark.util.StatCounter
-import java.lang.Math
 import java.util.Calendar
 import java.text.SimpleDateFormat
+import org.apache.spark.rdd.RDD.rddToPairRDDFunctions
+import scala.reflect.runtime.universe
 
 /**
  * @author eran

@@ -26,7 +26,13 @@ object FilterSeeds {
     d.toString.replace(" ","").replace(":","")
     // filter data
     val dataAll = sc.textFile("s3n://AKIAJQUAOI7EBC6Y7ESQ:JhremVoqNuEYG8YS9J+duW0hFRtX+sWjuZ0vdQlE@dpavlov/seeds170820151439825456871").map{l=>(l,Utils.json2Map(Utils.string2Json(l)))} //.cache
-    val tuplelDataDom = dataAll.map(l => ((l._2.apply("domain"), Utils.map2JsonString(l._2))))
+    //val tuplelDataDom = dataAll.map(l => ((l._2.apply("domain"), Utils.map2JsonString(l._2)))).cache
+    
+    val tuplelDataDom=dataAll.map{l=>
+      val url=l._2.apply("url").toLowerCase().replace("https", "http")
+      val m=l._2-"url"
+      (m.apply("domain"), Utils.map2JsonString(m+("url"->url)))
+    }.distinct   
 
     val dataOutput = relevantDomains(tuplelDataDom, sc)
 

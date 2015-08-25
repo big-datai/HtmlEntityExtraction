@@ -19,7 +19,7 @@ object S3ToKafka { //}extends App {
     val conf = new SparkConf()
       .setAppName(getClass.getSimpleName)
 
-    var (brokers, outputTopic, inputPath, numPartitions) = ("54.83.9.85:9092", "seeds", "s3n://AKIAJQUAOI7EBC6Y7ESQ:JhremVoqNuEYG8YS9J+duW0hFRtX+sWjuZ0vdQlE@dpavlov/seedsFilteredMonAug17160933UTC2015", "3000")
+    var (brokers, outputTopic, inputPath, numPartitions) = ("54.83.9.85:9092", "seeds", "s3n://AKIAJQUAOI7EBC6Y7ESQ:JhremVoqNuEYG8YS9J+duW0hFRtX+sWjuZ0vdQlE@dpavlov/seedsFilteredMonAug24142239UTC2015", "3000")
     if (args.size == 4) {
       brokers = args(0)
       outputTopic = args(1)
@@ -28,7 +28,7 @@ object S3ToKafka { //}extends App {
     } else {
       brokers = "54.83.9.85:9092"
       outputTopic = "seeds"
-      inputPath = "s3n://AKIAJQUAOI7EBC6Y7ESQ:JhremVoqNuEYG8YS9J+duW0hFRtX+sWjuZ0vdQlE@dpavlov/seedsFilteredMonAug17160933UTC2015"
+      inputPath = "s3n://AKIAJQUAOI7EBC6Y7ESQ:JhremVoqNuEYG8YS9J+duW0hFRtX+sWjuZ0vdQlE@dpavlov/seedsFilteredMonAug24142239UTC2015"
       numPartitions = "3000"
       //conf.setMaster("local[*]")
       

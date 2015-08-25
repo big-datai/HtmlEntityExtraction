@@ -14,7 +14,7 @@ object Seeds2S3 extends App {
   val sc = new SparkContext(conf_s)
 
   def relevantDomains(tuplelDataDom: RDD[(String, String)], sc: SparkContext): RDD[(String)] = {
-    val domlist = sc.textFile("/domains.list").flatMap { l => l.split(",").filter(s => !s.equals("")) }.map(l => (l, "domain"))
+    val domlist = sc.textFile("s3n://AKIAJQUAOI7EBC6Y7ESQ:JhremVoqNuEYG8YS9J+duW0hFRtX+sWjuZ0vdQlE@dpavlov/domains.list").flatMap { l => l.split(",").filter(s => !s.equals("")) }.map(l => (l, "domain"))
    domlist.join(tuplelDataDom).map{l => l._2._2}
    // tuplelDataDom.join(Domlist).map(l => (l._1, l._2._1))
   }

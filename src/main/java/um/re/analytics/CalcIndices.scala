@@ -61,7 +61,7 @@ object CalcIndices {
     val sc = new SparkContext(conf)
     val cal = Calendar.getInstance()
     val today=cal.getTime()
-    cal.add(Calendar.DATE, -2)
+    cal.add(Calendar.DATE, -6)
     val yesterday = cal.getTime
     yesterday.setHours(0)
     yesterday.setMinutes(0)
@@ -102,10 +102,14 @@ object CalcIndices {
           (delta,(store_id, sys_prod_id, tmsp, price, sys_prod_title,delta,relativeChange))}.sorted
        val sortedByRelativeChange = sourceList.map{case(store_id, sys_prod_id, tmsp, price, sys_prod_title,delta,relativeChange)=>
           (relativeChange,(store_id, sys_prod_id, tmsp, price, sys_prod_title,delta,relativeChange))}.sorted
-        val top2ByDelta = (sortedByDelta.reverse.head,sortedByDelta.reverse.tail.head)
-        val bottom2ByDelta = (sortedByDelta.head,sortedByDelta.tail.head)
-        val top2ByRelativeChange = (sortedByRelativeChange.reverse.head,sortedByRelativeChange.reverse.tail.head)
-        val bottom2ByRelativeChange = (sortedByRelativeChange.head,sortedByRelativeChange.tail.head)
+       // val top2ByDelta = (sortedByDelta.reverse.head,sortedByDelta.reverse.tail.head)
+       // val bottom2ByDelta = (sortedByDelta.head,sortedByDelta.tail.head)
+       // val top2ByRelativeChange = (sortedByRelativeChange.reverse.head,sortedByRelativeChange.reverse.tail.head)
+       // val bottom2ByRelativeChange = (sortedByRelativeChange.head,sortedByRelativeChange.tail.head)
+          val top2ByDelta = (sortedByDelta.reverse.head,"")//sortedByDelta.reverse.tail.head)
+          val bottom2ByDelta = (sortedByDelta.head,"")//sortedByDelta.tail.head)
+          val top2ByRelativeChange = (sortedByRelativeChange.reverse.head,"")//sortedByRelativeChange.reverse.tail.head)
+          val bottom2ByRelativeChange = (sortedByRelativeChange.head,"")//sortedByRelativeChange.tail.head)
           val stores = sourceList.map{case((store_id, sys_prod_id, tmsp, price, sys_prod_title,delta,relativeChange)) =>
           (store_id,sys_prod_title)}.toList.sorted
        val stats = (top2ByDelta,bottom2ByDelta,top2ByRelativeChange,bottom2ByRelativeChange)
@@ -113,11 +117,11 @@ object CalcIndices {
         val all =  (sys_prod_id,sys_prod_id,store_id,stats) 
         val max_abs_delta_val = top2ByDelta._1._1
         val max_rel_delta_val_cont = top2ByRelativeChange._1._1
-        val max_rel_delta_val = descretize(max_rel_delta_val_cont)
+        val max_rel_delta_level = descretize(max_rel_delta_val_cont)
         val min_abs_delta_val = bottom2ByDelta._1._1
         val min_rel_delta_val_cont = bottom2ByRelativeChange._1._1
-        val min_rel_delta_val = descretize(min_rel_delta_val_cont)
-        ((store_id,sys_prod_id),(sys_prod_title,max_abs_delta_val,max_rel_delta_val,min_abs_delta_val,min_rel_delta_val))}
+        val min_rel_delta_level = descretize(min_rel_delta_val_cont)
+        ((store_id,sys_prod_id),(sys_prod_title,max_abs_delta_val,max_rel_delta_val_cont,max_rel_delta_level,min_rel_delta_val_cont,min_abs_delta_val,min_rel_delta_level))}
        results}
     
        
@@ -128,7 +132,7 @@ object CalcIndices {
         val store_id = row.get[String]("store_id")
         val price = row.get[Double]("price") 
         val url = row.get[String]("url")
-        val hot = row.get[String]("hot")
+        val hot = row.get[String]("hot_level")
         (sys_prod_id,(store_id,price,url,hot))
         }
         
@@ -170,14 +174,51 @@ object CalcIndices {
                               else 100}
                             
                           //  val t= (sys_prod_id,price,store_id,url,cnt,relPlace,cvRank)
-                            (sys_prod_id,price,store_id,url,hot,cnt,relPlace,relPlaceRank,cvRank)
+                            ((store_id,sys_prod_id),(price,url,hot,cnt,relPlace,relPlaceRank,cv,cvRank))
                             
                           }
                          FinalTuples
                 }//.saveToCassandra(keySpace, tableVPT, SomeColumns("sys_prod_id","price","domain","url","place","relplace","cvrank"))        
 
-  
-  }
-  
-  
+   
+  val t= (deltaData.join(varPosData)).map(l=>(l._1._1,l._1._2,
+            l._2._1._1,l._2._1._2,l._2._1._3,l._2._1._4,l._2._1._5,l._2._1._6,l._2._1._7,
+            l._2._2._1,l._2._2._2,l._2._2._3,l._2._2._4,l._2._2._5,l._2._2._6,l._2._2._7,l._2._2._8,
+            today))
+            
+            t.saveToCassandra(keySpace, tablePM, 
+      SomeColumns("store_id","sys_prod_id","sys_prod_title","max_abs_delta_val","max_rel_delta_val",
+          "max_rel_delta_level","min_rel_delta_val","min_abs_delta_val","min_rel_delta_level",
+          "price","url","hot_level","abs_position","relative_position","position_level","var_val","var_level","tmsp"))  
+  } 
 }
+
+
+/*
+ 
+
+ 
+CREATE TABLE demo.prod_metrics (
+    store_id text,
+    hot_level int,
+    var_level int,
+    position_level int,
+    max_rel_delta_level int,
+    min_rel_delta_level int,
+    tmsp timestamp,
+    sys_prod_id text,
+    abs_position int,
+    max_abs_delta_val double,
+    max_rel_delta_val double,
+    min_abs_delta_val double,
+    min_rel_delta_val double,
+    price double,
+    relative_position double,
+    sys_prod_title text,
+    url text,
+    var_val double,
+    PRIMARY KEY (store_id, hot_level, var_level, position_level, max_rel_delta_level, min_rel_delta_level, tmsp, sys_prod_id)
+    ) WITH CLUSTERING ORDER BY (hot_level ASC, var_level ASC, position_level ASC, max_rel_delta_level ASC, min_rel_delta_level ASC, tmsp DESC, sys_prod_id ASC)
+    AND default_time_to_live = 259200; 
+ 
+ */

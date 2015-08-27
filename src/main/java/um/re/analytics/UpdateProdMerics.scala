@@ -81,7 +81,7 @@ object UpdateProdMetrics {
     try {
       val cal = Calendar.getInstance()
       val today = cal.getTime()
-      cal.add(Calendar.DATE, -1)
+      cal.add(Calendar.DATE, -7)
       val yesterday = cal.getTime
       yesterday.setHours(0)
       yesterday.setMinutes(0)
@@ -158,7 +158,7 @@ object UpdateProdMetrics {
               val min_abs_delta_val = bottom2ByDelta._1._1
               val min_rel_delta_val_cont = bottom2ByRelativeChange._1._1
               val min_rel_delta_level = descretize(min_rel_delta_val_cont)
-              ((store_id, sys_prod_id), (sys_prod_title, max_abs_delta_val, max_rel_delta_val_cont, max_rel_delta_level, min_rel_delta_val_cont, min_abs_delta_val, min_rel_delta_level))
+              ((store_id.replace(" ", ""), sys_prod_id), (sys_prod_title, max_abs_delta_val, max_rel_delta_val_cont, max_rel_delta_level, min_rel_delta_val_cont, min_abs_delta_val, min_rel_delta_level))
           }
           hpMetricsCounter += results.size
           results
@@ -217,14 +217,14 @@ object UpdateProdMetrics {
               }
 
               //  val t= (sys_prod_id,price,store_id,url,cnt,relPlace,cvRank)
-              ((store_id, sys_prod_id), (price, url, hot, cnt, relPlace, relPlaceRank, cv, cvRank))
+              ((store_id.replace(" ", ""), sys_prod_id), (price, url, hot, cnt, relPlace, relPlaceRank, cv, cvRank))
 
           }
           rtMetricsCounter += FinalTuples.size
           FinalTuples
       }
 
-      val t = (deltaData.join(varPosData)).map { l =>
+       val t = (deltaData.join(varPosData)).map { l =>
         joinedMetricsCounter += 1
         (l._1._1, l._1._2,
           l._2._1._1, l._2._1._2, l._2._1._3, l._2._1._4, l._2._1._5, l._2._1._6, l._2._1._7,
@@ -233,9 +233,11 @@ object UpdateProdMetrics {
       }
       //"store_id","sys_prod_id","sys_prod_title","max_abs_delta_val","max_rel_delta_val","max_rel_delta_level","min_rel_delta_val","min_abs_delta_val","min_rel_delta_level","price","url","hot_level","abs_position","relative_position","position_level","var_val","var_level","tmsp"
       t.foreachPartition { it =>
+       // classOf[com.mysql.jdbc.Driver].newInstance
+        Class.forName("com.mysql.jdbc.Driver").newInstance
         val conn = DriverManager.getConnection("jdbc:mysql://" + mysqlHost + ":" + mysqlPort + "/",
-          "username",
-          "password")
+          "root",
+          "12345")
         val del = conn.prepareStatement("INSERT INTO " + mysqlDB + "." + tablePM + " (store_id,hot_level,var_level,position_level,max_rel_delta_level,min_rel_delta_level,tmsp,sys_prod_id,abs_position,max_abs_delta_val,max_rel_delta_val,min_abs_delta_val,min_rel_delta_val,price,relative_position,sys_prod_title,url,var_val) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE hot_level = values(hot_level),var_level= values(var_level),position_level= values(position_level),max_rel_delta_level= values(max_rel_delta_level),min_rel_delta_level= values(min_rel_delta_level),tmsp= values(tmsp),abs_position= values(abs_position),max_abs_delta_val= values(max_abs_delta_val),max_rel_delta_val= values(max_rel_delta_val),min_abs_delta_val= values(min_abs_delta_val),min_rel_delta_val= values(min_rel_delta_val),price = values(price),relative_position= values(relative_position),var_val = values(var_val)")
         for (tuple <- it) {
           try {
@@ -287,3 +289,5 @@ object UpdateProdMetrics {
   }
 
 }
+
+

@@ -169,10 +169,13 @@ object UpdateProdMetrics {
         val store_id = row.get[String]("store_id")
         val price = row.get[Double]("price")
         val url = row.get[String]("url")
-        val hot = row.get[String]("hot_level")
+       val hot = row.get[Option[String]]("hot_level")
         (sys_prod_id, (store_id, price, url, hot))
       }
 
+      
+      RtData.filter(l=>l._2._4.isDefined)
+        
       val varPosData = RtData.groupByKey(partitioner).flatMap {
         case (sys_prod_id, iter) =>
           var cnt = 0
@@ -243,7 +246,7 @@ object UpdateProdMetrics {
           try {
             val (store_id, sys_prod_id, sys_prod_title, max_abs_delta_val, max_rel_delta_val, max_rel_delta_level, min_rel_delta_val, min_abs_delta_val, min_rel_delta_level, price, url, hot_level, abs_position, relative_position, position_level, var_val, var_level, tmsp) = tuple
             del.setString(1, store_id)
-            del.setInt(2, hot_level.toInt)
+            del.setInt(2, hot_level.toString().toInt)//toInt)
             del.setInt(3, var_level)
             del.setInt(4, position_level)
             del.setDouble(5, max_rel_delta_level)

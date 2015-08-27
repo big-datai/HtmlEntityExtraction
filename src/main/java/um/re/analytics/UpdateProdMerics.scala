@@ -116,7 +116,8 @@ object UpdateProdMetrics {
           if (iter.count(_ => true) > 1) {
             val previousPrice = sortedList.tail.head._2._4
             val delta = currentPrice - previousPrice
-            val relativeChange = delta / previousPrice
+            val relativeChange = if ((delta/previousPrice).isNaN) 0
+                              else delta/previousPrice
             (sys_prod_id, (store_id, sys_prod_id, tmsp, price, sys_prod_title, delta, relativeChange))
           } else {
             (sys_prod_id, (store_id, sys_prod_id, tmsp, price, sys_prod_title, 0.0, 0.0))
@@ -131,7 +132,6 @@ object UpdateProdMetrics {
             case (store_id, sys_prod_id, tmsp, price, sys_prod_title, delta, relativeChange) =>
               (delta, (store_id, sys_prod_id, tmsp, price, sys_prod_title, delta, relativeChange))
           }.sorted
-          //TODO filter NaN
           val sortedByRelativeChange = sourceList.map {
             case (store_id, sys_prod_id, tmsp, price, sys_prod_title, delta, relativeChange) =>
               (relativeChange, (store_id, sys_prod_id, tmsp, price, sys_prod_title, delta, relativeChange))

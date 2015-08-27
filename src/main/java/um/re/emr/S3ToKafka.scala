@@ -19,7 +19,7 @@ object S3ToKafka { //}extends App {
     val conf = new SparkConf()
       .setAppName(getClass.getSimpleName)
 
-    var (brokers, outputTopic, inputPath, numPartitions) = ("54.83.9.85:9092", "seeds", "s3n://AKIAJQUAOI7EBC6Y7ESQ:JhremVoqNuEYG8YS9J+duW0hFRtX+sWjuZ0vdQlE@dpavlov/seedsFilteredMonAug24142239UTC2015", "3000")
+    var (brokers, outputTopic, inputPath, numPartitions) = ("localhost:9092", "seeds4", "s3n://AKIAJQUAOI7EBC6Y7ESQ:JhremVoqNuEYG8YS9J+duW0hFRtX+sWjuZ0vdQlE@dpavlov/seedsReduce4_MonAug24154530UTC2015", "100")
     if (args.size == 4) {
       brokers = args(0)
       outputTopic = args(1)
@@ -31,7 +31,7 @@ object S3ToKafka { //}extends App {
       inputPath = "s3n://AKIAJQUAOI7EBC6Y7ESQ:JhremVoqNuEYG8YS9J+duW0hFRtX+sWjuZ0vdQlE@dpavlov/seedsFilteredMonAug24142239UTC2015"
       numPartitions = "3000"
       //conf.setMaster("local[*]")
-      
+
     }
     // try getting inner IPs
     try {
@@ -51,7 +51,7 @@ object S3ToKafka { //}extends App {
 
     try {
 
-      AWSUtils.getPrivateIp(brokers.substring(0, brokers.length() - 5)) + ":9092"
+     brokers= AWSUtils.getPrivateIp(brokers.substring(0, brokers.length() - 5)) + ":9092"
 
       val rawSeeds = sc.textFile(inputPath, numPartitions.toInt) //sc.objectFile[(String)](inputPath, numPartitions.toInt).cache
       val parsedSeeds = rawSeeds.map { line =>

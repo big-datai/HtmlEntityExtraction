@@ -32,7 +32,7 @@ object Hotspots {
     d.toString.replace(" ", "").replace(":", "")
 
     val (keySpace, tableHP, tableCL) = ("demo", "historical_prices", "core_logs")
-    val hp = cc.sql("SELECT sys_prod_id, store_id,tmsp, price AS h_price, sys_prod_title FROM " + keySpace + "." + tableHP).cache
+    val hp = cc.sql("SELECT sys_prod_id, store_id,tmsp, price AS h_price, sys_prod_title FROM " + keySpace + "." + tableHP)
 
     val urlKeyData = hp.rdd.map { r =>
       val time = r.getAs[Timestamp](2)
@@ -46,19 +46,13 @@ object Hotspots {
     val partitioner = new HashPartitioner(100)
     //count number of historical price changes 
     val priceChangesPerUrl = urlKeyData.groupByKey(partitioner).mapValues { it =>
-      val tmps = it.map(p => (p._3, p._4)).toSeq.map { l =>
-        (l._1, l._2)
-      }.toMap.toArray.sortWith(_._1.getTime > _._1.getTime)
+      val tmps = it.map(p => (p._3, p._4)).toSeq.map { l => (l._1, l._2) }.toMap.toArray.sortWith(_._1.getTime > _._1.getTime)
       var sum = 0
-      for (i <- 0 to tmps.size - 2) {
-        if (math.abs(tmps.apply(i + 1)._2 - tmps.apply(i)._2) > 0.0) {
-          sum = sum + 1
-        }
-      }
+      for (i <- 0 to tmps.size - 2) { if (math.abs(tmps.apply(i + 1)._2 - tmps.apply(i)._2) > 0.0) { sum = sum + 1 } }
       (sum, it.map(v => (sum, v)))
-    }
+    }.cache
 
-    val reduce = priceChangesPerUrl.map { l => (l._1, l._2._1) }.cache //.flatMap { l => l }.cache
+    val reduce = priceChangesPerUrl.map { l => (l._1, l._2._1) }
     val r1 = reduce.filter { l => (l._2 >= 6) }
     val r2 = reduce.filter { l => (l._2 < 6 && l._2 >= 3) }
     val r3 = reduce.filter { l => (l._2 < 3 && l._2 >= 1) }
@@ -79,7 +73,7 @@ object Hotspots {
       }
     }.filter { _ != null }.cache
 
-     //save reduce seeds
+    //save reduce seeds
     val s1 = r1.join(parsedSeeds).map { l =>
       val rank = l._2._1
       val m = l._2._2 - "errorLocation" + ("errorLocation" -> "1")
@@ -102,8 +96,9 @@ object Hotspots {
     }.saveAsTextFile("s3n://AKIAJQUAOI7EBC6Y7ESQ:JhremVoqNuEYG8YS9J+duW0hFRtX+sWjuZ0vdQlE@dpavlov/seedsReduce4_" + d.toString.replace(" ", "").replace(":", ""), classOf[GzipCodec])
 
     //hot product    
-    val reduce2 = priceChangesPerUrl.map { l => (l._2._2) }.flatMap { l => l }
-
+    val reduce2 = priceChangesPerUrl.map { l => (l._2._2.head)}
+    //test
+    val test = reduce2.filter(l => l._2._1 == "1002547791")
     //uncomment for statistics
     /*
     val byProdId = reduce2.map { l => (l._2._1, l) }.groupByKey(partitioner).map { l =>
@@ -129,7 +124,9 @@ object Hotspots {
       }
       (l._1, r)
     }
-
+//test
+    val t2=byProdIdHot.filter(l=>l._1=="1002547791").collect
+    
     val rtp = cc.sql("SELECT * FROM " + keySpace + "." + "real_time_market_prices").cache
     val hotDf = byProdIdHot.toDF("sys_prod_id", "hot_level")
     val res = rtp.select("sys_prod_id", "store_id", "price", "sys_prod_title", "url").join(hotDf, hotDf("sys_prod_id") === rtp("sys_prod_id")).select(rtp("sys_prod_id"), rtp("store_id"), hotDf("hot_level"), rtp("price"), rtp("sys_prod_title"), rtp("url"))

@@ -87,7 +87,8 @@ object CalcIndices {
         if (iter.count(_ => true)>1){
         val previousPrice = sortedList.tail.head._2._4
         val delta = currentPrice-previousPrice
-        val relativeChange = delta/previousPrice
+        val relativeChange = if ((delta/previousPrice).isNaN) 0
+                              else delta/previousPrice
         (sys_prod_id,(store_id, sys_prod_id, tmsp, price, sys_prod_title,delta,relativeChange))}
         else {
           (sys_prod_id,(store_id, sys_prod_id, tmsp, price, sys_prod_title,0.0,0.0))
@@ -196,7 +197,7 @@ object CalcIndices {
 
 /*
  
-
+cassandra:
  
 CREATE TABLE demo.prod_metrics (
     store_id text,
@@ -221,4 +222,28 @@ CREATE TABLE demo.prod_metrics (
     ) WITH CLUSTERING ORDER BY (hot_level ASC, var_level ASC, position_level ASC, max_rel_delta_level ASC, min_rel_delta_level ASC, tmsp DESC, sys_prod_id ASC)
     AND default_time_to_live = 259200; 
  
+ */
+
+/* my sql:
+ CREATE TABLE prod_metrics (
+    store_id varchar(255),
+    hot_level int,
+    var_level int,
+    position_level int,
+    max_rel_delta_level int,
+    min_rel_delta_level int,
+    tmsp DATETIME,
+    sys_prod_id varchar(255),
+    abs_position int,
+    max_abs_delta_val double,
+    max_rel_delta_val double,
+    min_abs_delta_val double,
+    min_rel_delta_val double,
+    price double,
+    relative_position double,
+    sys_prod_title text,
+    url text,
+    var_val double,
+    PRIMARY KEY  (store_id,sys_prod_id)
+    );
  */

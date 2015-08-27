@@ -239,8 +239,8 @@ object UpdateProdMetrics {
        // classOf[com.mysql.jdbc.Driver].newInstance
         Class.forName("com.mysql.jdbc.Driver").newInstance
         val conn = DriverManager.getConnection("jdbc:mysql://" + mysqlHost + ":" + mysqlPort + "/",
-          "root",
-          "12345")
+          "core_user",
+          "papoogay")
         val del = conn.prepareStatement("INSERT INTO " + mysqlDB + "." + tablePM + " (store_id,hot_level,var_level,position_level,max_rel_delta_level,min_rel_delta_level,tmsp,sys_prod_id,abs_position,max_abs_delta_val,max_rel_delta_val,min_abs_delta_val,min_rel_delta_val,price,relative_position,sys_prod_title,url,var_val) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE hot_level = values(hot_level),var_level= values(var_level),position_level= values(position_level),max_rel_delta_level= values(max_rel_delta_level),min_rel_delta_level= values(min_rel_delta_level),tmsp= values(tmsp),abs_position= values(abs_position),max_abs_delta_val= values(max_abs_delta_val),max_rel_delta_val= values(max_rel_delta_val),min_abs_delta_val= values(min_abs_delta_val),min_rel_delta_val= values(min_rel_delta_val),price = values(price),relative_position= values(relative_position),var_val = values(var_val)")
         for (tuple <- it) {
           try {

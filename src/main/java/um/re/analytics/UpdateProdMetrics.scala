@@ -13,33 +13,40 @@ import java.util.Date
 import org.apache.spark.util.StatCounter
 import java.sql.{ Connection, DriverManager, ResultSet }
 
-object UpdateProdMetrics {
 
+object UpdateProdMetricsNew {
+  
   def main(args: Array[String]) {
     val conf = new SparkConf()
       .setAppName(getClass.getSimpleName)
-    var (cassandraHost, keySpace, tableHP, tableRT, tableCL, mysqlHost, mysqlPort, mysqlDB, tablePM, numParts) = ("", "", "", "", "", "", "", "", "", "")
-    if (args.size == 10) {
+    var (cassandraHost, keySpace, tableHP, tableRT, mysqlHost, mysqlPort, mysqlDB,mysqlUser,mysqlPass, tablePM, daysBack, hotLevel ,numParts) = ( "", "", "", "", "", "", "", "", "","","","","")
+    if (args.size == 12) {
       cassandraHost = args(0)
       keySpace = args(1)
       tableHP = args(2)
-      tableRT = args(3)
-      tableCL = args(4)
-      mysqlHost = args(5)
-      mysqlPort = args(6)
-      mysqlDB = args(7)
-      tablePM = args(8)
-      numParts = args(9)
+      tableRT = args(3)   
+      mysqlHost = args(4)
+      mysqlPort = args(5)
+      mysqlDB = args(6)
+      mysqlUser=args(7)
+      mysqlPass=args(8)  
+      tablePM = args(9)
+      daysBack = args(10)
+      hotLevel = args (11)
+      numParts = args(12)
     } else {
       cassandraHost = "localhost"
       keySpace = "demo"
       tableHP = "historical_prices"
       tableRT = "real_time_market_prices"
-      tableCL = "core_logs"
       mysqlHost = "localhost"
       mysqlPort = "3306"
       mysqlDB = "demo"
+      mysqlUser="core_user"
+      mysqlPass="papoogay"
       tablePM = "prod_metrics"
+      daysBack = "-1"
+      hotLevel = "1,2"
       numParts = "128"
       conf.setMaster("local[*]")
     }
@@ -81,7 +88,7 @@ object UpdateProdMetrics {
     try {
       val cal = Calendar.getInstance()
       val today = cal.getTime()
-      cal.add(Calendar.DATE, -7)
+      cal.add(Calendar.DATE, daysBack.toInt)
       val yesterday = cal.getTime
       yesterday.setHours(0)
       yesterday.setMinutes(0)
@@ -116,7 +123,7 @@ object UpdateProdMetrics {
           if (iter.count(_ => true) > 1) {
             val previousPrice = sortedList.tail.head._2._4
             val delta = currentPrice - previousPrice
-            val relativeChange = if ((delta/previousPrice).isNaN) 0
+            val relativeChange = if ((delta/previousPrice).isNaN || (delta/previousPrice).isInfinity) 0.0
                               else delta/previousPrice
             (sys_prod_id, (store_id, sys_prod_id, tmsp, price, sys_prod_title, delta, relativeChange))
           } else {
@@ -174,9 +181,25 @@ object UpdateProdMetrics {
       }
 
       
-      RtData.filter(l=>l._2._4.isDefined)
-        
-      val varPosData = RtData.groupByKey(partitioner).flatMap {
+      val FilteredRtData = RtData.filter(l=>(l._2._4.isDefined))
+      val hotLevelSet = hotLevel.split(",").toSet
+      val FinalRtData = FilteredRtData.filter(l=>hotLevelSet.contains(l._2._4.get))
+      //val prodIdList = FilteredRtData.filter(l=>hotLevelSet.contains(l._2._4.get)).map(p=>(p._1,p._1)).distinct
+     // val FinalRtData =(prodIdList.join(FilteredRtData)).map{l=>
+      //  l._2
+      //  }
+      
+      /*
+       val t = (deltaData.join(varPosData)).map { l =>
+        joinedMetricsCounter += 1
+        (l._1._1, l._1._2,
+          l._2._1._1, l._2._1._2, l._2._1._3, l._2._1._4, l._2._1._5, l._2._1._6, l._2._1._7,
+          l._2._2._1, l._2._2._2, l._2._2._3, l._2._2._4, l._2._2._5, l._2._2._6, l._2._2._7, l._2._2._8,
+          today)
+      }
+      */
+      
+      val varPosData = FinalRtData.groupByKey(partitioner).flatMap {
         case (sys_prod_id, iter) =>
           var cnt = 0
           val NewTuple = iter.map {
@@ -190,7 +213,9 @@ object UpdateProdMetrics {
           val sze = NewTuple.size
           val priceList = NewTuple.map { case (sys_prod_id, price, store_id, url, hot, cnt) => price }
           val std = Math.sqrt(StatCounter(priceList).variance).toDouble
-          val mean = StatCounter(priceList).mean
+          val mean =StatCounter(priceList).mean
+          
+         
           val FinalTuples = NewTuple.map {
             case (sys_prod_id, price, store_id, url, hot, cnt) =>
               val relPlace = (cnt.toDouble / sze)
@@ -202,10 +227,10 @@ object UpdateProdMetrics {
                 else if (cv > 0.6 && cv <= 0.85) 4
                 else 5
               }
-
+              
+                
               val relPlaceRank = {
                 if (relPlace >= 0 && relPlace <= 0.05) 5
-                else if (relPlace > 0 && relPlace <= 0.05) 5
                 else if (relPlace > 0.05 && relPlace <= 0.1) 10
                 else if (relPlace > 0.1 && relPlace <= 0.2) 20
                 else if (relPlace > 0.2 && relPlace <= 0.3) 30
@@ -218,14 +243,17 @@ object UpdateProdMetrics {
                 else if (relPlace > 0.9 && relPlace <= 0.95) 95
                 else 100
               }
-
+               
               //  val t= (sys_prod_id,price,store_id,url,cnt,relPlace,cvRank)
+              if (mean > 0.0)
               ((store_id.replace(" ", ""), sys_prod_id), (price, url, hot, cnt, relPlace, relPlaceRank, cv, cvRank))
-
+              else 
+              ((store_id.replace(" ", ""), sys_prod_id), (price, url, hot, cnt, relPlace, relPlaceRank, 0.0, 1))
           }
           rtMetricsCounter += FinalTuples.size
           FinalTuples
-      }
+          
+      }////
 
        val t = (deltaData.join(varPosData)).map { l =>
         joinedMetricsCounter += 1
@@ -235,18 +263,20 @@ object UpdateProdMetrics {
           today)
       }
       //"store_id","sys_prod_id","sys_prod_title","max_abs_delta_val","max_rel_delta_val","max_rel_delta_level","min_rel_delta_val","min_abs_delta_val","min_rel_delta_level","price","url","hot_level","abs_position","relative_position","position_level","var_val","var_level","tmsp"
-      t.foreachPartition { it =>
+      
+   //       val Filteredt = t.filter(l=>(!l._12.isDefined))
+       t.foreachPartition { it =>
        // classOf[com.mysql.jdbc.Driver].newInstance
         Class.forName("com.mysql.jdbc.Driver").newInstance
         val conn = DriverManager.getConnection("jdbc:mysql://" + mysqlHost + ":" + mysqlPort + "/",
-          "core_user",
-          "papoogay")
+          mysqlUser,
+          mysqlPass)
         val del = conn.prepareStatement("INSERT INTO " + mysqlDB + "." + tablePM + " (store_id,hot_level,var_level,position_level,max_rel_delta_level,min_rel_delta_level,tmsp,sys_prod_id,abs_position,max_abs_delta_val,max_rel_delta_val,min_abs_delta_val,min_rel_delta_val,price,relative_position,sys_prod_title,url,var_val) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE hot_level = values(hot_level),var_level= values(var_level),position_level= values(position_level),max_rel_delta_level= values(max_rel_delta_level),min_rel_delta_level= values(min_rel_delta_level),tmsp= values(tmsp),abs_position= values(abs_position),max_abs_delta_val= values(max_abs_delta_val),max_rel_delta_val= values(max_rel_delta_val),min_abs_delta_val= values(min_abs_delta_val),min_rel_delta_val= values(min_rel_delta_val),price = values(price),relative_position= values(relative_position),var_val = values(var_val)")
         for (tuple <- it) {
           try {
             val (store_id, sys_prod_id, sys_prod_title, max_abs_delta_val, max_rel_delta_val, max_rel_delta_level, min_rel_delta_val, min_abs_delta_val, min_rel_delta_level, price, url, hot_level, abs_position, relative_position, position_level, var_val, var_level, tmsp) = tuple
             del.setString(1, store_id)
-            del.setInt(2, hot_level.toString().toInt)//toInt)
+            del.setInt(2, hot_level.get.toInt)
             del.setInt(3, var_level)
             del.setInt(4, position_level)
             del.setDouble(5, max_rel_delta_level)
@@ -272,6 +302,7 @@ object UpdateProdMetrics {
               println("########  Somthing went wrong :( ")
               println("#?#?#?#?#?#?#  ExceptionMessage : " + e.getMessage +
                 "\n#?#?#?#?#?#?#  ExceptionStackTrace : " + e.getStackTraceString)
+              println(tuple)
             }
           }
         }
@@ -291,6 +322,5 @@ object UpdateProdMetrics {
     }
   }
 
+
 }
-
-

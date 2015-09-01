@@ -19,8 +19,8 @@ object UpdateProdMetricsNew {
   def main(args: Array[String]) {
     val conf = new SparkConf()
       .setAppName(getClass.getSimpleName)
-    var (cassandraHost, keySpace, tableHP, tableRT, mysqlHost, mysqlPort, mysqlDB,mysqlUser,mysqlPass, tablePM, daysBack, hotLevel ,numParts) = ( "", "", "", "", "", "", "", "", "","","","","")
-    if (args.size == 12) {
+    var (cassandraHost, keySpace, tableHP, tableRT, mysqlHost, mysqlPort, mysqlDB,mysqlUser,mysqlPass, tablePM, daysBack, hotLevel ,numParts) = ( "", "", "", "", "", "", "", "", "", "", "", "", "")
+    if (args.size == 13) {
       cassandraHost = args(0)
       keySpace = args(1)
       tableHP = args(2)

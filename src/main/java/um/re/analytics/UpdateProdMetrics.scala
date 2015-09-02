@@ -14,7 +14,7 @@ import org.apache.spark.util.StatCounter
 import java.sql.{ Connection, DriverManager, ResultSet }
 
 
-object UpdateProdMetricsNew {
+object UpdateProdMetrics {
   
   def main(args: Array[String]) {
     val conf = new SparkConf()
@@ -61,12 +61,13 @@ object UpdateProdMetricsNew {
           "\n#?#?#?#?#?#?#  ExceptionStackTrace : " + e.getStackTraceString)
       }
     }
+    
     try {
-      val innerMysqlHost = AWSUtils.getPrivateIp(cassandraHost)
+      val innerMysqlHost = AWSUtils.getPrivateIp(mysqlHost)
       mysqlHost = innerMysqlHost
     } catch {
       case e: Exception => {
-        println("#?#?#?#?#?#?#  Couldn't get inner Cassandra IP, using : " + cassandraHost +
+        println("#?#?#?#?#?#?#  Couldn't get inner mysql IP, using : " + mysqlHost +
           "\n#?#?#?#?#?#?#  ExceptionMessage : " + e.getMessage +
           "\n#?#?#?#?#?#?#  ExceptionStackTrace : " + e.getStackTraceString)
       }

@@ -13,7 +13,7 @@ import java.util.Date
 import org.apache.spark.util.StatCounter
 import java.sql.{ Connection, DriverManager, ResultSet }
 
-object UpdateProdMetrics {
+object UpdateProdMetricsOld {
 
   def main(args: Array[String]) {
     val conf = new SparkConf()

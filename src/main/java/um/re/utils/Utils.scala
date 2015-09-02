@@ -22,6 +22,7 @@ import kafka.producer.ProducerConfig
 import kafka.producer.Producer
 import kafka.producer.KeyedMessage
 import com.utils.queue.KafkaProducer
+import java.util.Calendar
 
 object Utils {
   val S3STORAGE = "s3:/"
@@ -435,6 +436,16 @@ object Utils {
 
       producer.close()
     }
+  }
+  
+  def getDateFromToday(delta:Int= -1): java.util.Date = {
+      val cal = Calendar.getInstance()
+      cal.add(Calendar.DATE, delta)
+      val yesterday = cal.getTime
+      yesterday.setHours(0)
+      yesterday.setMinutes(0)
+      yesterday.setSeconds(0)
+      yesterday
   }
 
 }   

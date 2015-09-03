@@ -34,11 +34,11 @@ object ProdMetricsV2 {
       hotLevel = args(11)
       numParts = args(12)
     } else {
-      cassandraHost = "localhost"
+      cassandraHost = "107.20.157.48"
       keySpace = "demo"
       tableHP = "historical_prices"
       tableRT = "real_time_market_prices"
-      mysqlHost = "localhost"
+      mysqlHost = "107.20.157.48"
       mysqlPort = "3306"
       mysqlDB = "demo"
       mysqlUser = "core_user"
@@ -113,7 +113,6 @@ object ProdMetricsV2 {
           } else {
             (sys_prod_id, (store_id, sys_prod_id, tmsp, price, sys_prod_title, 0.0, 0.0))
           }
-
       }
 
       val deltaData = deltas.groupByKey(partitioner).flatMap {
@@ -158,7 +157,6 @@ object ProdMetricsV2 {
         val hot = row.get[Option[String]]("hot_level")
         (sys_prod_id, (store_id, price, url, hot))
       }
-
       val FilteredRtData = RtData.filter { case (sys_prod_id, (store_id, price, url, hot)) => hot.isDefined }
       val hotLevelSet = hotLevel.split(",").toSet
       val FinalRtData = FilteredRtData.filter { case (sys_prod_id, (store_id, price, url, hot)) => hotLevelSet.contains(hot.get) }
@@ -173,7 +171,6 @@ object ProdMetricsV2 {
               cnt += 1
               (sys_prod_id, price, store_id, url, hot, cnt)
           }
-
           val sze = NewTuple.size
           val priceList = NewTuple.map { case (sys_prod_id, price, store_id, url, hot, cnt) => price }
           val std = Math.sqrt(StatCounter(priceList).variance).toDouble
@@ -192,7 +189,6 @@ object ProdMetricsV2 {
                 else if (cv > 0.6 && cv <= 0.85) 4
                 else 5
               }
-
               val relPlaceRank = {
                 if (relPlace >= 0 && relPlace <= 0.05) 5
                 else if (relPlace > 0.05 && relPlace <= 0.1) 10
@@ -214,8 +210,7 @@ object ProdMetricsV2 {
           }
           rtMetricsCounter += FinalTuples.size
           FinalTuples
-
-      } ////
+      }
 
       val t = (deltaData.join(varPosData)).map {
         case ((store_id, sys_prod_id), ((sys_prod_title, maxIncrease, maxIncreaseTo, maxIncreaseFrom, maxIncStoreId, maxIncProdId, maxDecrease, maxDecreaseTo, maxDecreaseFrom, maxDecStoreId, maxDecProdId),
@@ -224,14 +219,23 @@ object ProdMetricsV2 {
           ((store_id, sys_prod_id), ((sys_prod_title, maxIncrease, maxIncreaseTo, maxIncreaseFrom, maxIncStoreId, maxIncProdId, maxDecrease, maxDecreaseTo, maxDecreaseFrom, maxDecStoreId, maxDecProdId),
             (price, url, hot_level, abs_position, relative_position, position_level, var_val, var_level,
               meanPrice, minPrice, maxPrice)), today)
-
       }
       t.foreachPartition { it =>
         Class.forName("com.mysql.jdbc.Driver").newInstance
         val conn = DriverManager.getConnection("jdbc:mysql://" + mysqlHost + ":" + mysqlPort + "/",
           mysqlUser,
           mysqlPass)
-        val del = conn.prepareStatement("INSERT INTO " + mysqlDB + "." + tablePM + " (store_id,hot_level,var_level,position_level,tmsp,sys_prod_id,abs_position,price,relative_position,sys_prod_title,url,var_val,mean_price,min_price,max_price,max_increase,max_increase_to,max_increase_from,max_inc_store_id,max_inc_prod_id,max_decrease,max_decrease_to,max_decrease_from,max_dec_store_id,max_dec_prod_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE hot_level = values(hot_level),var_level= values(var_level),position_level= values(position_level),tmsp= values(tmsp),abs_position= values(abs_position),max_abs_delta_val= values(max_abs_delta_val),max_rel_delta_val= values(max_rel_delta_val),min_abs_delta_val= values(min_abs_delta_val),min_rel_delta_val= values(min_rel_delta_val),price = values(price),relative_position= values(relative_position),var_val = values(var_val),mean_price= values(mean_price),min_price= values(min_price),max_price= values(max_price),max_increase= values(max_increase),max_increase_to= values(max_increase_to),max_increase_from= values(max_increase_from),max_inc_store_id= values(max_inc_store_id),max_inc_prod_id= values(max_inc_prod_id),max_decrease= values(max_decrease),max_decrease_to= values(max_decrease_to),max_decrease_from= values(max_decrease_from),max_dec_store_id= values(max_dec_store_id),max_dec_prod_id= values(max_dec_prod_id)")
+        val del = conn.prepareStatement("INSERT INTO " + mysqlDB + "." + tablePM + 
+            " (store_id,hot_level,var_level,position_level,tmsp,sys_prod_id,abs_position,price,"+
+            "relative_position,sys_prod_title,url,var_val,mean_price,min_price,max_price,"+
+            "max_increase,max_increase_from_to,max_inc_merged_id,"+
+            "max_decrease,max_decrease_from_to,max_dec_merged_id) "+
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CONCAT(?,' -> ',?),CONCAT(?,'|||',?),?,CONCAT(?,' -> ',?),CONCAT(?,'|||',?))"+
+            " ON DUPLICATE KEY UPDATE hot_level = values(hot_level),var_level= values(var_level),position_level= values(position_level),"+
+            "tmsp= values(tmsp),abs_position= values(abs_position),price = values(price),relative_position= values(relative_position),"+
+            "var_val = values(var_val),mean_price= values(mean_price),min_price= values(min_price),max_price= values(max_price),"+
+            "max_increase= values(max_increase),max_increase_from_to= values(max_increase_from_to),max_inc_merged_id= values(max_inc_merged_id),"+
+            "max_decrease= values(max_decrease),max_decrease_from_to= values(max_decrease_from_to),max_dec_merged_id= values(max_dec_merged_id)")
         for (tuple <- it) {
           try {
             val (store_id, sys_prod_id) = tuple._1
@@ -254,13 +258,13 @@ object ProdMetricsV2 {
             del.setDouble(14, min_price)
             del.setDouble(15, max_price)
             del.setDouble(16, max_increase)
-            del.setDouble(17, max_increase_to)
-            del.setDouble(18, max_increase_from)
+            del.setDouble(17, max_increase_from)
+            del.setDouble(18, max_increase_to)
             del.setString(19, max_inc_store_id)
             del.setString(20, max_inc_prod_id)
             del.setDouble(21, max_decrease)
-            del.setDouble(22, max_decrease_to)
-            del.setDouble(23, max_decrease_from)
+            del.setDouble(22, max_decrease_from)
+            del.setDouble(23, max_decrease_to)
             del.setString(24, max_dec_store_id)
             del.setString(25, max_dec_prod_id)
 

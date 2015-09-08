@@ -103,9 +103,25 @@ object ProdMetricsV2 {
           }.sorted.reverse
           val (store_id, sys_prod_id, tmsp, price, sys_prod_title) = sortedList.head._2
           val currentPrice = price
-
+          
+          
+         
+          
           if (iter.count(_ => true) > 1) {
             val previousPrice = sortedList.tail.head._2._4
+            //////
+            var lastPrice=price
+            var prevPrices =  sortedList.tail//.head._2._4
+            while (lastPrice==prevPrices.head._2._4 && prevPrices.tail!=Nil){
+               lastPrice =  prevPrices.head._2._4
+               prevPrices = prevPrices.tail
+             }
+            val lastChange = (lastPrice-prevPrices.head._2._4).toDouble/prevPrices.head._2._4
+            
+            
+            
+            
+            /////
             val delta = currentPrice - previousPrice
             val relativeChange = if ((delta / previousPrice).isNaN || (delta / previousPrice).isInfinity) 0.0
             else (delta / previousPrice) * 100
@@ -177,7 +193,8 @@ object ProdMetricsV2 {
           val meanPrice = StatCounter(priceList).mean
           val maxPrice = priceList.max
           val minPrice = priceList.min
-
+          val priceDelta = (maxPrice-minPrice).toDouble/minPrice
+          
           val FinalTuples = NewTuple.map {
             case (sys_prod_id, price, store_id, url, hot, cnt) =>
               val relPlace = (cnt.toDouble / sze)
@@ -204,15 +221,20 @@ object ProdMetricsV2 {
                 else 100
               }
               if (meanPrice > 0.0)
-                ((store_id.replace(" ", ""), sys_prod_id), (price, url, hot, cnt, relPlace * 100, relPlaceRank, cv, cvRank, meanPrice, minPrice, maxPrice))
-              else
-                ((store_id.replace(" ", ""), sys_prod_id), (price, url, hot, cnt, relPlace * 100, relPlaceRank, 0.0, 1, meanPrice, minPrice, maxPrice))
-          }
-          rtMetricsCounter += FinalTuples.size
+                      ((store_id.replace(" ", ""), sys_prod_id), (price, url, hot, cnt, relPlace * 100, relPlaceRank, cv, cvRank, meanPrice, minPrice, maxPrice,priceDelta,sze))             
+                    else
+                      ((store_id.replace(" ", ""), sys_prod_id), (price, url, hot, cnt, relPlace * 100, relPlaceRank, 0.0, 1, meanPrice, minPrice, maxPrice,0.0,sze))
+                    
+                }
+          if (priceDelta < 0.3 && sze > 1)
+              rtMetricsCounter += FinalTuples.size
           FinalTuples
       }
 
-      val t = (deltaData.join(varPosData)).map {
+      val varPosDataFinal = varPosData.filter(l=> l._2._12 < 0.3 && l._2._13 > 1).map{
+        case ((store_id, sys_prod_id), (price, url, hot, cnt, relPlace, relPlaceRank, cv, cvRank, meanPrice, minPrice, maxPrice,priceDelta,sze))=>
+          ((store_id, sys_prod_id), (price, url, hot, cnt, relPlace, relPlaceRank, cv, cvRank, meanPrice, minPrice, maxPrice))}
+      val t = (deltaData.join(varPosDataFinal)).map {
         case ((store_id, sys_prod_id), ((sys_prod_title, maxIncrease, maxIncreaseTo, maxIncreaseFrom, maxIncStoreId, maxIncProdId, maxDecrease, maxDecreaseTo, maxDecreaseFrom, maxDecStoreId, maxDecProdId),
           (price, url, hot_level, abs_position, relative_position, position_level, var_val, var_level, meanPrice, minPrice, maxPrice))) =>
           joinedMetricsCounter += 1

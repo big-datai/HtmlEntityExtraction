@@ -253,11 +253,11 @@ object Htmls2Cassandra {
       historicalFeed.saveToCassandra(keySpace, tableH, SomeColumns("sys_prod_id", "store_id", "tmsp", "price", "sys_prod_title", "url"))
 
       val realTimeFeed = historicalFeed.map { t =>
-        val row = (t._1, t._2, t._4, t._5, t._5, t._6)
+        val row = (t._1, t._2, t._4, t._5, t._6)
         realTimeFeedCounter += 1
         row
       }
-      realTimeFeed.saveToCassandra(keySpace, tableRT, SomeColumns("sys_prod_id", "store_id", "price", "sys_prod_title", "lucene", "url"))
+      realTimeFeed.saveToCassandra(keySpace, tableRT, SomeColumns("sys_prod_id", "store_id", "price", "sys_prod_title", "url"))
 
       val coreLogs = Utils.parseMEnrichMessage(messagesWithStatus.filter { case (status, msg) => logStatusFilters.contains(status) }).map {
         case (msg, msgMap) =>

@@ -18,8 +18,8 @@ object S3ToKafka { //}extends App {
   def main(args: Array[String]) {
     val conf = new SparkConf()
       .setAppName(getClass.getSimpleName)
-
-    var (brokers, outputTopic, inputPath, numPartitions) = ("localhost:9092", "seeds4", "s3n://AKIAJQUAOI7EBC6Y7ESQ:JhremVoqNuEYG8YS9J+duW0hFRtX+sWjuZ0vdQlE@dpavlov/seedsReduce4_MonAug24154530UTC2015", "100")
+//./spark-shell --jars /home/ec2-user/core-1.0-SNAPSHOT-jar-with-dependencies.jar
+    var (brokers, outputTopic, inputPath, numPartitions) = ("localhost:9092", "seeds1", "s3n://AKIAJQUAOI7EBC6Y7ESQ:JhremVoqNuEYG8YS9J+duW0hFRtX+sWjuZ0vdQlE@dpavlov/seedsReduce1_MonAug24154530UTC2015", "600")
     if (args.size == 4) {
       brokers = args(0)
       outputTopic = args(1)

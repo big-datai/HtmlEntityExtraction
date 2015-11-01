@@ -9,7 +9,7 @@ import kafka.producer._
 import org.apache.spark.streaming.Seconds
 import java.util.Properties
 import um.re.utils.Utils
-import com.utils.messages.MEnrichMessage
+import com.utils.messages.BigMessage
 import kafka.serializer.DefaultEncoder
 import com.utils.aws.AWSUtils
 
@@ -55,7 +55,7 @@ object S3ToKafka { //}extends App {
 
       val rawSeeds = sc.textFile(inputPath, numPartitions.toInt) //sc.objectFile[(String)](inputPath, numPartitions.toInt).cache
       val parsedSeeds = rawSeeds.map { line =>
-        try { MEnrichMessage.string2Message(line).toJson().toString().getBytes() }
+        try { BigMessage.string2Message(line).toJson().toString().getBytes() }
         catch {
           case e: Exception => null
         }

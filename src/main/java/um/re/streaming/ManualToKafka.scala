@@ -7,7 +7,7 @@ import kafka.producer._
 import org.apache.spark.streaming.Seconds
 import java.util.Properties
 import um.re.utils.Utils
-import com.utils.messages.MEnrichMessage 
+import com.utils.messages.BigMessage 
 import kafka.serializer.DefaultEncoder
 import org.apache.spark.SparkConf
 
@@ -38,7 +38,7 @@ val seeds=sc.parallelize(List(json
 
 //loop on seeds and apply ModifiedMEnrich on each line then apply toJsonModified .toString(). then .getBytes()
     val seeds2kafka = seeds.map { line =>
-      MEnrichMessage.string2Message(line).toJson().toString().getBytes()
+      BigMessage.string2Message(line).toJson().toString().getBytes()
     }
 //Producer: launch the Array[Byte]result into kafka      
    seeds2kafka.foreachPartition { p =>

@@ -76,7 +76,7 @@ object Push2Cassandra {
 
 //      inputMessages.count().foreachRDD(rdd => { inputMessagesCounter += rdd.first() })
 
-      val historicalFeed = Utils.parseMEnrichMessage(inputMessages).map {
+      val historicalFeed = Utils.parseBigMessage(inputMessages).map {
         case (msg, msgMap) =>
          // val date = new java.util.Date()
           

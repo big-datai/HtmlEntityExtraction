@@ -24,7 +24,7 @@ import org.apache.hadoop.io.NullWritable
 import org.elasticsearch.hadoop.mr.EsOutputFormat
 import um.re.utils.Utils
 import um.re.utils.EsUtils
-import com.utils.messages.MEnrichMessage
+import com.utils.messages.BigMessage
 
 object BuildCandPatterns extends App {
   val conf_s = new SparkConf() //.setAppName("es").setMaster("yarn-cluster").set("spark.serializer", classOf[KryoSerializer].getName)
@@ -41,7 +41,7 @@ object BuildCandPatterns extends App {
   val source2 = source.map { l =>
     val dataMap = l._2.map { case (k, v) => (k.toString, v.toString) }.toMap
     val jsStr = Utils.map2JsonString(dataMap).toString()
-    val msgEmptyHtml = MEnrichMessage.string2Message(jsStr)
+    val msgEmptyHtml = BigMessage.string2Message(jsStr)
     msgEmptyHtml.sethtml("")
     (msgEmptyHtml.toJson().toString().getBytes(),dataMap)}.repartition(300) //sample(false, 0.001, 12345)
   val db = Utils.htmlsToCandidsPipe(source2)

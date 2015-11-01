@@ -9,7 +9,7 @@ import kafka.producer._
 import org.apache.spark.streaming.Seconds
 import java.util.Properties
 import um.re.utils.Utils
-import com.utils.messages.MEnrichMessage
+import com.utils.messages.BigMessage
 import kafka.serializer.DefaultEncoder
 
 object SeedsESLight2S3 extends App{

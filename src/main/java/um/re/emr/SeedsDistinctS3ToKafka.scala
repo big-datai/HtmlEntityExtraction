@@ -10,7 +10,7 @@ import org.apache.spark.streaming.Seconds
 import java.util.Properties
 import um.re.utils.Utils
 import um.re.utils.{ UConf }
-import com.utils.messages.MEnrichMessage
+import com.utils.messages.BigMessage
 import kafka.serializer.DefaultEncoder
 import com.utils.aws.AWSUtils
 
@@ -57,7 +57,7 @@ object SeedsDistinctS3ToKafka { //}extends App {
     //   val raw = dataSeeds.getDataFromS3("s3n://AKIAJQUAOI7EBC6Y7ESQ:JhremVoqNuEYG8YS9J+duW0hFRtX+sWjuZ0vdQlE@dpavlov/seeds20150516")
       val rawSeeds = sc.textFile(inputPath, numPartitions.toInt) //sc.objectFile[(String)](inputPath, numPartitions.toInt).cache
       val fetchTitle2rawSeeds= rawSeeds.map { line =>
-        try {(MEnrichMessage.string2Message(line).getTitle(), MEnrichMessage.string2Message(line)) }
+        try {(BigMessage.string2Message(line).getTitle(), BigMessage.string2Message(line)) }
         catch {
           case e: Exception => null
         }

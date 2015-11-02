@@ -54,12 +54,10 @@ object S3ToKafka { //}extends App {
 
      brokers= AWSUtils.getPrivateIp(brokers.substring(0, brokers.length() - 5)) + ":9092"
 
-      val rawSeeds = sc.textFile(inputPath, numPartitions.toInt)//.sample(true, 0.1, 123) //sc.objectFile[(String)](inputPath, numPartitions.toInt).cache
+      val rawSeeds = sc.textFile(inputPath, numPartitions.toInt).sample(true, 0.001, 123) //sc.objectFile[(String)](inputPath, numPartitions.toInt).cache
       val parsedSeeds = rawSeeds.map { line =>
         try { 
-          val res=BigMessage.string2Message(line).toJson().toString()
-          print(res)
-          res.getBytes() }
+          line.getBytes }
         catch {
           case e: Exception => null
         }

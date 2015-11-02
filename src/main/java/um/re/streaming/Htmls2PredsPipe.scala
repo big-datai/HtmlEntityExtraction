@@ -14,7 +14,7 @@ import org.apache.spark.rdd.RDD
 import um.re.transform.Transformer
 import org.apache.spark.mllib.linalg.Vectors
 import kafka.serializer.DefaultDecoder
-import com.utils.messages.MEnrichMessage
+import com.utils.messages.BigMessage
 import play.api.libs.json.Json
 import org.apache.spark._
 import scala.collection.immutable.HashMap
@@ -102,7 +102,7 @@ object Htmls2PredsPipe {
       val input = KafkaUtils.createDirectStream[String, Array[Byte], StringDecoder, DefaultDecoder](
         ssc, kafkaParams, topicsSet)
 
-      val parsed = Utils.parseMEnrichMessage(input)
+      val parsed = Utils.parseBigMessage(input)
 
       val candidates = parsed.transform(rdd => Utils.htmlsToCandidsPipe(rdd))
 
@@ -144,20 +144,20 @@ object Htmls2PredsPipe {
               selectedCandid = (0, 0, "-1")
 
             val predictedPrice = selectedCandid._3
-            val msgObj: MEnrichMessage = MEnrichMessage.string2Message(msg)
+            val msgObj: BigMessage = BigMessage.string2Message(msg)
             msgObj.setModelPrice(predictedPrice)
             msgObj.sethtml("")
             msgObj
           } catch {
             //TODO better log exceptions
             case e: Exception => {
-              val msgObj: MEnrichMessage = MEnrichMessage.string2Message(msg)
+              val msgObj: BigMessage = BigMessage.string2Message(msg)
               msgObj.setModelPrice("-2")
               msgObj.sethtml("")
-              msgObj.setM_exception(e.getMessage)
-              msgObj.setM_stackTrace(e.getStackTraceString)
-              msgObj.setM_errorLocation("Package: " + this.getClass.getPackage.getName + " Name: " + this.getClass.getName + " Step: predictions")
-              msgObj.setM_issue("ERROR")
+              msgObj.setexception(e.getMessage)
+              msgObj.setstackTrace(e.getStackTraceString)
+              msgObj.seterrorLocation("Package: " + this.getClass.getPackage.getName + " Name: " + this.getClass.getName + " Step: predictions")
+              msgObj.setissue("ERROR")
               msgObj
             }
           }
@@ -206,8 +206,8 @@ object Htmls2PredsPipe {
           allFalseCandidsCounter += 1
         }
         if (!statusFilters.contains(status)) {
-          msgObj.setM_errorLocation("Package: " + this.getClass.getPackage.getName + " Name: " + this.getClass.getName + " Step: statusing")
-          msgObj.setM_errorMessage(status)
+          msgObj.seterrorLocation("Package: " + this.getClass.getPackage.getName + " Name: " + this.getClass.getName + " Step: statusing")
+          msgObj.seterrorMessage(status)
           loggedMessagesCounter += 1
         } else
           filteredMessagesCounter += 1

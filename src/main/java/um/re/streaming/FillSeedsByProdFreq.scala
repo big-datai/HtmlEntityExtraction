@@ -11,7 +11,7 @@ import kafka.producer.ProducerConfig
 import kafka.producer.Producer
 import kafka.producer.KeyedMessage
 import um.re.utils.Utils
-import com.utils.messages.MEnrichMessage
+import com.utils.messages.BigMessage
 
 object FillSeedsByProdFreq extends App {
   val conf = new SparkConf(true)
@@ -72,7 +72,7 @@ object FillSeedsByProdFreq extends App {
       val urlList = ssc.cassandraTable(keySpace, matchesBySysProdIdCT).select("url").where("sys_prod_id = ? ", sysProdList)
         .map(r => r.getString("url"))
       val messages = ssc.cassandraTable(keySpace, messagesCT).select("json_message").where("url = ?", urlList)
-        .map(r => MEnrichMessage.string2Message(r.getString("json_message")).toJson().toString().getBytes()) 
+        .map(r => BigMessage.string2Message(r.getString("json_message")).toJson().toString().getBytes()) 
         
       Utils.pushByteRDD2Kafka(messages, outputTopic, brokers)  
       

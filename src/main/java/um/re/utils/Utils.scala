@@ -15,7 +15,6 @@ import com.gargoylesoftware.htmlunit.WebClient
 import com.gargoylesoftware.htmlunit.html.HtmlPage
 import com.gargoylesoftware.htmlunit.WebResponseData
 import org.apache.spark.mllib.tree.GradientBoostedTrees
-import com.utils.messages.MEnrichMessage
 import org.apache.spark.streaming.dstream.DStream
 import java.util.Properties
 import kafka.producer.ProducerConfig
@@ -23,6 +22,7 @@ import kafka.producer.Producer
 import kafka.producer.KeyedMessage
 import com.utils.queue.KafkaProducer
 import java.util.Calendar
+import com.utils.messages.BigMessage
 
 object Utils {
   val S3STORAGE = "s3:/"
@@ -378,10 +378,10 @@ object Utils {
     sc.parallelize(List(domainNameGrp), 1).saveAsTextFile("hdfs:///pavlovout/dscores/test/")
   }
 
-  def parseMEnrichMessage(dstream: DStream[(String, Array[Byte])]): DStream[(Array[Byte], Map[String, String])] = {
+  def parseBigMessage(dstream: DStream[(String, Array[Byte])]): DStream[(Array[Byte], Map[String, String])] = {
     dstream.map {
       case (s, msgBytes) =>
-        val msg = MEnrichMessage.string2Message(msgBytes)
+        val msg = BigMessage.string2Message(msgBytes)
         //println(msg.toJson())
         val parsedMsg: (Array[Byte], Map[String, String]) = (msgBytes, Utils.json2Map(Json.parse(msg.toJson().toString())))
         parsedMsg
@@ -428,7 +428,7 @@ object Utils {
       val r = scala.util.Random
       @transient val producer = new Producer[AnyRef, AnyRef](config)
       p.foreach { rec =>
-        if (MEnrichMessage.string2Message(rec).getM_errorMessage.equals("") && (!outputTopic.equals("")))
+        if (BigMessage.string2Message(rec).geterrorMessage.equals("") && (!outputTopic.equals("")))
           producer.send(new KeyedMessage(outputTopic, null, r.nextInt(3000).toString.getBytes, rec))
         else
           producer.send(new KeyedMessage(logTopic, rec))

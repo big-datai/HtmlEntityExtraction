@@ -2,7 +2,7 @@ package um.re.emr
 
 import org.apache.spark.SparkContext
 import org.apache.spark.SparkConf
-import com.utils.messages.MEnrichMessage
+import com.utils.messages.BigMessage
 import com.datastax.spark.connector._
 
 object FillCassandraMessages extends App {
@@ -34,7 +34,7 @@ object FillCassandraMessages extends App {
   println("Number of seeds read from file : "+seeds.count )
   val messagesRDD = seeds.map { line =>
     try{
-      val msg = MEnrichMessage.string2Message(line)
+      val msg = BigMessage.string2Message(line)
       (msg.getUrl() , msg.toJson().toString())
     } catch {
       case e: Exception => null

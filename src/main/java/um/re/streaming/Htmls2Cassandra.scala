@@ -14,7 +14,7 @@ import org.apache.spark.rdd.RDD
 import um.re.transform.Transformer
 import org.apache.spark.mllib.linalg.Vectors
 import kafka.serializer.DefaultDecoder
-import com.utils.messages.MEnrichMessage
+import com.utils.messages.BigMessage
 import play.api.libs.json.Json
 import org.apache.spark._
 import org.joda.time.DateTime
@@ -122,7 +122,7 @@ object Htmls2Cassandra {
       val kafkaParams = Map[String, String]("metadata.broker.list" -> brokers, "auto.offset.reset" -> fromOffset)
       val input = KafkaUtils.createDirectStream[String, Array[Byte], StringDecoder, DefaultDecoder](
         ssc, kafkaParams, topicsSet)
-      val parsed = Utils.parseMEnrichMessage(input)
+      val parsed = Utils.parseBigMessage(input)
 
       val candidates = parsed.transform(rdd => Utils.htmlsToCandidsPipe(rdd))
 
@@ -164,19 +164,19 @@ object Htmls2Cassandra {
               selectedCandid = (0, 0, "-1")
 
             val predictedPrice = selectedCandid._3
-            val msgObj: MEnrichMessage = MEnrichMessage.string2Message(msg)
+            val msgObj: BigMessage = BigMessage.string2Message(msg)
             msgObj.setModelPrice(predictedPrice)
             msgObj.sethtml("")
             msgObj
           } catch {
             //TODO better log exceptions
             case e: Exception => {
-              val msgObj: MEnrichMessage = MEnrichMessage.string2Message(msg)
+              val msgObj: BigMessage = BigMessage.string2Message(msg)
               msgObj.setModelPrice("-2")
               msgObj.sethtml("")
-              msgObj.setM_exception(e.getMessage)
-              msgObj.setM_stackTrace(e.getStackTraceString)
-              msgObj.setM_errorLocation("Package: " + this.getClass.getPackage.getName + " Name: " + this.getClass.getName + " Step: predictions")
+              msgObj.setexception(e.getMessage)
+              msgObj.setstackTrace(e.getStackTraceString)
+              msgObj.seterrorLocation("Package: " + this.getClass.getPackage.getName + " Name: " + this.getClass.getName + " Step: predictions")
               msgObj
             }
           }
@@ -230,10 +230,10 @@ object Htmls2Cassandra {
           status = "allFalseCandids"
           allFalseCandidsCounter += 1
         }
-        msgObj.setM_issue(status)
+        msgObj.setissue(status)
         if (logStatusFilters.contains(status)) {
-          msgObj.setM_errorLocation("Package: " + this.getClass.getPackage.getName + " Name: " + this.getClass.getName + " Step: statusing")
-          msgObj.setM_errorMessage(status)
+          msgObj.seterrorLocation("Package: " + this.getClass.getPackage.getName + " Name: " + this.getClass.getName + " Step: statusing")
+          msgObj.seterrorMessage(status)
           loggedMessagesCounter += 1
         }
         if (dbStatusFilters.contains(status))
@@ -241,7 +241,7 @@ object Htmls2Cassandra {
         (status, msgObj.toJson().toString().getBytes)
       }.cache
 
-      val historicalFeed = Utils.parseMEnrichMessage(messagesWithStatus.filter { case (status, msg) => dbStatusFilters.contains(status) }).map {
+      val historicalFeed = Utils.parseBigMessage(messagesWithStatus.filter { case (status, msg) => dbStatusFilters.contains(status) }).map {
         case (msg, msgMap) =>
           //yyyy-mm-dd'T'HH:mm:ssZ  2015-07-15T16:25:52.325Z
           val date = DateTime.parse(msgMap.apply("lastUpdatedTime")).toDate() //,DateTimeFormat.forPattern("yyyy-mm-dd'T'HH:mm:ssZ"));
@@ -250,16 +250,16 @@ object Htmls2Cassandra {
           row
       }.cache
 
-      historicalFeed.map { l => (l._1, l._2, l._3, l._4, l._5) }.saveToCassandra(keySpace, tableH, SomeColumns("sys_prod_id", "store_id", "tmsp", "price", "sys_prod_title"))
+      historicalFeed.saveToCassandra(keySpace, tableH, SomeColumns("sys_prod_id", "store_id", "tmsp", "price", "sys_prod_title", "url"))
 
       val realTimeFeed = historicalFeed.map { t =>
-        val row = (t._1, t._2, t._4, t._5,t._6)
+        val row = (t._1, t._2, t._4, t._5, t._6)
         realTimeFeedCounter += 1
         row
       }
       realTimeFeed.saveToCassandra(keySpace, tableRT, SomeColumns("sys_prod_id", "store_id", "price", "sys_prod_title", "url"))
 
-      val coreLogs = Utils.parseMEnrichMessage(messagesWithStatus.filter { case (status, msg) => logStatusFilters.contains(status) }).map {
+      val coreLogs = Utils.parseBigMessage(messagesWithStatus.filter { case (status, msg) => logStatusFilters.contains(status) }).map {
         case (msg, msgMap) =>
           //yyyy-mm-dd'T'HH:mm:ssZ  2015-07-15T16:25:52.325Z
           val date = DateTime.parse(msgMap.apply("lastUpdatedTime")).toDate() //,DateTimeFormat.forPattern("yyyy-mm-dd'T'HH:mm:ssZ"));

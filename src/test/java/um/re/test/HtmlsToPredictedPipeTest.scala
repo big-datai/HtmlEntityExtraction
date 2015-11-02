@@ -1,6 +1,6 @@
 package um.re.test
 
-import com.utils.messages.MEnrichMessage
+import com.utils.messages.BigMessage
 import um.re.utils.Utils
 import play.api.libs.json._
 import org.apache.spark.SparkContext
@@ -19,7 +19,7 @@ object HtmlsToPredictedPipeTest extends App {
     
   val dMap = sc.broadcast(sc.textFile((dMapPath), 1).collect().mkString("\n").split("\n").map(l => (l.split("\t")(0), l.split("\t")(1))).toMap)
   val msgStr =  """{"url":"http://www.lnt.com/product/hardware/796131-2860234/wooden-mallet-wooden-mallet-dw2-4-valley-series-four-seat-sofa.html?utm_source=googleproductads&utm_medium=cpc","title":"Waiting Room Furniture-Quadruple Sled-Base Sofa, Light Oak-CB","patternsHtml":"://schema.org/Offer\">\r\n <span itemprop=\"price\">\r\n (.*?)\r\n </span>\r\n <meta itemprop=\"priceCurrency\" |||_sign\">\r\n $\r\n </span>\r\n <span itemprop=\"price\">\r\n (.*?)\r\n </span>\r\n <meta itemprop=\"priceCurrency\" |||_sign\">\r\n $\r\n </span>\r\n <span itemprop=\"price\">\r\n (.*?)\r\n </span>\r\n <meta itemprop=\"priceCurrency\" |||_sign\">\r\n $\r\n </span>\r\n <span itemprop=\"price\">\r\n (.*?)\r\n </span>\r\n <meta itemprop=\"priceCurrency\" |||_sign\">\r\n $\r\n </span>\r\n <span itemprop=\"price\">\r\n (.*?)\r\n </span>\r\n <meta itemprop=\"priceCurrency\" |||_sign\">\r\n $\r\n </span>\r\n <span itemprop=\"price\">\r\n (.*?)\r\n </span>\r\n <meta itemprop=\"priceCurrency\" |||],\necomm_pagetype: 'product',\necomm_totalvalue: [\"(.*?)\"]};\n\r\n//]]>\r\n </script>\r\n <script type=\"tex|||","price":"710.0","html":"no","patternsText":"p via: White Glove Delivery: Room of Choice\nPrice:$(.*?)\n$118.33 per month*\nSpread payments over si|||olor & Quantity\nItem\nQuantity\n0 +\nSelect Color...\n$(.*?)\n$118.33 per month*\nSpread payments over si||| for a \"Bill Me Later\" account.\n$1004.00\nSave 29%\n$(.*?)\n$118.33 per month*\nSpread payments over si||| for a \"Bill Me Later\" account.\n$1004.00\nSave 29%\n$(.*?)\n$118.33 per month*\nSpread payments over si||| for a \"Bill Me Later\" account.\n$1004.00\nSave 29%\n$(.*?)\n$118.33 per month*\nSpread payments over si||| for a \"Bill Me Later\" account.\n$1004.00\nSave 29%\n$(.*?)\n$118.33 per month*\nSpread payments over si|||","shipping":"0.0","prodId":"2816313.0","domain":"lnt.com","updatedPrice":"710.0"}"""
-  val msg = MEnrichMessage.string2Message(msgStr)
+  val msg = BigMessage.string2Message(msgStr)
   msg.sethtml("""<div class="pricex" itemprop="offers" itemscope>
 		<span class="dollar_sign">$</span><span itemprop="price">710.00</span><meta itemprop="priceCurrency" content="USD">	</div>""")
   val msgObj = msg.toJson().toString().getBytes() 
@@ -66,7 +66,7 @@ object HtmlsToPredictedPipeTest extends App {
     	    selectedCandid = (0,0,"-1")
 
       val predictedPrice = selectedCandid._3
-      val msgObj : MEnrichMessage = MEnrichMessage.string2Message(msg) 
+      val msgObj : BigMessage = BigMessage.string2Message(msg) 
       msgObj.setModelPrice(predictedPrice)
       msgObj.toJson().toString().getBytes()
   }

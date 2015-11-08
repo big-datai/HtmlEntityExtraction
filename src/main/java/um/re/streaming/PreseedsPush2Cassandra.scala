@@ -87,7 +87,7 @@ object PreseedsPush2Cassandra {
           row
       }
       historicalFeed.saveToCassandra(keySpace, tableH,SomeColumns("sys_prod_id", "store_id", "tmsp", "ggl_prod_id","price", "sys_prod_title", "url"))
-      historicalFeed.print(1)
+     // historicalFeed.print(1)
       //    historicalFeed.count().foreachRDD(rdd => { historicalFeedCounter += rdd.first() })
 
       //sys_prod_id | store_id | ggl_prod_id | hot_level | price | sys_prod_title | url

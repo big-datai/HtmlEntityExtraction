@@ -174,9 +174,9 @@ object Htmls2Cassandra {
               val msgObj: BigMessage = BigMessage.string2Message(msg)
               msgObj.setModelPrice("-2")
               msgObj.sethtml("")
-              msgObj.setexception(e.getMessage)
-              msgObj.setstackTrace(e.getStackTraceString)
-              msgObj.seterrorLocation("Package: " + this.getClass.getPackage.getName + " Name: " + this.getClass.getName + " Step: predictions")
+              msgObj.setException(e.getMessage)
+              msgObj.setStackTrace(e.getStackTraceString)
+              msgObj.setErrorLocation("Package: " + this.getClass.getPackage.getName + " Name: " + this.getClass.getName + " Step: predictions")
               msgObj
             }
           }
@@ -230,10 +230,10 @@ object Htmls2Cassandra {
           status = "allFalseCandids"
           allFalseCandidsCounter += 1
         }
-        msgObj.setissue(status)
+        msgObj.setIssue(status)
         if (logStatusFilters.contains(status)) {
-          msgObj.seterrorLocation("Package: " + this.getClass.getPackage.getName + " Name: " + this.getClass.getName + " Step: statusing")
-          msgObj.seterrorMessage(status)
+          msgObj.setErrorLocation("Package: " + this.getClass.getPackage.getName + " Name: " + this.getClass.getName + " Step: statusing")
+          msgObj.setErrorMessage(status)
           loggedMessagesCounter += 1
         }
         if (dbStatusFilters.contains(status))

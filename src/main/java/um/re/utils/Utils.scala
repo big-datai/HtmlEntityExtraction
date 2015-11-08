@@ -428,7 +428,7 @@ object Utils {
       val r = scala.util.Random
       @transient val producer = new Producer[AnyRef, AnyRef](config)
       p.foreach { rec =>
-        if (BigMessage.string2Message(rec).geterrorMessage.equals("") && (!outputTopic.equals("")))
+        if (BigMessage.string2Message(rec).getErrorMessage.equals("") && (!outputTopic.equals("")))
           producer.send(new KeyedMessage(outputTopic, null, r.nextInt(3000).toString.getBytes, rec))
         else
           producer.send(new KeyedMessage(logTopic, rec))

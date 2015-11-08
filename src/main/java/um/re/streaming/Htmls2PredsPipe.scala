@@ -154,10 +154,10 @@ object Htmls2PredsPipe {
               val msgObj: BigMessage = BigMessage.string2Message(msg)
               msgObj.setModelPrice("-2")
               msgObj.sethtml("")
-              msgObj.setexception(e.getMessage)
-              msgObj.setstackTrace(e.getStackTraceString)
-              msgObj.seterrorLocation("Package: " + this.getClass.getPackage.getName + " Name: " + this.getClass.getName + " Step: predictions")
-              msgObj.setissue("ERROR")
+              msgObj.setException(e.getMessage)
+              msgObj.setStackTrace(e.getStackTraceString)
+              msgObj.setErrorLocation("Package: " + this.getClass.getPackage.getName + " Name: " + this.getClass.getName + " Step: predictions")
+              msgObj.setIssue("ERROR")
               msgObj
             }
           }
@@ -206,8 +206,8 @@ object Htmls2PredsPipe {
           allFalseCandidsCounter += 1
         }
         if (!statusFilters.contains(status)) {
-          msgObj.seterrorLocation("Package: " + this.getClass.getPackage.getName + " Name: " + this.getClass.getName + " Step: statusing")
-          msgObj.seterrorMessage(status)
+          msgObj.setErrorLocation("Package: " + this.getClass.getPackage.getName + " Name: " + this.getClass.getName + " Step: statusing")
+          msgObj.setErrorMessage(status)
           loggedMessagesCounter += 1
         } else
           filteredMessagesCounter += 1

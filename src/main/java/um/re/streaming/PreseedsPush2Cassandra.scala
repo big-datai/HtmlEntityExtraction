@@ -91,7 +91,7 @@ object PreseedsPush2Cassandra {
       //    historicalFeed.count().foreachRDD(rdd => { historicalFeedCounter += rdd.first() })
 
       //sys_prod_id | store_id | ggl_prod_id | hot_level | price | sys_prod_title | url
-      val realTimeFeed = historicalFeed.map(t => (t._1, t._2, t._4, "NO" ,t._5, t._6, t._7))
+      val realTimeFeed = historicalFeed.map(t => (t._1, t._2, t._4, 1 ,t._5, t._6, t._7))
       realTimeFeed.saveToCassandra(keySpace, tableRT, SomeColumns("sys_prod_id", "store_id", "ggl_prod_id", "hot_level", "price","sys_prod_title", "url"))
       /*      realTimeFeed.count().foreachRDD { rdd =>
         { realTimeFeedCounter += rdd.first() }

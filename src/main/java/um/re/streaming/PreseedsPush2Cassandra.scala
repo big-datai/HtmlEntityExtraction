@@ -66,33 +66,27 @@ object PreseedsPush2Cassandra {
     val sc = new SparkContext(conf)
 
     val ssc = new StreamingContext(sc, Seconds(2))
-    brokers = AWSUtils.getPrivateIp(brokers.substring(0, brokers.length() - 5)) + ":9092"
+    //brokers = AWSUtils.getPrivateIp(brokers.substring(0, brokers.length() - 5)) + ":9092"
     try {
       // Create direct kafka stream with brokers and topics
       val topicsSet = inputTopic.split(",").toSet
       val kafkaParams = Map[String, String]("metadata.broker.list" -> brokers, "auto.offset.reset" -> "smallest")
       val inputMessages = KafkaUtils.createDirectStream[String, Array[Byte], StringDecoder, DefaultDecoder](
         ssc, kafkaParams, topicsSet)
-
       //      inputMessages.count().foreachRDD(rdd => { inputMessagesCounter += rdd.first() })
-
       val historicalFeed = Utils.parseBigMessage(inputMessages).map {
         case (msg, msgMap) =>
-          // val date = new java.util.Date()
-
-          //yyyy-mm-dd'T'HH:mm:ssZ  2015-07-15T16:25:52.325Z
+          // val date = new java.util.Date()          //yyyy-mm-dd'T'HH:mm:ssZ  2015-07-15T16:25:52.325Z
           val date = DateTime.parse(msgMap.apply("lastUpdatedTime")).toDate() //,DateTimeFormat.forPattern("yyyy-mm-dd'T'HH:mm:ssZ"));
-          val row = (msgMap.apply("ggId"), msgMap.apply("domain"), date, msgMap.apply("ggId"), 
+          val row = (msgMap.apply("ggId"), msgMap.apply("domain"), date,  
               msgMap.apply("price"), msgMap.apply("title"), msgMap.apply("url"))
           row
       }
-      historicalFeed.saveToCassandra(keySpace, tableH,SomeColumns("sys_prod_id", "store_id", "tmsp", "ggl_prod_id","price", "sys_prod_title", "url"))
-     // historicalFeed.print(1)
-      //    historicalFeed.count().foreachRDD(rdd => { historicalFeedCounter += rdd.first() })
-
+      historicalFeed.saveToCassandra(keySpace, tableH,SomeColumns("sys_prod_id", "store_id", "tmsp", "price", "sys_prod_title", "url"))
+     // historicalFeed.print(1)      //    historicalFeed.count().foreachRDD(rdd => { historicalFeedCounter += rdd.first() })
       //sys_prod_id | store_id | ggl_prod_id | hot_level | price | sys_prod_title | url
-      val realTimeFeed = historicalFeed.map(t => (t._1, t._2, t._4, 1 ,t._5, t._6, t._7))
-      realTimeFeed.saveToCassandra(keySpace, tableRT, SomeColumns("sys_prod_id", "store_id", "ggl_prod_id", "hot_level", "price","sys_prod_title", "url"))
+      val realTimeFeed = historicalFeed.map(t => (t._1, t._2, 1 ,t._4, t._5, t._6))
+      realTimeFeed.saveToCassandra(keySpace, tableRT, SomeColumns("sys_prod_id", "store_id",  "hot_level", "price","sys_prod_title", "url"))
       /*      realTimeFeed.count().foreachRDD { rdd =>
         { realTimeFeedCounter += rdd.first() }
         println("!@!@!@!@!   inputMessagesCounter " + inputMessagesCounter)
@@ -110,7 +104,6 @@ object PreseedsPush2Cassandra {
           "\n#?#?#?#?#?#?#  ExceptionStackTrace : " + e.getStackTraceString)
       }
     }
-
     ssc.start()
     ssc.awaitTermination()
   }

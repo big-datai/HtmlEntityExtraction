@@ -78,10 +78,21 @@ object PreseedsPush2Cassandra {
         case (msg, msgMap) =>
           // val date = new java.util.Date()          //yyyy-mm-dd'T'HH:mm:ssZ  2015-07-15T16:25:52.325Z
           val date = DateTime.parse(msgMap.apply("lastUpdatedTime")).toDate() //,DateTimeFormat.forPattern("yyyy-mm-dd'T'HH:mm:ssZ"));
-          val row = (msgMap.apply("ggId"), msgMap.apply("domain"), date,  
-              msgMap.apply("price"), msgMap.apply("title"), msgMap.apply("url"))
+         //take total price including shipment
+          val price=
+            if(msgMap.apply("totalPrice").isEmpty())
+              {msgMap.apply("price")} else{msgMap.apply("totalPrice")}
+          
+           
+          //     val row = (msgMap.apply("ggId"), Utils.getDomain(msgMap.apply("url").substring(msgMap.apply("url").toLowerCase().indexOf("http"))), date,  
+      //        msgMap.apply("price").replaceAll(",", ""), msgMap.apply("title"), msgMap.apply("url").substring(msgMap.apply("url").toLowerCase().indexOf("http")))
+          
+          val row = (msgMap.apply("ggId"), Utils.getDomain(msgMap.apply("url")), date,  
+              price.replaceAll(",", ""), msgMap.apply("title"), msgMap.apply("url"))
+    
           row
       }
+     // val r = historicalFeed.filter(l=>l._2.contains("www.failed.com")||l._2.contains(""))
       historicalFeed.saveToCassandra(keySpace, tableH,SomeColumns("sys_prod_id", "store_id", "tmsp", "price", "sys_prod_title", "url"))
      // historicalFeed.print(1)      //    historicalFeed.count().foreachRDD(rdd => { historicalFeedCounter += rdd.first() })
       //sys_prod_id | store_id | ggl_prod_id | hot_level | price | sys_prod_title | url

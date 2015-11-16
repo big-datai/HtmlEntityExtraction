@@ -243,7 +243,8 @@ object ProdMetricsV2 {
           FinalTuples
       }
 
-      val varPosDataFinal = varPosData.filter(l=> l._2._12 < 0.3 && l._2._13 > 1).map{
+     // val varPosDataFinal = varPosData.filter(l=> l._2._12 < 0.3 && l._2._13 > 1).map{
+      val varPosDataFinal = varPosData.filter(l=> l._2._13 > 1).map{
         case ((store_id, sys_prod_id), (price, url, hot, cnt, relPlace, relPlaceRank, cv, cvRank, meanPrice, minPrice, maxPrice,priceDelta,sze))=>
           ((store_id, sys_prod_id), (price, url, hot, cnt, relPlace, relPlaceRank, cv, cvRank, meanPrice, minPrice, maxPrice))}
       val t = (deltaData.join(varPosDataFinal)).map {

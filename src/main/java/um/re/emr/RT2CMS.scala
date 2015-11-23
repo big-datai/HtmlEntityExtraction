@@ -51,11 +51,12 @@ object RT2CMS {
         val price = row.get[String]("price") 
         val sys_prod_title = row.get[String]("sys_prod_title")
         val store_prod_url = row.get[String]("url")
+        val store_domain=row.get[String]("store_domain") 
         rowsCounter += 1
-        (store_id,sys_prod_id,price,sys_prod_title,store_prod_url)
+        (store_id,sys_prod_id,store_domain,price,sys_prod_title,store_prod_url)
         }
       
-       transformedRT2CMS.saveToCassandra(keySpace, tableCMS, SomeColumns("store_id","store_prod_id" ,"store_prod_price" ,"store_prod_title","store_prod_url"))
+       transformedRT2CMS.saveToCassandra(keySpace, tableCMS, SomeColumns("store_id","store_prod_id","store_domain" ,"store_prod_price" ,"store_prod_title","store_prod_url"))
      
      println("!@!@!@!@!   rowsCounter : " + rowsCounter.value)
     } catch {

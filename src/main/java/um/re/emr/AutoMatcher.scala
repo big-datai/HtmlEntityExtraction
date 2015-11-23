@@ -67,30 +67,32 @@ object AutoMatcher {
         //val store_prod_price = row.get[String]("store_prod_price") 
         val store_prod_title = row.get[String]("store_prod_title")
         val store_prod_url = row.get[String]("store_prod_url")
+        val store_domain=row.get[String]("store_domain")
         CMSRowsCounter += 1
-        (store_id+"||"+store_prod_title,(store_id,store_prod_id,store_prod_title,store_prod_url))
+        (store_id+"||"+store_prod_title,(store_id,store_prod_id,store_domain,store_prod_title,store_prod_url))
         }.partitionBy(partitioner)
       
       val realTimeMarketPrices = sc.cassandraTable(keySpace, tableRT).map { row =>
         val store_id = row.get[String]("store_id")
         val sys_prod_id = row.get[String]("sys_prod_id")
         val sys_prod_title = row.get[String]("sys_prod_title")
+        val store_doamin=row.get[String]("store_domain")
         realTimeMarketPricesRowsCounter += 1
-        (store_id+"||"+sys_prod_title,(store_id, sys_prod_title, sys_prod_id))
+        (store_id+"||"+sys_prod_title,(store_id, sys_prod_title, store_doamin,sys_prod_id))
       }.partitionBy(partitioner)
       
-      val matchingProds = cms.join(realTimeMarketPrices).map{case(key,((store_id,store_prod_id,store_prod_title,store_prod_url),(s, sys_prod_title, sys_prod_id))) =>
+      val matchingProds = cms.join(realTimeMarketPrices).map{case(key,((store_id,store_prod_id,store_doamin,store_prod_title,store_prod_url),(s, sys_prod_title,store_domain ,sys_prod_id))) =>
            MPRowsCounter+=1
-          (store_id, store_prod_id , 0 , store_prod_title , sys_prod_id , sys_prod_title ,store_prod_url) }.cache
+          (store_id, store_prod_id ,store_domain, 0 , store_prod_title , sys_prod_id , sys_prod_title ,store_prod_url) }.cache
       
-      matchingProds.saveToCassandra(keySpace, tableMP, SomeColumns("store_id", "store_prod_id" , "analyze_ind" , "store_prod_title" , "sys_prod_id" , "sys_prod_title" ,"url"))
+      matchingProds.saveToCassandra(keySpace, tableMP, SomeColumns("store_id", "store_prod_id" ,"store_domain", "analyze_ind" , "store_prod_title" , "sys_prod_id" , "sys_prod_title" ,"url"))
       
-      val matchingProdsByTmsp = matchingProds.map{case(store_id, store_prod_id, analye_ind , store_prod_title , sys_prod_id , sys_prod_title ,url)=>
+      val matchingProdsByTmsp = matchingProds.map{case(store_id, store_prod_id, store_domain,analye_ind , store_prod_title , sys_prod_id , sys_prod_title ,url)=>
         val date = new java.util.Date
         MPTRowsCounter+=1
-        (store_id,date ,store_prod_id, store_prod_title , sys_prod_id , sys_prod_title ,url)
+        (store_id,date ,store_domain,store_prod_id, store_prod_title , sys_prod_id , sys_prod_title ,url)
         } 
-      matchingProdsByTmsp.saveToCassandra(keySpace, tableMPT, SomeColumns("store_id","tmsp", "store_prod_id" , "store_prod_title" , "sys_prod_id" , "sys_prod_title" ,"url"))
+      matchingProdsByTmsp.saveToCassandra(keySpace, tableMPT, SomeColumns("store_id","tmsp","store_domain", "store_prod_id" , "store_prod_title" , "sys_prod_id" , "sys_prod_title" ,"url"))
      
      println("!@!@!@!@!   realTimeMarketPricesRowsCounter : " + realTimeMarketPricesRowsCounter.value+
          "\n!@!@!@!@!   CMSRowsCounter : " + CMSRowsCounter.value+

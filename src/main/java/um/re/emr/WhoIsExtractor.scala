@@ -9,15 +9,15 @@ import java.io.FileWriter
  */
 object WhoIsExtractor {
   def main(args: Array[String]) {
-    val rawWhoIsFW = new FileWriter("/Users/mike/umbrella/rawWhoIs.txt", true)
-    val contactWhoIsFW = new FileWriter("/Users/mike/umbrella/contactWhoIs.txt", true)
-    val missingRawWhoIsFW = new FileWriter("/Users/mike/umbrella/missingRawWhoIs.txt", true)
-    val missingContactWhoIsFW = new FileWriter("/Users/mike/umbrella/missingContactWhoIs.txt", true)
+    val rawWhoIsFW = new FileWriter("/Users/mike/umbrella/rawWhoIs2.txt", true)
+    val contactWhoIsFW = new FileWriter("/Users/mike/umbrella/contactWhoIs2.txt", true)
+    val missingRawWhoIsFW = new FileWriter("/Users/mike/umbrella/missingRawWhoIs2.txt", true)
+    val missingContactWhoIsFW = new FileWriter("/Users/mike/umbrella/missingContactWhoIs2.txt", true)
     val rawDelimiter = "!@#@!"
 
-    val apiKey = "f4533029deafbc63u0fde266f5210e4b"
+    val apiKey = "6af1d013a3545ad55783d6a53490c492"
     val apiPath = "http://api.whoxy.com/?key=" + apiKey + "&whois="
-    val domainListPath = "/Users/mike/umbrella/10Kd.csv"
+    val domainListPath = "/Users/mike/umbrella/200d.csv"
 
     val domainList = scala.io.Source.fromFile(domainListPath).getLines()
     println("dList "+domainList)

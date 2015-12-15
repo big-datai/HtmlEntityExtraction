@@ -118,10 +118,11 @@ val z = results.repartition(5).mapPartitions { x =>
 val finalRDD=sc.parallelize(Array("MPN+Title,Num_Comp,Is_Min,Is_Max,My_Price,Min_Price,Max_Price,My_URL"))
 val finalFile=finalRDD.union(z)
 finalFile.coalesce(1, true).saveAsTextFile("/home/ec2-user/"+storeId+"_Report");
+val sze=finalFile.count()
 session.close()
 cluster.close()    
  
-  println("!@!@!@!@!   Written2CSV : " + z.count())
+  println("!@!@!@!@!   Written2CSV : " + (sze-1))
 
 } catch {
       case e: Exception => {

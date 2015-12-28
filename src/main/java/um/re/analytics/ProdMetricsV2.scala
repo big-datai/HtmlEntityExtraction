@@ -34,11 +34,11 @@ object ProdMetricsV2 {
       hotLevel = args(11)
       numParts = args(12)
     } else {
-      cassandraHost = "107.20.157.48"
+      cassandraHost = "10.167.94.105"
       keySpace = "demo"
       tableHP = "historical_prices"
       tableRT = "real_time_market_prices"
-      mysqlHost = "107.20.157.48"
+      mysqlHost = "10.167.94.105"
       mysqlPort = "3306"
       mysqlDB = "demo"
       mysqlUser = "core_user"

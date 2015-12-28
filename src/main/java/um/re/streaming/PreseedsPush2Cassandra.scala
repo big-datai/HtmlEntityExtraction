@@ -59,12 +59,12 @@ object PreseedsPush2Cassandra {
       }
     }
     conf.set("spark.cassandra.connection.host", cassandraHost)
+    val sc = new SparkContext(conf)
+
     var inputMessagesCounter = 0L
     var historicalFeedCounter = 0L
     var realTimeFeedCounter = 0L
     var exceptionCounter = 0L
-    val sc = new SparkContext(conf)
-
     val ssc = new StreamingContext(sc, Seconds(2))
     //brokers = AWSUtils.getPrivateIp(brokers.substring(0, brokers.length() - 5)) + ":9092"
     try {

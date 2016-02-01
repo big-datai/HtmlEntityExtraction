@@ -11,10 +11,10 @@ object WhoIsExtractor {
   def main(args: Array[String]) {
     
     //Set this 4  params before start
-    val workDir = "/Users/mike/umbrella/"
+    val workDir = "/home/ec2-user/whois/"
     val tmsp = (new java.util.Date).getTime
-    val domainListPath = "/Users/mike/umbrella/200d.csv"
-    val apiKey = "6af1d013a3545ad55783d6a53490c492"    
+    val domainListPath = workDir+"domains.csv"
+    val apiKey = "f4533029deafbc63u0fde266f5210e4b"    
     
     val rawWhoIsFW = new FileWriter(workDir+"rawWhoIs_"+tmsp+".txt", true)
     val contactWhoIsFW = new FileWriter(workDir+"contactWhoIs_"+tmsp+".txt", true)

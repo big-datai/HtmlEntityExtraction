@@ -8,11 +8,7 @@ import kafka.serializer.DefaultDecoder
 import um.re.utils.Utils
 import com.utils.messages.BigMessage
 import com.utils.aws.AWSUtils
-import play.api.libs.json.Json
-import java.util.Properties
-import kafka.consumer.ConsumerConfig
 import org.apache.spark.streaming.kafka.KafkaUtils
-import org.apache.spark.streaming.kafka.OffsetRange
 import org.apache.spark.streaming.StreamingContext
 import org.apache.spark.streaming.Seconds
 import org.apache.spark.streaming.dstream.PairDStreamFunctions
@@ -60,7 +56,7 @@ object Kafka2ProdXStoreReport {
 
     val sc = new SparkContext(conf)
     val ssc: StreamingContext = new StreamingContext(sc, Seconds(timeInterval.toInt))
-
+    val msgCounter = ssc.sparkContext.accumulator(0L)
     try {
       var firstRun = true
       if (!firstRun) {
@@ -77,17 +73,18 @@ object Kafka2ProdXStoreReport {
 
       val storesPerUser = parsed.map {
         case (msg, msgMap) =>
-          val storeId = msgMap.apply("storeId")
+          msgCounter+=1
+          val gglName = msgMap.apply("gglName")
           val userId = msgMap.apply("upc")
-          (userId, storeId)
+          (userId, gglName)
       }.groupByKey().map {
         case (userId, stores) =>
           val storeSet = stores.toSet.toList.sorted
           userId + "," + storeSet.mkString(",")
       }
-      storesPerUser.foreachRDD { rdd => rdd.saveAsTextFile(path2StoresReport + tmsp) }
-
-      val storesPerUserObj = scala.io.Source.fromFile(path2StoresReport + tmsp).getLines().map { l =>
+      storesPerUser.foreachRDD { rdd => rdd.saveAsTextFile(path2StoresReport + "storesPerUser/" + tmsp) }
+      
+      val storesPerUserObj = ssc.sparkContext.textFile(path2StoresReport + "storesPerUser/" + tmsp, 1).collect().map { l =>
         val line = l.split(",").toList
         (line.head, line.tail)
       }.toList
@@ -98,7 +95,7 @@ object Kafka2ProdXStoreReport {
           val grouped = parsed.map {
             case (msg, msgMap) =>
               //columns def
-              val storeId = msgMap.apply("storeId")
+              val gglName = msgMap.apply("gglName")
               //rows def
               val details = {
                 if (msgMap.apply("details").contains("Refurbished") || msgMap.apply("details").contains("Used"))
@@ -111,16 +108,16 @@ object Kafka2ProdXStoreReport {
               //data
               val url = msgMap.apply("url")
               val totalPrice = msgMap.apply("totalPrice")
-              ((ggId, details), (storeId, title, url, totalPrice))
+              ((ggId, details), (gglName, title, url, totalPrice))
           }.filter {
-            case ((ggId, details), (storeId, title, url, totalPrice)) =>
-              (compList + user).contains(storeId)
+            case ((ggId, details), (gglName, title, url, totalPrice)) =>
+              (compList + user).contains(gglName)
           }.groupByKey().map {
             case ((ggId, details), l) =>
               val title = l.head._2
               val mapComp = l.map {
-                case (storeId, title, url, totalPrice) =>
-                  (storeId, (totalPrice, url))
+                case (gglName, title, url, totalPrice) =>
+                  (gglName, (totalPrice, url))
               }.toMap
               val row = compList.map { comp => mapComp.getOrElse(comp, ("NA", "NA")) }.map { t => t._1 + "<<>>" + t._2 }
 

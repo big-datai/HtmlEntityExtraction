@@ -58,6 +58,7 @@ object Kafka2ProdXStoreReport {
     val ssc: StreamingContext = new StreamingContext(sc, Seconds(timeInterval.toInt))
     val msgCounter = ssc.sparkContext.accumulator(0L, "msgCounter")
     val storesPerUserCounter = ssc.sparkContext.accumulator(0L, "storesPerUserCounter")
+    val storesPerUserLength = ssc.sparkContext.accumulator(0L, "storesPerUserLength")
     try {
       var firstRun = true
       if (!firstRun) {
@@ -75,15 +76,17 @@ object Kafka2ProdXStoreReport {
         case (msg, msgMap) =>
           msgCounter+=1
           val gglName = msgMap.apply("gglName")
-          val userId = msgMap.apply("upc")
+          val userId = msgMap.apply("upc").trim()
           (userId, gglName)
       }.groupByKey().map {
         case (userId, stores) =>
           storesPerUserCounter+=1
           val storeSet = stores.toSet.toList.sorted
-          userId + "," + storeSet.mkString(",")
+          val line = userId + "," + storeSet.mkString(",")
+          storesPerUserLength+=line.length()
+          line
       }
-      storesPerUser.foreachRDD { rdd => rdd.saveAsTextFile(path2StoresReport + "storesPerUser/" + tmsp) }
+      storesPerUser.foreachRDD { rdd => rdd.coalesce(1, false).saveAsTextFile(path2StoresReport + "storesPerUser/" + tmsp) }
       
       val storesPerUserObj = ssc.sparkContext.textFile(path2StoresReport + "storesPerUser/" + tmsp, 1).collect().map { l =>
         val line = l.split(",").toList

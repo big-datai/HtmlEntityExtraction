@@ -57,6 +57,7 @@ object Kafka2ProdXStoreReport {
     val sc = new SparkContext(conf)
     val ssc: StreamingContext = new StreamingContext(sc, Seconds(timeInterval.toInt))
     val msgCounter = ssc.sparkContext.accumulator(0L, "msgCounter")
+    val storesPerUserCounter = ssc.sparkContext.accumulator(0L, "storesPerUserCounter")
     try {
       var firstRun = true
       if (!firstRun) {
@@ -64,7 +65,6 @@ object Kafka2ProdXStoreReport {
       }
       firstRun = false
       // Create direct kafka stream with brokers and topics
-      //TODO consider using createKafkaaStream which uses the high level consumer API
       val topicsSet = inputTopic.split(",").toSet
       val kafkaParams = Map[String, String]("metadata.broker.list" -> brokers, "auto.offset.reset" -> fromOffset)
       val input = KafkaUtils.createDirectStream[String, Array[Byte], StringDecoder, DefaultDecoder](
@@ -79,6 +79,7 @@ object Kafka2ProdXStoreReport {
           (userId, gglName)
       }.groupByKey().map {
         case (userId, stores) =>
+          storesPerUserCounter+=1
           val storeSet = stores.toSet.toList.sorted
           userId + "," + storeSet.mkString(",")
       }

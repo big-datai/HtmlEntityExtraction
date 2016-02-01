@@ -129,7 +129,6 @@ object Kafka2ProdXStoreReport {
       }
     } catch {
       case e: Exception => {
-        exceptionCounter += 1
         println("########  Somthing went wrong :( ")
         println("#?#?#?#?#?#?#  ExceptionMessage : " + e.getMessage +
           "\n#?#?#?#?#?#?#  ExceptionStackTrace : " + e.getStackTraceString)

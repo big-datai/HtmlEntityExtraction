@@ -56,7 +56,7 @@ object Kafka2ProdXStoreReport {
 
     val sc = new SparkContext(conf)
     val ssc: StreamingContext = new StreamingContext(sc, Seconds(timeInterval.toInt))
-    val msgCounter = ssc.sparkContext.accumulator(0L)
+    val msgCounter = ssc.sparkContext.accumulator(0L, "msgCounter")
     try {
       var firstRun = true
       if (!firstRun) {

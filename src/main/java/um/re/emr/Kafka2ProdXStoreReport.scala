@@ -68,7 +68,7 @@ object Kafka2ProdXStoreReport {
       val kafkaParams = Map[String, String]("metadata.broker.list" -> brokers, "auto.offset.reset" -> fromOffset)
       val input = KafkaUtils.createDirectStream[String, Array[Byte], StringDecoder, DefaultDecoder](
         ssc, kafkaParams, topicsSet)
-      val parsed = Utils.parseBigMessage(input)
+      val parsed = Utils.parseBigMessage(input).cache()
 
       val storesPerUser = parsed.map {
         case (msg, msgMap) =>
@@ -91,9 +91,11 @@ object Kafka2ProdXStoreReport {
         (line.head, line.tail)
       }.toList
       val storesBC = ssc.sparkContext.broadcast(storesPerUserObj.toMap)
-
+      var iter = 0
       storesBC.value.foreach {
         case (user, compList) =>
+          val groupedProdCounter = ssc.sparkContext.accumulator(0L, "groupedProdCounter_"+iter)
+          iter+=1
           val grouped = parsed.map {
             case (msg, msgMap) =>
               //columns def
@@ -116,6 +118,7 @@ object Kafka2ProdXStoreReport {
               (compList + user).contains(gglName)
           }.groupByKey().map {
             case ((ggId, details), l) =>
+              groupedProdCounter+=1
               val title = l.head._2
               val mapComp = l.map {
                 case (gglName, title, url, totalPrice) =>

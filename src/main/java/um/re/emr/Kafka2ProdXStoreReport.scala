@@ -39,7 +39,7 @@ object Kafka2ProdXStoreReport {
 
       conf.setMaster("local[*]")
     }
-    val tmsp = (new java.util.Date).getTime
+    
     // try getting inner IPs
     try {
       val brokerIP = brokers.split(":")(0)
@@ -56,15 +56,13 @@ object Kafka2ProdXStoreReport {
 
     val sc = new SparkContext(conf)
     val ssc: StreamingContext = new StreamingContext(sc, Seconds(timeInterval.toInt))
+    
+    val tmsp = (new java.util.Date).getTime
     val msgCounter = ssc.sparkContext.accumulator(0L, "msgCounter")
     val storesPerUserCounter = ssc.sparkContext.accumulator(0L, "storesPerUserCounter")
     val storesPerUserLength = ssc.sparkContext.accumulator(0L, "storesPerUserLength")
     try {
-      var firstRun = true
-      if (!firstRun) {
-        ssc.stop(false)
-      }
-      firstRun = false
+      
       // Create direct kafka stream with brokers and topics
       val topicsSet = inputTopic.split(",").toSet
       val kafkaParams = Map[String, String]("metadata.broker.list" -> brokers, "auto.offset.reset" -> fromOffset)
@@ -136,6 +134,7 @@ object Kafka2ProdXStoreReport {
       }
     }
     ssc.start()
-    ssc.awaitTermination()
+    ssc.awaitTerminationOrTimeout(59000)
+    ssc.stop(false)
   }
 }

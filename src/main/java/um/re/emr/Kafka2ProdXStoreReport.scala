@@ -93,7 +93,8 @@ object Kafka2ProdXStoreReport {
           storesPerUserLength += line.length()
           line
       }
-      storesPerUser.foreachRDD { rdd => rdd.coalesce(1, false).saveAsTextFile(path2StoresReport + "storesPerUser/" + tmsp) }
+      //storesPerUser.foreachRDD { rdd => rdd.coalesce(1, false).saveAsTextFile(path2StoresReport + "storesPerUser/" + tmsp) }
+      storesPerUser.transform { rdd => rdd.coalesce(1, false) }.saveAsTextFiles(path2StoresReport + "storesPerUser/" + tmsp)
 
       val storesPerUserObj = ssc.sparkContext.textFile(path2StoresReport + "storesPerUser/" + tmsp, 1).collect().map { l =>
         val line = l.split(",").toList
@@ -137,7 +138,8 @@ object Kafka2ProdXStoreReport {
 
               (details + "," + title.replaceAll(",", "") + "," + row.mkString(","))
           }
-          report.foreachRDD { rdd => rdd.coalesce(1, false).saveAsTextFile(path2StoresReport + "/" + user + tmsp) }
+          //report.foreachRDD { rdd => rdd.coalesce(1, false).saveAsTextFile(path2StoresReport  + user + tmsp) }
+          report.transform { rdd => rdd.coalesce(1, false) }.saveAsTextFiles(path2StoresReport + user)
       }
     } catch {
       case e: Exception => {

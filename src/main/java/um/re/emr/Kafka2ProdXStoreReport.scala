@@ -34,7 +34,7 @@ object Kafka2ProdXStoreReport {
       path2StoresReport = args(5)
 
     } else {
-      timeInterval = "3600"
+      timeInterval = "60"
       brokers = "54.83.9.85:9092"
       fromOffset = "smallest"
       kafkaPartitions = "100"
@@ -92,14 +92,13 @@ object Kafka2ProdXStoreReport {
           storesPerUserLength += line.length()
           line
       }
-      //storesPerUser.foreachRDD { rdd => rdd.coalesce(1, false).saveAsTextFile(path2StoresReport + "storesPerUser") }
       storesPerUser.transform { rdd => rdd.coalesce(1, false) }.saveAsTextFiles(path2StoresReport + "storesPerUser")
-
-      val storesPerUserObj = ssc.sparkContext.textFile(path2StoresReport + "storesPerUser", 1).collect().map { l =>
+      
+      val storesPerUserObj = ssc.sparkContext.textFile(path2StoresReport + "storesPerUser*", 1).collect().map { l =>
         val line = l.split(",").toList
         (line.head, line.tail)
       }.toList
-      val storesBC = ssc.sparkContext.broadcast(storesPerUserObj.toMap)
+      val storesBC = ssc.sparkContext.broadcast(storesPerUserObj)
       var iter = 0
       storesBC.value.foreach {
         case (user, compList) =>

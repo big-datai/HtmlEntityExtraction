@@ -34,7 +34,7 @@ object Kafka2ProdXStoreReport {
       path2StoresReport = args(5)
 
     } else {
-      timeInterval = "60"
+      timeInterval = "3600"
       brokers = "54.83.9.85:9092"
       fromOffset = "smallest"
       kafkaPartitions = "100"
@@ -61,83 +61,82 @@ object Kafka2ProdXStoreReport {
     val sc = new SparkContext(conf)
     val ssc: StreamingContext = new StreamingContext(sc, Seconds(timeInterval.toInt))
 
+    
     val tmsp = (new java.util.Date).getTime
     val msgCounter = ssc.sparkContext.accumulator(0L, "msgCounter")
     val storesPerUserCounter = ssc.sparkContext.accumulator(0L, "storesPerUserCounter")
     val storesPerUserLength = ssc.sparkContext.accumulator(0L, "storesPerUserLength")
     try {
 
-      if (msgCounter.value == 0L) {
-        // Create direct kafka stream with brokers and topics
-        val topicsSet = inputTopic.split(",").toSet
-        val kafkaParams = Map[String, String]("metadata.broker.list" -> brokers, "auto.offset.reset" -> fromOffset)
+      // Create direct kafka stream with brokers and topics
+      val topicsSet = inputTopic.split(",").toSet
+      val kafkaParams = Map[String, String]("metadata.broker.list" -> brokers, "auto.offset.reset" -> fromOffset)
 
-        //val offsetRanges:Array[OffsetRange] = (0 to (kafkaPartitions.toInt-1)).toArray.map{i=> OffsetRange.create(inputTopic, i, 0, 40000) } 
-        //val inputr = KafkaUtils.createRDD[String, Array[Byte], StringDecoder, DefaultDecoder](sc, kafkaParams, offsetRanges)
+      //val offsetRanges:Array[OffsetRange] = (0 to (kafkaPartitions.toInt-1)).toArray.map{i=> OffsetRange.create(inputTopic, i, 0, 40000) } 
+      //val inputr = KafkaUtils.createRDD[String, Array[Byte], StringDecoder, DefaultDecoder](sc, kafkaParams, offsetRanges)
 
-        val input = KafkaUtils.createDirectStream[String, Array[Byte], StringDecoder, DefaultDecoder](
-          ssc, kafkaParams, topicsSet)
-        val parsed = Utils.parseBigMessage(input).cache()
+      val input = KafkaUtils.createDirectStream[String, Array[Byte], StringDecoder, DefaultDecoder](
+        ssc, kafkaParams, topicsSet)
+      val parsed = Utils.parseBigMessage(input).cache()
 
-        val storesPerUser = parsed.map {
-          case (msg, msgMap) =>
-            msgCounter += 1
-            val gglName = msgMap.apply("gglName")
-            val userId = msgMap.apply("upc").trim()
-            (userId, gglName)
-        }.groupByKey().map {
-          case (userId, stores) =>
-            storesPerUserCounter += 1
-            val storeSet = stores.toSet.toList.sorted
-            val line = userId + "," + storeSet.mkString(",")
-            storesPerUserLength += line.length()
-            line
-        }
-        storesPerUser.foreachRDD { rdd => rdd.coalesce(1, false).saveAsTextFile(path2StoresReport + "storesPerUser/" + tmsp) }
+      val storesPerUser = parsed.map {
+        case (msg, msgMap) =>
+          msgCounter += 1
+          val gglName = msgMap.apply("gglName")
+          val userId = msgMap.apply("upc").trim()
+          (userId, gglName)
+      }.groupByKey().map {
+        case (userId, stores) =>
+          storesPerUserCounter += 1
+          val storeSet = stores.toSet.toList.sorted
+          val line = userId + "," + storeSet.mkString(",")
+          storesPerUserLength += line.length()
+          line
+      }
+      storesPerUser.foreachRDD { rdd => rdd.coalesce(1, false).saveAsTextFile(path2StoresReport + "storesPerUser/" + tmsp) }
 
-        val storesPerUserObj = ssc.sparkContext.textFile(path2StoresReport + "storesPerUser/" + tmsp, 1).collect().map { l =>
-          val line = l.split(",").toList
-          (line.head, line.tail)
-        }.toList
-        val storesBC = ssc.sparkContext.broadcast(storesPerUserObj.toMap)
-        var iter = 0
-        storesBC.value.foreach {
-          case (user, compList) =>
-            val groupedProdCounter = ssc.sparkContext.accumulator(0L, "groupedProdCounter_" + iter)
-            iter += 1
-            val grouped = parsed.map {
-              case (msg, msgMap) =>
-                //columns def
-                val gglName = msgMap.apply("gglName")
-                //rows def
-                val details = {
-                  if (msgMap.apply("details").contains("Refurbished") || msgMap.apply("details").contains("Used"))
-                    "Refurb"
-                  else
-                    "New"
-                }
-                val ggId = msgMap.apply("ggId")
-                val title = msgMap.apply("title")
-                //data
-                val url = msgMap.apply("url")
-                val totalPrice = msgMap.apply("totalPrice")
-                ((ggId, details), (gglName, title, url, totalPrice))
-            }.filter {
-              case ((ggId, details), (gglName, title, url, totalPrice)) =>
-                (compList + user).contains(gglName)
-            }.groupByKey().map {
-              case ((ggId, details), l) =>
-                groupedProdCounter += 1
-                val title = l.head._2
-                val mapComp = l.map {
-                  case (gglName, title, url, totalPrice) =>
-                    (gglName, (totalPrice, url))
-                }.toMap
-                val row = compList.map { comp => mapComp.getOrElse(comp, ("NA", "NA")) }.map { t => t._1 + "<<>>" + t._2 }
+      val storesPerUserObj = ssc.sparkContext.textFile(path2StoresReport + "storesPerUser/" + tmsp, 1).collect().map { l =>
+        val line = l.split(",").toList
+        (line.head, line.tail)
+      }.toList
+      val storesBC = ssc.sparkContext.broadcast(storesPerUserObj.toMap)
+      var iter = 0
+      storesBC.value.foreach {
+        case (user, compList) =>
+          val groupedProdCounter = ssc.sparkContext.accumulator(0L, "groupedProdCounter_" + iter)
+          iter += 1
+          parsed.map {
+            case (msg, msgMap) =>
+              //columns def
+              val gglName = msgMap.apply("gglName")
+              //rows def
+              val details = {
+                if (msgMap.apply("details").contains("Refurbished") || msgMap.apply("details").contains("Used"))
+                  "Refurb"
+                else
+                  "New"
+              }
+              val ggId = msgMap.apply("ggId")
+              val title = msgMap.apply("title")
+              //data
+              val url = msgMap.apply("url")
+              val totalPrice = msgMap.apply("totalPrice")
+              ((ggId, details), (gglName, title, url, totalPrice))
+          }.filter {
+            case ((ggId, details), (gglName, title, url, totalPrice)) =>
+              (compList + user).contains(gglName)
+          }.groupByKey().map {
+            case ((ggId, details), l) =>
+              groupedProdCounter += 1
+              val title = l.head._2
+              val mapComp = l.map {
+                case (gglName, title, url, totalPrice) =>
+                  (gglName, (totalPrice, url))
+              }.toMap
+              val row = compList.map { comp => mapComp.getOrElse(comp, ("NA", "NA")) }.map { t => t._1 + "<<>>" + t._2 }
 
-                (details + "," + title.replaceAll(",", "") + "," + row.mkString(","))
-            }.foreachRDD { rdd => rdd.saveAsTextFile(path2StoresReport + "/" + user + tmsp) }
-        }
+              (details + "," + title.replaceAll(",", "") + "," + row.mkString(","))
+          }.foreachRDD { rdd => rdd.coalesce(1, false).saveAsTextFile(path2StoresReport + "/" + user + tmsp) }
       }
     } catch {
       case e: Exception => {
@@ -147,7 +146,7 @@ object Kafka2ProdXStoreReport {
       }
     }
     ssc.start()
-    ssc.awaitTermination()
-    //ssc.stop(false)
+    ssc.awaitTerminationOrTimeout(3500000)
+    ssc.stop(false)
   }
 }

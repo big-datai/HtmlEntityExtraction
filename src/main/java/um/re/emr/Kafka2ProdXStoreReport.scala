@@ -62,7 +62,6 @@ object Kafka2ProdXStoreReport {
     val ssc: StreamingContext = new StreamingContext(sc, Seconds(timeInterval.toInt))
 
     
-    val tmsp = (new java.util.Date).getTime
     val msgCounter = ssc.sparkContext.accumulator(0L, "msgCounter")
     val storesPerUserCounter = ssc.sparkContext.accumulator(0L, "storesPerUserCounter")
     val storesPerUserLength = ssc.sparkContext.accumulator(0L, "storesPerUserLength")
@@ -93,10 +92,10 @@ object Kafka2ProdXStoreReport {
           storesPerUserLength += line.length()
           line
       }
-      //storesPerUser.foreachRDD { rdd => rdd.coalesce(1, false).saveAsTextFile(path2StoresReport + "storesPerUser/" + tmsp) }
-      storesPerUser.transform { rdd => rdd.coalesce(1, false) }.saveAsTextFiles(path2StoresReport + "storesPerUser/" + tmsp)
+      //storesPerUser.foreachRDD { rdd => rdd.coalesce(1, false).saveAsTextFile(path2StoresReport + "storesPerUser") }
+      storesPerUser.transform { rdd => rdd.coalesce(1, false) }.saveAsTextFiles(path2StoresReport + "storesPerUser")
 
-      val storesPerUserObj = ssc.sparkContext.textFile(path2StoresReport + "storesPerUser/" + tmsp, 1).collect().map { l =>
+      val storesPerUserObj = ssc.sparkContext.textFile(path2StoresReport + "storesPerUser", 1).collect().map { l =>
         val line = l.split(",").toList
         (line.head, line.tail)
       }.toList
@@ -105,6 +104,7 @@ object Kafka2ProdXStoreReport {
       storesBC.value.foreach {
         case (user, compList) =>
           val groupedProdCounter = ssc.sparkContext.accumulator(0L, "groupedProdCounter_" + iter)
+          val storeData = ssc.sparkContext.broadcast((user, compList))
           iter += 1
           val report = parsed.map {
             case (msg, msgMap) =>
@@ -125,7 +125,7 @@ object Kafka2ProdXStoreReport {
               ((ggId, details), (gglName, title, url, totalPrice))
           }.filter {
             case ((ggId, details), (gglName, title, url, totalPrice)) =>
-              (compList + user).contains(gglName)
+              (storeData.value._2 + storeData.value._1).contains(gglName)
           }.groupByKey().map {
             case ((ggId, details), l) =>
               groupedProdCounter += 1
@@ -134,12 +134,12 @@ object Kafka2ProdXStoreReport {
                 case (gglName, title, url, totalPrice) =>
                   (gglName, (totalPrice, url))
               }.toMap
-              val row = compList.map { comp => mapComp.getOrElse(comp, ("NA", "NA")) }.map { t => t._1 + "<<>>" + t._2 }
+              val row = storeData.value._2.map { comp => mapComp.getOrElse(comp, ("NA", "NA")) }.map { t => t._1 + "<<>>" + t._2 }
 
               (details + "," + title.replaceAll(",", "") + "," + row.mkString(","))
           }
-          //report.foreachRDD { rdd => rdd.coalesce(1, false).saveAsTextFile(path2StoresReport  + user + tmsp) }
-          report.transform { rdd => rdd.coalesce(1, false) }.saveAsTextFiles(path2StoresReport + user)
+          //report.foreachRDD { rdd => rdd.coalesce(1, false).saveAsTextFile(path2StoresReport  + storeData.value._1 ) }
+          report.transform { rdd => rdd.coalesce(1, false) }.saveAsTextFiles(path2StoresReport + storeData.value._1)
       }
     } catch {
       case e: Exception => {

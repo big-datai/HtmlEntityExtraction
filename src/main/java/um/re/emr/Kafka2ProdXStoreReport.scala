@@ -105,7 +105,7 @@ object Kafka2ProdXStoreReport {
         case (user, compList) =>
           val groupedProdCounter = ssc.sparkContext.accumulator(0L, "groupedProdCounter_" + iter)
           iter += 1
-          parsed.map {
+          val report = parsed.map {
             case (msg, msgMap) =>
               //columns def
               val gglName = msgMap.apply("gglName")
@@ -136,7 +136,8 @@ object Kafka2ProdXStoreReport {
               val row = compList.map { comp => mapComp.getOrElse(comp, ("NA", "NA")) }.map { t => t._1 + "<<>>" + t._2 }
 
               (details + "," + title.replaceAll(",", "") + "," + row.mkString(","))
-          }.foreachRDD { rdd => rdd.coalesce(1, false).saveAsTextFile(path2StoresReport + "/" + user + tmsp) }
+          }
+          report.foreachRDD { rdd => rdd.coalesce(1, false).saveAsTextFile(path2StoresReport + "/" + user + tmsp) }
       }
     } catch {
       case e: Exception => {

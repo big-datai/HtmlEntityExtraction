@@ -138,7 +138,10 @@ object Kafka2ProdXStoreReport {
               (details + "," + title.replaceAll(",", "") + "," + row.mkString(","))
           }
           //report.foreachRDD { rdd => rdd.coalesce(1, false).saveAsTextFile(path2StoresReport  + storeData.value._1 ) }
-          report.transform { rdd => rdd.coalesce(1, false) }.saveAsTextFiles(path2StoresReport + storeData.value._1)
+          report.transform { rdd =>
+            val header = ssc.sparkContext.parallelize(Array("Condition,Title,"+storeData.value._2.mkString(",")), 1)
+            rdd.coalesce(1, false)
+            header.union(rdd) }.saveAsTextFiles(path2StoresReport + storeData.value._1)
       }
     } catch {
       case e: Exception => {

@@ -1,6 +1,5 @@
 package um.re.analytics
 
-
 import org.apache.spark._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.SparkContext
@@ -18,7 +17,7 @@ import org.apache.spark.streaming.dstream.PairDStreamFunctions
  * @author mike
  */
 object Kafka2ProdXStoreReport {
-  
+
   def main(args: Array[String]) {
     val conf = new SparkConf()
       .setAppName(getClass.getSimpleName)
@@ -60,7 +59,6 @@ object Kafka2ProdXStoreReport {
     val sc = new SparkContext(conf)
     val ssc: StreamingContext = new StreamingContext(sc, Seconds(timeInterval.toInt))
 
-    
     val msgCounter = ssc.sparkContext.accumulator(0L, "msgCounter")
     try {
 
@@ -76,7 +74,7 @@ object Kafka2ProdXStoreReport {
         val line = l.split(",").toList
         (line.head, line.tail)
       }.toList
-      
+
       val storesBC = ssc.sparkContext.broadcast(storesPerUserObj)
       var iter = 0
       storesBC.value.foreach {
@@ -90,8 +88,10 @@ object Kafka2ProdXStoreReport {
               val gglName = msgMap.apply("gglName")
               //rows def
               val details = {
-                if (msgMap.apply("details").contains("Refurbished") || msgMap.apply("details").contains("Used"))
+                if (msgMap.apply("details").contains("Refurbished"))
                   "Refurb"
+                else if (msgMap.apply("details").contains("Used"))
+                  "Used"
                 else
                   "New"
               }
@@ -100,12 +100,17 @@ object Kafka2ProdXStoreReport {
               val sku = msgMap.apply("sku").replaceAll(",", "")
               //data
               val url = msgMap.apply("url")
-              val totalPrice = msgMap.apply("totalPrice")
-              ((ggId, details), (gglName, title, url, totalPrice,sku))
+              val totalPrice = {
+                if (msgMap.apply("totalPrice").length > 0)
+                  msgMap.apply("totalPrice")
+                else
+                  msgMap.apply("price")
+              }
+              ((ggId, details), (gglName, title, url, totalPrice, sku))
           }.filter {
-            case ((ggId, details), (gglName, title, url, totalPrice,sku)) =>
+            case ((ggId, details), (gglName, title, url, totalPrice, sku)) =>
               (storeData.value._2 + storeData.value._1).contains(gglName)
-          }.groupByKey().filter{
+          }.groupByKey().filter {
             case ((ggId, details), l) =>
               l.map(_._1).toList.contains(storeData.value._1)
           }.map {
@@ -114,18 +119,19 @@ object Kafka2ProdXStoreReport {
               val sku = l.head._5
               val title = l.head._2
               val mapComp = l.map {
-                case (gglName, title, url, totalPrice,sku) =>
+                case (gglName, title, url, totalPrice, sku) =>
                   (gglName, (totalPrice, url))
               }.toMap
               val row = storeData.value._2.map { comp => mapComp.getOrElse(comp, ("NA", "NA")) }.map { t => t._1 + "<<>>" + t._2 }
 
-              (details + "," +sku+","+ title.replaceAll(",", "") + "," + row.mkString(","))
+              (details + "," + sku + "," + title.replaceAll(",", "") + "," + row.mkString(","))
           }
           //report.transform { rdd => rdd.coalesce(1, false) }.saveAsTextFiles(outputPath +"perUserRep/"+ storeData.value._1)
           report.transform { rdd =>
-            val header = ssc.sparkContext.parallelize(Array("Condition,SKU,Title,"+storeData.value._2.mkString(",")), 1)
+            val header = ssc.sparkContext.parallelize(Array("Condition,SKU,Title," + storeData.value._2.mkString(",")), 1)
             val onePartRdd = rdd.coalesce(1, false)
-            header.union(onePartRdd).coalesce(1, false) }.saveAsTextFiles(outputPath+ storeData.value._1) 
+            header.union(onePartRdd).coalesce(1, false)
+          }.saveAsTextFiles(outputPath + storeData.value._1)
       }
     } catch {
       case e: Exception => {
@@ -135,7 +141,7 @@ object Kafka2ProdXStoreReport {
       }
     }
     ssc.start()
-    ssc.awaitTerminationOrTimeout(timeInterval.toInt*1000)
+    ssc.awaitTerminationOrTimeout(timeInterval.toInt * 1000)
     ssc.stop(false)
   }
 }

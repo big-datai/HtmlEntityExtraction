@@ -38,7 +38,7 @@ object Htmls2PredsPipe {
     } else {
       //by default all in root folder of hdfs
       timeInterval = "2"
-      brokers = "54.83.9.85:9092"
+      brokers = "54.225.122.3:9092"
       fromOffset = "smallest"
       inputTopic = "htmls"
       outputTopic = "preds"

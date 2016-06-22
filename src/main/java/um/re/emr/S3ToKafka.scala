@@ -27,7 +27,7 @@ object S3ToKafka { //}extends App {
       inputPath = args(2)
       numPartitions = args(3)
     } else {
-      brokers = "54.83.9.85:9092"
+      brokers = "54.225.122.3:9092"
       outputTopic = "seeds"
       inputPath = "s3n://AKIAJQUAOI7EBC6Y7ESQ:JhremVoqNuEYG8YS9J+duW0hFRtX+sWjuZ0vdQlE@dpavlov/seedsFilteredMonAug24142239UTC2015"
       numPartitions = "3000"

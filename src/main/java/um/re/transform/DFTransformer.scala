@@ -1,22 +1,10 @@
 package um.re.transform
 
-import scala.Array.canBuildFrom
-import org.apache.spark.mllib.feature.HashingTF
-import org.apache.spark.mllib.linalg.Vectors
-import org.apache.spark.mllib.regression.LabeledPoint
-import org.apache.spark.mllib.tree.model.GradientBoostedTreesModel
-import org.apache.spark.rdd.RDD
-import org.apache.spark.rdd.PairRDDFunctions
-import um.re.utils.Utils
-import org.apache.spark.mllib.tree.model.RandomForestModel
-import org.apache.spark.mllib.classification.SVMModel
-import um.re.data._
 import org.apache.spark.SparkContext
+import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.DataFrame
-import org.apache.spark.ml._
-import org.apache.spark.ml.param.ParamPair
-import org.apache.spark.sql.Row
-import org.apache.spark.sql.types.StructType
+import um.re.data._
+import um.re.utils.Utils
 
 object DFTransformer {
 

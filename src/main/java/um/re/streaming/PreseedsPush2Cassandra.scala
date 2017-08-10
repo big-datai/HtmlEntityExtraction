@@ -1,18 +1,14 @@
 package um.re.streaming
 
-import kafka.serializer.StringDecoder
-import kafka.serializer.DefaultDecoder
-import org.apache.spark.{ Logging, SparkContext, SparkConf }
-import org.apache.spark.streaming._
-import org.apache.spark.streaming.StreamingContext._
-import org.apache.spark.streaming.kafka._
-import com.datastax.spark.connector.cql.CassandraConnector
 import com.datastax.spark.connector._
 import com.datastax.spark.connector.streaming._
-import um.re.utils.Utils
-import org.joda.time.DateTime
-import org.joda.time.format.DateTimeFormat
 import com.utils.aws.AWSUtils
+import kafka.serializer.{DefaultDecoder, StringDecoder}
+import org.apache.spark.streaming._
+import org.apache.spark.streaming.kafka._
+import org.apache.spark.{SparkConf, SparkContext}
+import org.joda.time.DateTime
+import um.re.utils.Utils
 
 object PreseedsPush2Cassandra {
   def main(args: Array[String]) {
@@ -78,28 +74,34 @@ object PreseedsPush2Cassandra {
         case (msg, msgMap) =>
           // val date = new java.util.Date()          //yyyy-mm-dd'T'HH:mm:ssZ  2015-07-15T16:25:52.325Z
           val date = DateTime.parse(msgMap.apply("lastUpdatedTime")).toDate() //,DateTimeFormat.forPattern("yyyy-mm-dd'T'HH:mm:ssZ"));
-         //take total price including shipment
-          val price=
-            if(msgMap.apply("totalPrice").isEmpty())
-              {msgMap.apply("price")} else{msgMap.apply("totalPrice")}
-          
-           
+        //take total price including shipment
+        val price =
+        if (msgMap.apply("totalPrice").isEmpty()) {
+          msgMap.apply("price")
+        } else {
+          msgMap.apply("totalPrice")
+        }
+
+
           //     val row = (msgMap.apply("ggId"), Utils.getDomain(msgMap.apply("url").substring(msgMap.apply("url").toLowerCase().indexOf("http"))), date,  
-      //        msgMap.apply("price").replaceAll(",", ""), msgMap.apply("title"), msgMap.apply("url").substring(msgMap.apply("url").toLowerCase().indexOf("http")))
-          val gglName=
-            if(msgMap.apply("gglName").isEmpty())
-              {Utils.getDomain(msgMap.apply("url"))} else{msgMap.apply("gglName")}
-          val row = (msgMap.apply("ggId"),gglName,Utils.getDomain(msgMap.apply("url")), date,  
-              price.replaceAll(",", ""), msgMap.apply("title"), msgMap.apply("url"))
-    
+          //        msgMap.apply("price").replaceAll(",", ""), msgMap.apply("title"), msgMap.apply("url").substring(msgMap.apply("url").toLowerCase().indexOf("http")))
+          val gglName =
+          if (msgMap.apply("gglName").isEmpty()) {
+            Utils.getDomain(msgMap.apply("url"))
+          } else {
+            msgMap.apply("gglName")
+          }
+          val row = (msgMap.apply("ggId"), gglName, Utils.getDomain(msgMap.apply("url")), date,
+            price.replaceAll(",", ""), msgMap.apply("title"), msgMap.apply("url"))
+
           row
       }
-     // val r = historicalFeed.filter(l=>l._2.contains("www.failed.com")||l._2.contains(""))
-      historicalFeed.saveToCassandra(keySpace, tableH,SomeColumns("sys_prod_id", "store_id", "store_domain","tmsp", "price", "sys_prod_title", "url"))
-     // historicalFeed.print(1)      //    historicalFeed.count().foreachRDD(rdd => { historicalFeedCounter += rdd.first() })
+      // val r = historicalFeed.filter(l=>l._2.contains("www.failed.com")||l._2.contains(""))
+      historicalFeed.saveToCassandra(keySpace, tableH, SomeColumns("sys_prod_id", "store_id", "store_domain", "tmsp", "price", "sys_prod_title", "url"))
+      // historicalFeed.print(1)      //    historicalFeed.count().foreachRDD(rdd => { historicalFeedCounter += rdd.first() })
       //sys_prod_id | store_id | ggl_prod_id | hot_level | price | sys_prod_title | url
-      val realTimeFeed = historicalFeed.map(t => (t._1, t._2, t._3,1 ,t._5, t._6, t._7))
-      realTimeFeed.saveToCassandra(keySpace, tableRT, SomeColumns("sys_prod_id", "store_id", "store_domain" ,"hot_level", "price","sys_prod_title", "url"))
+      val realTimeFeed = historicalFeed.map(t => (t._1, t._2, t._3, 1, t._5, t._6, t._7))
+      realTimeFeed.saveToCassandra(keySpace, tableRT, SomeColumns("sys_prod_id", "store_id", "store_domain", "hot_level", "price", "sys_prod_title", "url"))
       /*      realTimeFeed.count().foreachRDD { rdd =>
         { realTimeFeedCounter += rdd.first() }
         println("!@!@!@!@!   inputMessagesCounter " + inputMessagesCounter)

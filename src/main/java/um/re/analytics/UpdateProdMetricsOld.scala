@@ -1,34 +1,29 @@
 package um.re.analytics
 
-import org.apache.spark.SparkConf
-import com.utils.aws.AWSUtils
-import org.apache.spark.SparkContext
-import com.datastax.spark.connector._
-import org.apache.spark.rdd.RDD
-import org.apache.spark.rdd.PairRDDFunctions
-import org.apache.spark.HashPartitioner
-import um.re.utils.Utils
+import java.sql.DriverManager
 import java.util.Calendar
-import java.util.Date
+
+import com.datastax.spark.connector._
+import com.utils.aws.AWSUtils
+import org.apache.spark.{HashPartitioner, SparkConf, SparkContext}
 import org.apache.spark.util.StatCounter
-import java.sql.{ Connection, DriverManager, ResultSet }
 
 object UpdateProdMetricsOld {
 
   def main(args: Array[String]) {
     val conf = new SparkConf()
       .setAppName(getClass.getSimpleName)
-    var (cassandraHost, keySpace, tableHP, tableRT, mysqlHost, mysqlPort, mysqlDB,mysqlUser,mysqlPass, tablePM, daysBack ,numParts) = ( "", "", "", "", "", "", "", "", "","","","")
+    var (cassandraHost, keySpace, tableHP, tableRT, mysqlHost, mysqlPort, mysqlDB, mysqlUser, mysqlPass, tablePM, daysBack, numParts) = ("", "", "", "", "", "", "", "", "", "", "", "")
     if (args.size == 12) {
       cassandraHost = args(0)
       keySpace = args(1)
       tableHP = args(2)
-      tableRT = args(3)   
+      tableRT = args(3)
       mysqlHost = args(4)
       mysqlPort = args(5)
       mysqlDB = args(6)
-      mysqlUser=args(7)
-      mysqlPass=args(8)  
+      mysqlUser = args(7)
+      mysqlPass = args(8)
       tablePM = args(9)
       daysBack = args(10)
       numParts = args(11)
@@ -40,8 +35,8 @@ object UpdateProdMetricsOld {
       mysqlHost = "localhost"
       mysqlPort = "3306"
       mysqlDB = "demo"
-      mysqlUser="core_user"
-      mysqlPass="papoogay"
+      mysqlUser = "core_user"
+      mysqlPass = "papoogay"
       tablePM = "prod_metrics"
       daysBack = "-1"
       numParts = "128"
@@ -120,8 +115,8 @@ object UpdateProdMetricsOld {
           if (iter.count(_ => true) > 1) {
             val previousPrice = sortedList.tail.head._2._4
             val delta = currentPrice - previousPrice
-            val relativeChange = if ((delta/previousPrice).isNaN || (delta/previousPrice).isInfinity) 0.0
-                              else delta/previousPrice
+            val relativeChange = if ((delta / previousPrice).isNaN || (delta / previousPrice).isInfinity) 0.0
+            else delta / previousPrice
             (sys_prod_id, (store_id, sys_prod_id, tmsp, price, sys_prod_title, delta, relativeChange))
           } else {
             (sys_prod_id, (store_id, sys_prod_id, tmsp, price, sys_prod_title, 0.0, 0.0))
@@ -145,13 +140,13 @@ object UpdateProdMetricsOld {
           // val top2ByRelativeChange = (sortedByRelativeChange.reverse.head,sortedByRelativeChange.reverse.tail.head)
           // val bottom2ByRelativeChange = (sortedByRelativeChange.head,sortedByRelativeChange.tail.head)
           val top2ByDelta = (sortedByDelta.reverse.head, "") //sortedByDelta.reverse.tail.head)
-          val bottom2ByDelta = (sortedByDelta.head, "") //sortedByDelta.tail.head)
-          val top2ByRelativeChange = (sortedByRelativeChange.reverse.head, "") //sortedByRelativeChange.reverse.tail.head)
-          val bottom2ByRelativeChange = (sortedByRelativeChange.head, "") //sortedByRelativeChange.tail.head)
-          val stores = sourceList.map {
-            case ((store_id, sys_prod_id, tmsp, price, sys_prod_title, delta, relativeChange)) =>
-              (store_id, sys_prod_title)
-          }.toList.sorted
+        val bottom2ByDelta = (sortedByDelta.head, "") //sortedByDelta.tail.head)
+        val top2ByRelativeChange = (sortedByRelativeChange.reverse.head, "") //sortedByRelativeChange.reverse.tail.head)
+        val bottom2ByRelativeChange = (sortedByRelativeChange.head, "") //sortedByRelativeChange.tail.head)
+        val stores = sourceList.map {
+          case ((store_id, sys_prod_id, tmsp, price, sys_prod_title, delta, relativeChange)) =>
+            (store_id, sys_prod_title)
+        }.toList.sorted
           val stats = (top2ByDelta, bottom2ByDelta, top2ByRelativeChange, bottom2ByRelativeChange)
           val results = stores.map {
             case (store_id, sys_prod_title) =>
@@ -173,13 +168,13 @@ object UpdateProdMetricsOld {
         val store_id = row.get[String]("store_id")
         val price = row.get[Double]("price")
         val url = row.get[String]("url")
-       val hot = row.get[Option[String]]("hot_level")
+        val hot = row.get[Option[String]]("hot_level")
         (sys_prod_id, (store_id, price, url, hot))
       }
 
-      
-      val FilteredRtData = RtData.filter(l=>(l._2._4.isDefined))
-        
+
+      val FilteredRtData = RtData.filter(l => (l._2._4.isDefined))
+
       val varPosData = FilteredRtData.groupByKey(partitioner).flatMap {
         case (sys_prod_id, iter) =>
           var cnt = 0
@@ -194,9 +189,9 @@ object UpdateProdMetricsOld {
           val sze = NewTuple.size
           val priceList = NewTuple.map { case (sys_prod_id, price, store_id, url, hot, cnt) => price }
           val std = Math.sqrt(StatCounter(priceList).variance).toDouble
-          val mean =StatCounter(priceList).mean
-          
-         
+          val mean = StatCounter(priceList).mean
+
+
           val FinalTuples = NewTuple.map {
             case (sys_prod_id, price, store_id, url, hot, cnt) =>
               val relPlace = (cnt.toDouble / sze)
@@ -208,8 +203,8 @@ object UpdateProdMetricsOld {
                 else if (cv > 0.6 && cv <= 0.85) 4
                 else 5
               }
-              
-                
+
+
               val relPlaceRank = {
                 if (relPlace >= 0 && relPlace <= 0.05) 5
                 else if (relPlace > 0.05 && relPlace <= 0.1) 10
@@ -224,19 +219,19 @@ object UpdateProdMetricsOld {
                 else if (relPlace > 0.9 && relPlace <= 0.95) 95
                 else 100
               }
-               
+
               //  val t= (sys_prod_id,price,store_id,url,cnt,relPlace,cvRank)
               if (mean > 0.0)
-              ((store_id.replace(" ", ""), sys_prod_id), (price, url, hot, cnt, relPlace, relPlaceRank, cv, cvRank))
-              else 
-              ((store_id.replace(" ", ""), sys_prod_id), (price, url, hot, cnt, relPlace, relPlaceRank, 0.0, 1))
+                ((store_id.replace(" ", ""), sys_prod_id), (price, url, hot, cnt, relPlace, relPlaceRank, cv, cvRank))
+              else
+                ((store_id.replace(" ", ""), sys_prod_id), (price, url, hot, cnt, relPlace, relPlaceRank, 0.0, 1))
           }
           rtMetricsCounter += FinalTuples.size
           FinalTuples
-          
-      }////
 
-       val t = (deltaData.join(varPosData)).map { l =>
+      } ////
+
+      val t = (deltaData.join(varPosData)).map { l =>
         joinedMetricsCounter += 1
         (l._1._1, l._1._2,
           l._2._1._1, l._2._1._2, l._2._1._3, l._2._1._4, l._2._1._5, l._2._1._6, l._2._1._7,
@@ -244,10 +239,10 @@ object UpdateProdMetricsOld {
           today)
       }
       //"store_id","sys_prod_id","sys_prod_title","max_abs_delta_val","max_rel_delta_val","max_rel_delta_level","min_rel_delta_val","min_abs_delta_val","min_rel_delta_level","price","url","hot_level","abs_position","relative_position","position_level","var_val","var_level","tmsp"
-      
-   //       val Filteredt = t.filter(l=>(!l._12.isDefined))
-       t.foreachPartition { it =>
-       // classOf[com.mysql.jdbc.Driver].newInstance
+
+      //       val Filteredt = t.filter(l=>(!l._12.isDefined))
+      t.foreachPartition { it =>
+        // classOf[com.mysql.jdbc.Driver].newInstance
         Class.forName("com.mysql.jdbc.Driver").newInstance
         val conn = DriverManager.getConnection("jdbc:mysql://" + mysqlHost + ":" + mysqlPort + "/",
           mysqlUser,
@@ -289,11 +284,11 @@ object UpdateProdMetricsOld {
         }
         conn.close()
       }
-      println("!@!@!@!@!   hpMetricsCounter : " + hpMetricsCounter.value+
-         "\n!@!@!@!@!   rtMetricsCounter : " + rtMetricsCounter.value+
-         "\n!@!@!@!@!   joinedMetricsCounter : " + joinedMetricsCounter.value+
-         "\n!@!@!@!@!   successfulWritesCounter : " + successfulWritesCounter.value+
-         "\n!@!@!@!@!   failedWritesCounter : " + failedWritesCounter.value)
+      println("!@!@!@!@!   hpMetricsCounter : " + hpMetricsCounter.value +
+        "\n!@!@!@!@!   rtMetricsCounter : " + rtMetricsCounter.value +
+        "\n!@!@!@!@!   joinedMetricsCounter : " + joinedMetricsCounter.value +
+        "\n!@!@!@!@!   successfulWritesCounter : " + successfulWritesCounter.value +
+        "\n!@!@!@!@!   failedWritesCounter : " + failedWritesCounter.value)
     } catch {
       case e: Exception => {
         println("########  Somthing went wrong :( ")

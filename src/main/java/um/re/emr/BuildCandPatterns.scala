@@ -1,30 +1,13 @@
 package um.re.emr
 
-import java.io.File
-import org.apache.hadoop.io.MapWritable
-import org.apache.hadoop.io.Text
-import org.apache.hadoop.mapred.JobConf
-import org.apache.spark._
-import org.apache.spark.SparkConf
-import org.apache.spark.SparkContext
-import org.apache.spark.SparkContext._
-import org.apache.spark.rdd._
-import org.apache.spark.serializer.KryoSerializer
-import org.apache.spark.serializer.KryoRegistrator
-import um.re.utils.URegistrator
-import scala.math
-import scala.collection.JavaConversions._
-import play.api.libs.json._
-import play.api.libs.json.{ Json, JsValue, JsObject, JsArray }
-import org.elasticsearch.hadoop.mr.EsInputFormat
-import org.elasticsearch.spark
-import org.elasticsearch.spark.rdd.EsSpark
-import org.apache.spark.SparkContext
-import org.apache.hadoop.io.NullWritable
-import org.elasticsearch.hadoop.mr.EsOutputFormat
-import um.re.utils.Utils
-import um.re.utils.EsUtils
 import com.utils.messages.BigMessage
+import org.apache.hadoop.io.{MapWritable, Text}
+import org.apache.hadoop.mapred.JobConf
+import org.apache.spark.{SparkConf, SparkContext}
+import org.elasticsearch.hadoop.mr.EsInputFormat
+import um.re.utils.{EsUtils, Utils}
+
+import scala.collection.JavaConversions._
 
 object BuildCandPatterns extends App {
   val conf_s = new SparkConf() //.setAppName("es").setMaster("yarn-cluster").set("spark.serializer", classOf[KryoSerializer].getName)
@@ -43,11 +26,12 @@ object BuildCandPatterns extends App {
     val jsStr = Utils.map2JsonString(dataMap).toString()
     val msgEmptyHtml = BigMessage.string2Message(jsStr)
     msgEmptyHtml.sethtml("")
-    (msgEmptyHtml.toJson().toString().getBytes(),dataMap)}.repartition(300) //sample(false, 0.001, 12345)
+    (msgEmptyHtml.toJson().toString().getBytes(), dataMap)
+  }.repartition(300) //sample(false, 0.001, 12345)
   val db = Utils.htmlsToCandidsPipe(source2)
-  val fin = db.flatMap{case(msg,l) => l}
-    if (Utils.DEBUGFLAG)
-      fin.count
+  val fin = db.flatMap { case (msg, l) => l }
+  if (Utils.DEBUGFLAG)
+    fin.count
   val conf2 = new JobConf()
   conf2.set("es.resource", "candidl/data")
   conf2.set("es.nodes", EsUtils.ESIP)

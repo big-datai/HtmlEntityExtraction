@@ -1,12 +1,14 @@
 package um.re.utils
+
 import org.jets3t.service.impl.rest.httpclient.RestS3Service
 import org.jets3t.service.security.AWSCredentials
+
 object S3Utils extends App {
 
   //val inputStream = IOUtils.toInputStream(source, "UTF-8");
   val awsAccessKey = ""
   val awsSecretKey = ""
-  
+
   val awsCredentials = new AWSCredentials(awsAccessKey, awsSecretKey)
   val s3Service = new RestS3Service(awsCredentials)
   val bucketName = "pavlovout"

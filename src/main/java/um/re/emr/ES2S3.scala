@@ -1,15 +1,13 @@
 package um.re.emr
 
 import org.apache.hadoop.mapred.JobConf
-import org.apache.spark.SparkConf
-import org.apache.spark.SparkContext
+import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.serializer.KryoSerializer
-
 import um.re.utils.EsUtils
 
 /**
- *    this class is to import data from ES to S3
- */
+  * this class is to import data from ES to S3
+  */
 object ES2S3 extends App {
 
   val conf_s = new SparkConf().setAppName("es").set("master", "yarn-client").set("spark.serializer", classOf[KryoSerializer].getName)

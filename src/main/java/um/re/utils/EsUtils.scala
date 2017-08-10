@@ -1,39 +1,26 @@
 package um.re.utils
-import java.io.File
-import org.apache.hadoop.io.MapWritable
-import org.apache.hadoop.io.Text
+
+import org.apache.hadoop.io.{MapWritable, NullWritable, Text}
 import org.apache.hadoop.mapred.JobConf
-import org.apache.spark._
-import org.apache.spark.SparkConf
 import org.apache.spark.SparkContext
-import org.apache.spark.SparkContext._
 import org.apache.spark.rdd._
-import org.apache.spark.serializer.KryoSerializer
-import org.apache.spark.serializer.KryoRegistrator
-import scala.math
-import scala.collection.JavaConversions._
-import play.api.libs.json._
-import play.api.libs.json.{ Json, JsValue, JsObject, JsArray }
-import org.elasticsearch.hadoop.mr.EsInputFormat
-import org.elasticsearch.spark
+import org.elasticsearch.hadoop.mr.{EsInputFormat, EsOutputFormat}
 import org.elasticsearch.spark.rdd.EsSpark
-import org.apache.spark.SparkContext
-import org.apache.hadoop.io.NullWritable
-import org.elasticsearch.hadoop.mr.EsOutputFormat
+import play.api.libs.json.Json
 
 object EsUtils {
   val ESIP = "107.20.157.48"
-  var ESINDEX = "htmls/data"
   val conf = new JobConf()
+  var ESINDEX = "htmls/data"
   conf.set("es.resource", "process_count/counter")
   conf.set("es.query", "?q=updatePriceCount")
   conf.set("es.nodes", ESIP)
   conf.set("es.index.auto.create", "true")
 
   /**
-   * This method writes to ES using elasticsearch.spark
-   * this method get rdd of map object and saves them into specified index
-   */
+    * This method writes to ES using elasticsearch.spark
+    * this method get rdd of map object and saves them into specified index
+    */
   def write2ES(exit: RDD[Map[String, String]], index: String) {
     val ind = index + "/data"
     val cfg = Map("es.nodes" -> EsUtils.ESIP, "es.resource" -> ind,
@@ -57,9 +44,10 @@ object EsUtils {
 
     source.saveAsNewAPIHadoopFile("-", classOf[NullWritable], classOf[MapWritable], classOf[EsOutputFormat], conf2)
   }
+
   /**
-   * This method should write to ES using hadoop style
-   */
+    * This method should write to ES using hadoop style
+    */
   //http://www.elasticsearch.org/guide/en/elasticsearch/hadoop/current/mapreduce.html
   def write2ESHadoop(source: RDD[(String, Map[String, String])], cfg: JobConf) = {
     source.map(r =>
@@ -70,6 +58,7 @@ object EsUtils {
     source.map(r =>
       (NullWritable.get, Utils.toWritable(r))).saveAsNewAPIHadoopFile("-", classOf[NullWritable], classOf[MapWritable], classOf[EsOutputFormat], cfg)
   }
+
   def es2s3(esName: String, sc: SparkContext) {
     val conf3 = new JobConf()
     conf3.set("es.resource", esName + "/data")

@@ -1,22 +1,13 @@
 package um.re.models
 
-import org.apache.spark.rdd.RDD
-import org.apache.spark.SparkContext
-import org.apache.spark.SparkConf
-import org.apache.spark.SparkContext._
-import org.apache.spark.mllib.linalg.Vector
-import org.apache.spark.mllib.tree.configuration.BoostingStrategy
-import org.apache.spark.mllib.tree.GradientBoostedTrees
-import org.apache.spark.mllib.stat.Statistics
-import um.re.transform.Transformer
-import um.re.utils.{ UConf }
-import um.re.transform.DFTransformer
-import um.re.data.Url
-import org.apache.spark.ml.classification.LogisticRegression
-import org.apache.spark.ml.Pipeline
-import org.apache.spark.ml.feature.Tokenizer
-import org.apache.spark.ml.feature.HashingTF
+import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.mllib.feature.IDF
+import org.apache.spark.mllib.linalg.Vector
+import org.apache.spark.mllib.stat.Statistics
+import org.apache.spark.rdd.RDD
+import um.re.data.Url
+import um.re.transform.{DFTransformer, Transformer}
+import um.re.utils.UConf
 
 object GBTDomainBySchema extends App {
   val conf_s = new SparkConf

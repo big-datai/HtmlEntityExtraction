@@ -1,24 +1,18 @@
 package um.re.streaming
 
-import org.apache.spark.SparkContext
-import org.apache.spark.streaming.StreamingContext
-import org.apache.spark.streaming.kafka.KafkaUtils
-import kafka.serializer.StringDecoder
-import kafka.producer._
-import org.apache.spark.streaming.Seconds
-import java.util.Properties
-import um.re.utils.Utils
-import org.apache.spark.mllib.tree.model.GradientBoostedTreesModel
-import org.apache.spark.mllib.feature.HashingTF
-import org.apache.spark.rdd.RDD
-import um.re.transform.Transformer
-import org.apache.spark.mllib.linalg.Vectors
-import kafka.serializer.DefaultDecoder
-import com.utils.messages.BigMessage
-import play.api.libs.json.Json
-import org.apache.spark._
-import scala.collection.immutable.HashMap
 import com.utils.aws.AWSUtils
+import com.utils.messages.BigMessage
+import kafka.serializer.{DefaultDecoder, StringDecoder}
+import org.apache.spark.{SparkContext, _}
+import org.apache.spark.mllib.feature.HashingTF
+import org.apache.spark.mllib.linalg.Vectors
+import org.apache.spark.mllib.tree.model.GradientBoostedTreesModel
+import org.apache.spark.streaming.{Seconds, StreamingContext}
+import org.apache.spark.streaming.kafka.KafkaUtils
+import um.re.transform.Transformer
+import um.re.utils.Utils
+
+import scala.collection.immutable.HashMap
 
 object Htmls2PredsPipe {
   def main(args: Array[String]) {
@@ -44,17 +38,18 @@ object Htmls2PredsPipe {
       outputTopic = "preds"
       logTopic = "sparkLogs"
       modelsPath = "/ModelsObject/"
-      statusFilters = "modeledPatternEquals"+",modelPatternConflict,patternFailed,missingModel,allFalseCandids"
-      conf.setMaster("yarn-client") /*
-      timeInterval = "20"
-      brokers = "localhost:9092"
-      fromOffset = "smallest"
-      inputTopic = "htmls"
-      outputTopic = "preds"
-      logTopic = "logs"
-      modelsPath = "/Users/mike/umbrella/ModelsObject/"
-      statusFilters = "modeledPatternEquals,modelPatternConflict,patternFailed,missingModel,allFalseCandids"
-      conf.setMaster("local[*]")*/
+      statusFilters = "modeledPatternEquals" + ",modelPatternConflict,patternFailed,missingModel,allFalseCandids"
+      conf.setMaster("yarn-client")
+      /*
+           timeInterval = "20"
+           brokers = "localhost:9092"
+           fromOffset = "smallest"
+           inputTopic = "htmls"
+           outputTopic = "preds"
+           logTopic = "logs"
+           modelsPath = "/Users/mike/umbrella/ModelsObject/"
+           statusFilters = "modeledPatternEquals,modelPatternConflict,patternFailed,missingModel,allFalseCandids"
+           conf.setMaster("local[*]")*/
     }
     try {
       val brokerIP = brokers.split(":")(0)
@@ -68,7 +63,7 @@ object Htmls2PredsPipe {
           "\n#?#?#?#?#?#?#  ExceptionStackTrace : " + e.getStackTraceString)
       }
     }
-    
+
     val sc = new SparkContext(conf)
     val ssc = new StreamingContext(sc, Seconds(timeInterval.toInt))
 
@@ -91,7 +86,7 @@ object Htmls2PredsPipe {
     var exceptionCounter = 0L
 
     //Broadcast variables
-    val modelsHashMap = ssc.sparkContext.objectFile[HashMap[String,(GradientBoostedTreesModel, Array[Double], Array[Int])]](modelsPath, 1).first
+    val modelsHashMap = ssc.sparkContext.objectFile[HashMap[String, (GradientBoostedTreesModel, Array[Double], Array[Int])]](modelsPath, 1).first
     val modelsBC = ssc.sparkContext.broadcast(modelsHashMap)
 
     try {

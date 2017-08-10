@@ -1,21 +1,15 @@
 package um.re.analytics
 
-import org.apache.spark._
-import org.apache.spark.rdd.RDD
-import org.apache.spark.SparkContext
-import kafka.serializer.StringDecoder
-import kafka.serializer.DefaultDecoder
-import um.re.utils.Utils
-import com.utils.messages.BigMessage
 import com.utils.aws.AWSUtils
+import kafka.serializer.{DefaultDecoder, StringDecoder}
+import org.apache.spark.{SparkContext, _}
+import org.apache.spark.streaming.{Seconds, StreamingContext}
 import org.apache.spark.streaming.kafka.KafkaUtils
-import org.apache.spark.streaming.StreamingContext
-import org.apache.spark.streaming.Seconds
-import org.apache.spark.streaming.dstream.PairDStreamFunctions
+import um.re.utils.Utils
 
 /**
- * @author mike
- */
+  * @author mike
+  */
 object Kafka2ProdXStoreReport {
 
   def main(args: Array[String]) {

@@ -1,16 +1,16 @@
 package um.re.emr
 
-import com.utils.aws.AWSUtils
-import org.apache.spark.SparkContext
-import org.apache.spark.SparkConf
 import com.datastax.spark.connector._
 import com.datastax.spark.connector.cql.CassandraConnector
-import scala.collection.immutable.HashMap
-import scala.collection.immutable.HashSet
+import com.utils.aws.AWSUtils
+import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.storage.StorageLevel
+
+import scala.collection.immutable.{HashMap, HashSet}
+
 /**
- * @author mike
- */
+  * @author mike
+  */
 object SwapIDs {
 
   def main(args: Array[String]) {
@@ -97,12 +97,12 @@ object SwapIDs {
             inputRTCounter += 1
             ((store_id, newID, price, sys_prod_title), (sys_prod_id, store_id))
           }.filter {
-            case (newRow, oldKey) =>
-              if (validIDsBC.value.contains(oldKey._1)) {
-                validRTCounter += 1
-                false
-              } else true
-          }.persist(StorageLevel.MEMORY_AND_DISK)
+          case (newRow, oldKey) =>
+            if (validIDsBC.value.contains(oldKey._1)) {
+              validRTCounter += 1
+              false
+            } else true
+        }.persist(StorageLevel.MEMORY_AND_DISK)
         /*RT.filter {
           case (newRow, oldKey) =>
             if (newRow._2.equals("missingMapping")) {
@@ -149,12 +149,12 @@ object SwapIDs {
             inputCMSCounter += 1
             ((store_id, newID, store_prod_price, store_prod_title, store_prod_url), (store_id, store_prod_id))
           }.filter {
-            case (newRow, oldKey) =>
-              if (validIDsBC.value.contains(oldKey._2)) {
-                validCMSCounter += 1
-                false
-              } else true
-          }.persist(StorageLevel.MEMORY_AND_DISK)
+          case (newRow, oldKey) =>
+            if (validIDsBC.value.contains(oldKey._2)) {
+              validCMSCounter += 1
+              false
+            } else true
+        }.persist(StorageLevel.MEMORY_AND_DISK)
         /*CMS.filter {
           case (newRow, oldKey) =>
             if (newRow._2.equals("missingMapping")) {
@@ -220,25 +220,25 @@ object SwapIDs {
             newHPCounter += 1
             t._1
           }.saveToCassandra(keySpace, tableHP, SomeColumns("store_id", "sys_prod_id", "tmsp", "price", "sys_prod_title"))
-        
+
         HP.foreachPartition { part =>
           val session = connector.openSession()
           part.foreach {
             case (newRow, oldKey) =>
-             // try {
-               // val insert = s"INSERT INTO " + keySpace + "." + tableHP + " (store_id, sys_prod_id, tmsp, price, sys_prod_title) VALUES ('" + newRow._1 + "','" + newRow._2 + "'," + newRow._3.getTime + "," + newRow._4 + ",'" + newRow._5 + "');"
-                val delete = s"DELETE FROM " + keySpace + "." + tableHP + " where     sys_prod_id='" + oldKey._1 + "' and store_id='" + oldKey._2 + "';"
-                //if (!newRow._2.equals("missingMapping"))
-                //  session.execute(insert)
-                session.execute(delete)
-                deletedHPCounter += 1
-             /* } catch {
-                case e: Exception => {
-                  println("########  Somthing went wrong :( ")
-                  println("#?#?#?#?#?#?#  ExceptionMessage : " + e.getMessage +
-                    "\n#?#?#?#?#?#?#  ExceptionStackTrace : " + e.getStackTraceString)
-                }
-              }*/
+              // try {
+              // val insert = s"INSERT INTO " + keySpace + "." + tableHP + " (store_id, sys_prod_id, tmsp, price, sys_prod_title) VALUES ('" + newRow._1 + "','" + newRow._2 + "'," + newRow._3.getTime + "," + newRow._4 + ",'" + newRow._5 + "');"
+              val delete = s"DELETE FROM " + keySpace + "." + tableHP + " where     sys_prod_id='" + oldKey._1 + "' and store_id='" + oldKey._2 + "';"
+              //if (!newRow._2.equals("missingMapping"))
+              //  session.execute(insert)
+              session.execute(delete)
+              deletedHPCounter += 1
+            /* } catch {
+               case e: Exception => {
+                 println("########  Somthing went wrong :( ")
+                 println("#?#?#?#?#?#?#  ExceptionMessage : " + e.getMessage +
+                   "\n#?#?#?#?#?#?#  ExceptionStackTrace : " + e.getStackTraceString)
+               }
+             }*/
           }
           session.close()
         }

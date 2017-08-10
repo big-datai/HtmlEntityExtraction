@@ -1,35 +1,17 @@
 package um.re.utils
-import scala.io.Source
-import java.io._
-import sys.process._
-import java.io.File
+
+import java.io.{File, _}
+
+import scala.Array.canBuildFrom
 import scala.io.Source
 import scala.util.Try
-import scala.Array.canBuildFrom
 
 object Url2FIle {
 
-  def url2Html(url: String) = {
-    var html: String = ""
-    try {
-      html = Source.fromURL(url).toString
-      val s = html.mkString
-      val writer = new PrintWriter(new File("/Applications/workspace/mvnscala/" + url))
-      writer.write(s)
-      writer.close()
-      //new URL(url) #> new File(url)
-    } catch { case e: Exception => println("could not load url") }
-  }
   def loadURL(file: String) = {
 
   }
 
-  def parth(x: String) = {
-    val y = x.split(",").filter(p => p.contains("http"))(0).toString()
-    url2Html(y)
-    println(y)
-    y
-  }
   def main(arg: Array[String]) {
     //val sc = new SparkContext("local[4]", "naivebayes")
 
@@ -42,11 +24,29 @@ object Url2FIle {
     //url2Html("http://www.cabelas.com")
 
   }
-  implicit class RichFile(val filename: String) extends AnyVal {
 
-    def fileLines(encoding: String = "utf-8") = {
-      Try(Source.fromFile(filename, encoding).getLines) toOption
+  def parth(x: String) = {
+    val y = x.split(",").filter(p => p.contains("http"))(0).toString()
+    url2Html(y)
+    println(y)
+    y
+  }
+
+  def url2Html(url: String) = {
+    var html: String = ""
+    try {
+      html = Source.fromURL(url).toString
+      val s = html.mkString
+      val writer = new PrintWriter(new File("/Applications/workspace/mvnscala/" + url))
+      writer.write(s)
+      writer.close()
+      //new URL(url) #> new File(url)
+    } catch {
+      case e: Exception => println("could not load url")
     }
+  }
+
+  implicit class RichFile(val filename: String) extends AnyVal {
 
     def fileArray(encoding: String = "utf-8") = {
       fileLines(encoding) match {
@@ -61,5 +61,10 @@ object Url2FIle {
         case None => None
       }
     }
+
+    def fileLines(encoding: String = "utf-8") = {
+      Try(Source.fromFile(filename, encoding).getLines) toOption
+    }
   }
+
 }

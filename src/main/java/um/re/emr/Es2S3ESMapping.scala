@@ -1,32 +1,12 @@
 package um.re.emr
 
-import java.io.File
-import org.apache.hadoop.io.MapWritable
-import org.apache.hadoop.io.Text
 import org.apache.hadoop.mapred.JobConf
-import org.apache.spark._
-import org.apache.spark.SparkConf
-import org.apache.spark.SparkContext
-import org.apache.spark.SparkContext._
-import org.apache.spark.rdd._
-import org.apache.spark.serializer.KryoSerializer
-import org.apache.spark.serializer.KryoRegistrator
-import scala.math
-import scala.collection.JavaConversions._
-import play.api.libs.json._
-import play.api.libs.json.{ Json, JsValue, JsObject, JsArray }
-import org.elasticsearch.hadoop.mr.EsInputFormat
-import org.elasticsearch.spark
-import org.elasticsearch.spark.rdd.EsSpark
-import org.apache.spark.SparkContext
-import org.apache.hadoop.io.NullWritable
-import org.elasticsearch.hadoop.mr.EsOutputFormat
-import um.re.utils.EsUtils
-import um.re.utils.UConf
-import um.re.utils._
+import org.apache.spark.{SparkConf, SparkContext}
+import um.re.utils.{EsUtils, UConf, _}
+
 /**
- * This class is to map old schema to the new schema and at the same time save the data to ES or S3
- */
+  * This class is to map old schema to the new schema and at the same time save the data to ES or S3
+  */
 object Es2EsWithMapping extends App {
 
   val conf_s = new SparkConf()

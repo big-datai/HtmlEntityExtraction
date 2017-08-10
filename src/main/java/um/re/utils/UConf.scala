@@ -1,12 +1,11 @@
 package um.re.utils
 
-import scala.collection.JavaConversions.mapAsScalaMap
-import org.apache.hadoop.io.MapWritable
-import org.apache.hadoop.io.Text
+import org.apache.hadoop.io.{MapWritable, Text}
 import org.apache.hadoop.mapred.JobConf
 import org.apache.spark.SparkContext
 import org.elasticsearch.hadoop.mr.EsInputFormat
-import um.re.data.DataSchema
+
+import scala.collection.JavaConversions.mapAsScalaMap
 
 class UConf(sc: SparkContext, parts: Int) {
   val conf = new JobConf()
@@ -23,17 +22,18 @@ class UConf(sc: SparkContext, parts: Int) {
     sc.objectFile[(String, Map[String, String])](path, parts)
   }
 
-  def getText(path:String ="s3n://AKIAJQUAOI7EBC6Y7ESQ:JhremVoqNuEYG8YS9J+duW0hFRtX+sWjuZ0vdQlE@dpavlov/seeds170820151439825456871"){
-    sc.textFile(path).map{l=>(l,Utils.json2Map(Utils.string2Json(l)))}
+  def getText(path: String = "s3n://AKIAJQUAOI7EBC6Y7ESQ:JhremVoqNuEYG8YS9J+duW0hFRtX+sWjuZ0vdQlE@dpavlov/seeds170820151439825456871") {
+    sc.textFile(path).map { l => (l, Utils.json2Map(Utils.string2Json(l))) }
   }
+
   def getDataFromS3(path: String = Utils.S3STORAGE + "/dpavlov/es/source20150516") = {
     sc.objectFile[(String, Map[String, String])](path, parts)
   }
-  
+
   def getAnalDataFS(path: String = Utils.S3STORAGE + "/rawd/objects/full") = {
     sc.objectFile[(String, (String, String, String))](path, parts)
   }
-   
+
   def setQuery(query: String) {
     conf.set("", "")
     conf.set("es.query", "?q=" + query)

@@ -2,14 +2,13 @@ package um.re.emr
 
 import com.datastax.spark.connector._
 import com.utils.aws.AWSUtils
-import org.apache.spark.SparkContext
-import org.apache.spark.SparkConf
+import org.apache.spark.{SparkConf, SparkContext}
 
 /**
- * @author mike
- */
+  * @author mike
+  */
 object RT2CMS {
-    def main(args: Array[String]) {
+  def main(args: Array[String]) {
     val conf = new SparkConf()
       .setAppName(getClass.getSimpleName)
 
@@ -40,25 +39,25 @@ object RT2CMS {
 
     conf.set("spark.cassandra.connection.host", cassandraHost)
     val sc = new SparkContext(conf)
-    
+
     //set accumulators
     val rowsCounter = sc.accumulator(0L)
     try {
       val transformedRT2CMS = sc.cassandraTable(keySpace, tableRT)
-         .map{row => 
-        val store_id = row.get[String]("store_id") 
-        val sys_prod_id = row.get[String]("sys_prod_id")
-        val price = row.get[String]("price") 
-        val sys_prod_title = row.get[String]("sys_prod_title")
-        val store_prod_url = row.get[String]("url")
-        val store_domain=row.get[String]("store_domain") 
-        rowsCounter += 1
-        (store_id,sys_prod_id,store_domain,price,sys_prod_title,store_prod_url)
+        .map { row =>
+          val store_id = row.get[String]("store_id")
+          val sys_prod_id = row.get[String]("sys_prod_id")
+          val price = row.get[String]("price")
+          val sys_prod_title = row.get[String]("sys_prod_title")
+          val store_prod_url = row.get[String]("url")
+          val store_domain = row.get[String]("store_domain")
+          rowsCounter += 1
+          (store_id, sys_prod_id, store_domain, price, sys_prod_title, store_prod_url)
         }
-      
-       transformedRT2CMS.saveToCassandra(keySpace, tableCMS, SomeColumns("store_id","store_prod_id","store_domain" ,"store_prod_price" ,"store_prod_title","store_prod_url"))
-     
-     println("!@!@!@!@!   rowsCounter : " + rowsCounter.value)
+
+      transformedRT2CMS.saveToCassandra(keySpace, tableCMS, SomeColumns("store_id", "store_prod_id", "store_domain", "store_prod_price", "store_prod_title", "store_prod_url"))
+
+      println("!@!@!@!@!   rowsCounter : " + rowsCounter.value)
     } catch {
       case e: Exception => {
         println("########  Somthing went wrong :( ")

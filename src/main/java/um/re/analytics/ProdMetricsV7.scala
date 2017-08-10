@@ -1,17 +1,13 @@
 package um.re.analytics
 
-import org.apache.spark.SparkConf
-import com.utils.aws.AWSUtils
-import org.apache.spark.SparkContext
-import com.datastax.spark.connector._
-import org.apache.spark.rdd.RDD
-import org.apache.spark.rdd.PairRDDFunctions
-import org.apache.spark.HashPartitioner
-import um.re.utils.Utils
+import java.sql.DriverManager
 import java.util.Calendar
-import java.util.Date
+
+import com.datastax.spark.connector._
+import com.utils.aws.AWSUtils
+import org.apache.spark.{HashPartitioner, SparkConf, SparkContext}
 import org.apache.spark.util.StatCounter
-import java.sql.{ Connection, DriverManager, ResultSet }
+import um.re.utils.Utils
 
 object ProdMetricsV7 {
 
@@ -104,9 +100,9 @@ object ProdMetricsV7 {
           }.sorted.reverse
           val (store_id, sys_prod_id, tmsp, price, sys_prod_title) = sortedList.head._2
           val currentPrice = price
-          
-                      
-             if (iter.count(_ => true) > 1) {
+
+
+          if (iter.count(_ => true) > 1) {
             val previousPrice = sortedList.tail.head._2._4
             val delta = currentPrice - previousPrice
             val relativeChange = if ((delta / previousPrice).isNaN || (delta / previousPrice).isInfinity) 0.0
@@ -139,8 +135,8 @@ object ProdMetricsV7 {
             } else (0.0, 0.0, 0.0, "", "")
           }
           //addition
-          
-          
+
+
           val incDec = (maxIncrease, maxIncreaseTo, maxIncreaseFrom, maxIncStoreId, maxIncProdId, maxDecrease, maxDecreaseTo, maxDecreaseFrom, maxDecStoreId, maxDecProdId)
           val stores = sourceList.map {
             case ((store_id, sys_prod_id, tmsp, price, sys_prod_title, delta, relativeChange)) =>
@@ -161,32 +157,32 @@ object ProdMetricsV7 {
         val price = row.get[Double]("price")
         val url = row.get[String]("url")
         val hot = row.get[Option[String]]("hot_level")
-        (sys_prod_id, (store_id, sys_prod_title,price, url, hot))
+        (sys_prod_id, (store_id, sys_prod_title, price, url, hot))
       }
-      val FilteredRtData = RtData.filter { case (sys_prod_id, (store_id, sys_prod_title,price, url, hot)) => hot.isDefined }
+      val FilteredRtData = RtData.filter { case (sys_prod_id, (store_id, sys_prod_title, price, url, hot)) => hot.isDefined }
       val hotLevelSet = hotLevel.split(",").toSet
-      val FinalRtData = FilteredRtData.filter { case (sys_prod_id, (store_id,sys_prod_title ,price, url, hot)) => hotLevelSet.contains(hot.get) }
+      val FinalRtData = FilteredRtData.filter { case (sys_prod_id, (store_id, sys_prod_title, price, url, hot)) => hotLevelSet.contains(hot.get) }
 
       val varPosData = FinalRtData.groupByKey(partitioner).flatMap {
         case (sys_prod_id, iter) =>
           var cnt = 0
           val NewTuple = iter.map {
-            case (store_id, sys_prod_title,price, url, hot) => (price, (store_id, sys_prod_title,url, hot))
+            case (store_id, sys_prod_title, price, url, hot) => (price, (store_id, sys_prod_title, url, hot))
           }.toList.sorted.map {
-            case (price, (store_id, sys_prod_title,url, hot)) =>
+            case (price, (store_id, sys_prod_title, url, hot)) =>
               cnt += 1
-              (sys_prod_id, sys_prod_title,price, store_id, url, hot, cnt)
+              (sys_prod_id, sys_prod_title, price, store_id, url, hot, cnt)
           }
           val sze = NewTuple.size
-          val priceList = NewTuple.map { case (sys_prod_id, sys_prod_title,price, store_id, url, hot, cnt) => price }
+          val priceList = NewTuple.map { case (sys_prod_id, sys_prod_title, price, store_id, url, hot, cnt) => price }
           val std = Math.sqrt(StatCounter(priceList).variance).toDouble
           val meanPrice = StatCounter(priceList).mean
           val maxPrice = priceList.max
           val minPrice = priceList.min
-          val priceDelta = (maxPrice-minPrice).toDouble/minPrice
-          
+          val priceDelta = (maxPrice - minPrice).toDouble / minPrice
+
           val FinalTuples = NewTuple.map {
-            case (sys_prod_id, sys_prod_title,price, store_id, url, hot, cnt) =>
+            case (sys_prod_id, sys_prod_title, price, store_id, url, hot, cnt) =>
               val relPlace = (cnt.toDouble / sze)
               val cv = (std.toDouble / meanPrice)
               val cvRank = {
@@ -211,23 +207,24 @@ object ProdMetricsV7 {
                 else 100
               }
               if (meanPrice > 0.0)
-                      ((store_id.replace(" ", ""), sys_prod_id), (price, sys_prod_title,url, hot, cnt, relPlace * 100, relPlaceRank, cv, cvRank, meanPrice, minPrice, maxPrice,priceDelta,sze))             
-                    else
-                      ((store_id.replace(" ", ""), sys_prod_id), (price, sys_prod_title,url, hot, cnt, relPlace * 100, relPlaceRank, 0.0, 1, meanPrice, minPrice, maxPrice,0.0,sze))
-                    
-                }
+                ((store_id.replace(" ", ""), sys_prod_id), (price, sys_prod_title, url, hot, cnt, relPlace * 100, relPlaceRank, cv, cvRank, meanPrice, minPrice, maxPrice, priceDelta, sze))
+              else
+                ((store_id.replace(" ", ""), sys_prod_id), (price, sys_prod_title, url, hot, cnt, relPlace * 100, relPlaceRank, 0.0, 1, meanPrice, minPrice, maxPrice, 0.0, sze))
+
+          }
           if (priceDelta < 0.3 && sze > 1)
-              rtMetricsCounter += FinalTuples.size
+            rtMetricsCounter += FinalTuples.size
           FinalTuples
       }
 
-      val varPosDataFinal = varPosData.filter(l=> l._2._13 < 0.3 && l._2._14 > 1).map{
-        case ((store_id, sys_prod_id), (price, sys_prod_title,url, hot, cnt, relPlace, relPlaceRank, cv, cvRank, meanPrice, minPrice, maxPrice,priceDelta,sze))=>
-          ((store_id, sys_prod_id), (sys_prod_title,price, url, hot, cnt, relPlace, relPlaceRank, cv, cvRank, meanPrice, minPrice, maxPrice))}
-       
+      val varPosDataFinal = varPosData.filter(l => l._2._13 < 0.3 && l._2._14 > 1).map {
+        case ((store_id, sys_prod_id), (price, sys_prod_title, url, hot, cnt, relPlace, relPlaceRank, cv, cvRank, meanPrice, minPrice, maxPrice, priceDelta, sze)) =>
+          ((store_id, sys_prod_id), (sys_prod_title, price, url, hot, cnt, relPlace, relPlaceRank, cv, cvRank, meanPrice, minPrice, maxPrice))
+      }
+
       val t = deltaData.map {
         case ((store_id, sys_prod_id), (sys_prod_title, maxIncrease, maxIncreaseTo, maxIncreaseFrom, maxIncStoreId, maxIncProdId, maxDecrease, maxDecreaseTo, maxDecreaseFrom, maxDecStoreId, maxDecProdId)) =>
-        
+
           ((store_id, sys_prod_id), ((sys_prod_title, maxIncrease, maxIncreaseTo, maxIncreaseFrom, maxIncStoreId, maxIncProdId, maxDecrease, maxDecreaseTo, maxDecreaseFrom, maxDecStoreId, maxDecProdId),
             (0.0, "NA", 0, 0, 0.0, 0, 0.0, 0,
               0.0, 0.0, 0.0)), today)
@@ -237,15 +234,15 @@ object ProdMetricsV7 {
         val conn = DriverManager.getConnection("jdbc:mysql://" + mysqlHost + ":" + mysqlPort + "/",
           mysqlUser,
           mysqlPass)
-        val del = conn.prepareStatement("INSERT INTO " + mysqlDB + "." + tablePM + 
-            " (store_id,hot_level,var_level,position_level,tmsp,sys_prod_id,abs_position,price,"+
-            "relative_position,sys_prod_title,url,var_val,mean_price,min_price,max_price,"+
-            "max_increase,max_increase_from_to,max_inc_merged_id,"+
-            "max_decrease,max_decrease_from_to,max_dec_merged_id) "+
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CONCAT(?,' -> ',?),CONCAT(?,'|||',?),?,CONCAT(?,' -> ',?),CONCAT(?,'|||',?))"+
-            "ON DUPLICATE KEY UPDATE tmsp= values(tmsp),"+
-            "max_increase= values(max_increase),max_increase_from_to= values(max_increase_from_to),max_inc_merged_id= values(max_inc_merged_id),"+
-            "max_decrease= values(max_decrease),max_decrease_from_to= values(max_decrease_from_to),max_dec_merged_id= values(max_dec_merged_id)")
+        val del = conn.prepareStatement("INSERT INTO " + mysqlDB + "." + tablePM +
+          " (store_id,hot_level,var_level,position_level,tmsp,sys_prod_id,abs_position,price," +
+          "relative_position,sys_prod_title,url,var_val,mean_price,min_price,max_price," +
+          "max_increase,max_increase_from_to,max_inc_merged_id," +
+          "max_decrease,max_decrease_from_to,max_dec_merged_id) " +
+          "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CONCAT(?,' -> ',?),CONCAT(?,'|||',?),?,CONCAT(?,' -> ',?),CONCAT(?,'|||',?))" +
+          "ON DUPLICATE KEY UPDATE tmsp= values(tmsp)," +
+          "max_increase= values(max_increase),max_increase_from_to= values(max_increase_from_to),max_inc_merged_id= values(max_inc_merged_id)," +
+          "max_decrease= values(max_decrease),max_decrease_from_to= values(max_decrease_from_to),max_dec_merged_id= values(max_dec_merged_id)")
         for (tuple <- it) {
           try {
             val (store_id, sys_prod_id) = tuple._1
@@ -292,29 +289,29 @@ object ProdMetricsV7 {
         }
         conn.close()
       }
-      
- 
+
+
       val m = varPosDataFinal.map {
-        case  ((store_id, sys_prod_id), (sys_prod_title,price, url, hot, cnt, relPlace, relPlaceRank, cv, cvRank, meanPrice, minPrice, maxPrice)) =>
-        
+        case ((store_id, sys_prod_id), (sys_prod_title, price, url, hot, cnt, relPlace, relPlaceRank, cv, cvRank, meanPrice, minPrice, maxPrice)) =>
+
           ((store_id, sys_prod_id), ((sys_prod_title, 0.0, 0.0, 0.0, "NA", "NA", 0.0, 0.0, 0.0, "NA", "NA"),
-           (price, url, hot, cnt, relPlace, relPlaceRank, cv, cvRank,
-             meanPrice, minPrice, maxPrice)), today)
+            (price, url, hot, cnt, relPlace, relPlaceRank, cv, cvRank,
+              meanPrice, minPrice, maxPrice)), today)
       }
       m.foreachPartition { it =>
         Class.forName("com.mysql.jdbc.Driver").newInstance
         val conn = DriverManager.getConnection("jdbc:mysql://" + mysqlHost + ":" + mysqlPort + "/",
           mysqlUser,
           mysqlPass)
-        val del = conn.prepareStatement("INSERT INTO " + mysqlDB + "." + tablePM + 
-            " (store_id,hot_level,var_level,position_level,tmsp,sys_prod_id,abs_position,price,"+
-            "relative_position,sys_prod_title,url,var_val,mean_price,min_price,max_price,"+
-            "max_increase,max_increase_from_to,max_inc_merged_id,"+
-            "max_decrease,max_decrease_from_to,max_dec_merged_id) "+
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CONCAT(?,' -> ',?),CONCAT(?,'|||',?),?,CONCAT(?,' -> ',?),CONCAT(?,'|||',?))"+
-            "ON DUPLICATE KEY UPDATE hot_level = values(hot_level),var_level= values(var_level),position_level= values(position_level),"+
-            "tmsp= values(tmsp),abs_position= values(abs_position),price = values(price),relative_position= values(relative_position),"+
-            "var_val = values(var_val),mean_price= values(mean_price),min_price= values(min_price),max_price= values(max_price)")
+        val del = conn.prepareStatement("INSERT INTO " + mysqlDB + "." + tablePM +
+          " (store_id,hot_level,var_level,position_level,tmsp,sys_prod_id,abs_position,price," +
+          "relative_position,sys_prod_title,url,var_val,mean_price,min_price,max_price," +
+          "max_increase,max_increase_from_to,max_inc_merged_id," +
+          "max_decrease,max_decrease_from_to,max_dec_merged_id) " +
+          "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CONCAT(?,' -> ',?),CONCAT(?,'|||',?),?,CONCAT(?,' -> ',?),CONCAT(?,'|||',?))" +
+          "ON DUPLICATE KEY UPDATE hot_level = values(hot_level),var_level= values(var_level),position_level= values(position_level)," +
+          "tmsp= values(tmsp),abs_position= values(abs_position),price = values(price),relative_position= values(relative_position)," +
+          "var_val = values(var_val),mean_price= values(mean_price),min_price= values(min_price),max_price= values(max_price)")
         for (tuple <- it) {
           try {
             val (store_id, sys_prod_id) = tuple._1
@@ -361,14 +358,14 @@ object ProdMetricsV7 {
         }
         conn.close()
       }
-      
-          
+
+
       println("!@!@!@!@!   hpMetricsCounter : " + hpMetricsCounter.value +
         "\n!@!@!@!@!   rtMetricsCounter : " + rtMetricsCounter.value +
         "\n!@!@!@!@!   successfulWritesCounterDeltaData : " + successfulWritesCounterDeltaData.value +
         "\n!@!@!@!@!   failedWritesCounterDeltaData : " + failedWritesCounterDeltaData.value +
         "\n!@!@!@!@!   successfulWritesCounterVarPosData : " + successfulWritesCounterVarPosData.value +
-        "\n!@!@!@!@!   failedWritesCounterVarPosData : " + failedWritesCounterVarPosData.value) 
+        "\n!@!@!@!@!   failedWritesCounterVarPosData : " + failedWritesCounterVarPosData.value)
     } catch {
       case e: Exception => {
         println("########  Somthing went wrong :( ")

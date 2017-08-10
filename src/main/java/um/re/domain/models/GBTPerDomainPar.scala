@@ -1,27 +1,20 @@
 package um.re.domain.models
 
-import org.apache.spark.rdd.RDD
-import org.apache.spark.SparkContext
-import org.apache.spark.SparkConf
-import org.apache.spark.SparkContext._
-import org.apache.spark.serializer.KryoSerializer
-import org.apache.spark.mllib.feature.{ HashingTF, IDF }
-import org.apache.spark.mllib.linalg.{ Vector, Vectors }
-import org.apache.spark.mllib.regression.LabeledPoint
-import org.apache.spark.mllib.tree.configuration.BoostingStrategy
-import org.apache.spark.mllib.tree.GradientBoostedTrees
-import org.apache.spark.mllib.stat.Statistics
-import org.apache.spark.mllib.tree.model.GradientBoostedTreesModel
-import um.re.transform.Transformer
-import um.re.utils.{ UConf }
-import um.re.utils.Utils
-import scala.collection.parallel.ForkJoinTaskSupport
 import org.apache.hadoop.io.compress.GzipCodec
+import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.mllib.feature.{HashingTF, IDF}
+import org.apache.spark.mllib.linalg.Vector
+import org.apache.spark.mllib.stat.Statistics
+import org.apache.spark.mllib.tree.GradientBoostedTrees
+import org.apache.spark.mllib.tree.configuration.BoostingStrategy
+import org.apache.spark.rdd.RDD
+import um.re.transform.Transformer
+import um.re.utils.{UConf, Utils}
 
 object GBTPerDomainPar {
   def main(args: Array[String]) {
     val conf_s = new SparkConf()
-    
+
     val sc = new SparkContext(conf_s)
     val processID = Integer.valueOf(args(0))
     val numDomains = Integer.valueOf(args(1))

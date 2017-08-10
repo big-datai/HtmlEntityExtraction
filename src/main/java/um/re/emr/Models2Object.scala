@@ -1,12 +1,11 @@
 package um.re.emr
 
-import org.apache.spark.SparkConf
-import org.apache.spark.SparkContext
+import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.mllib.tree.model.GradientBoostedTreesModel
 
 /**
- * @author mike
- */
+  * @author mike
+  */
 object Models2Object {
   def main(args: Array[String]) {
     val conf = new SparkConf()

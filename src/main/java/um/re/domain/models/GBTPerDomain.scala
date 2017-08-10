@@ -1,23 +1,14 @@
 package um.re.domain.models
 
-import org.apache.spark.rdd.RDD
-import org.apache.spark.SparkContext
-import org.apache.spark.SparkConf
-import org.apache.spark.SparkContext._
-import org.apache.spark.serializer.KryoSerializer
-
-import org.apache.spark.mllib.feature.{ HashingTF, IDF }
-import org.apache.spark.mllib.linalg.{ Vector, Vectors }
-import org.apache.spark.mllib.regression.LabeledPoint
-
-import org.apache.spark.mllib.tree.configuration.BoostingStrategy
-import org.apache.spark.mllib.tree.GradientBoostedTrees
+import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.mllib.feature.{HashingTF, IDF}
+import org.apache.spark.mllib.linalg.Vector
 import org.apache.spark.mllib.stat.Statistics
-import org.apache.spark.mllib.tree.model.GradientBoostedTreesModel
-
+import org.apache.spark.mllib.tree.GradientBoostedTrees
+import org.apache.spark.mllib.tree.configuration.BoostingStrategy
+import org.apache.spark.rdd.RDD
 import um.re.transform.Transformer
-import um.re.utils.{ UConf }
-import um.re.utils.Utils
+import um.re.utils.{UConf, Utils}
 
 object GBTPerDomain extends App {
   val conf_s = new SparkConf()
@@ -38,7 +29,7 @@ object GBTPerDomain extends App {
 
     val list = args(0).split(",").filter(s => !s.equals("")).filter(dMap.keySet.contains(_))
 
-    sc.parallelize(Seq("",""), 1).saveAsTextFile("/dima/list/" + list.apply(0)+System.currentTimeMillis().toString().replace(" ", "_"))
+    sc.parallelize(Seq("", ""), 1).saveAsTextFile("/dima/list/" + list.apply(0) + System.currentTimeMillis().toString().replace(" ", "_"))
 
     for (d <- list) {
       try {
@@ -81,12 +72,12 @@ object GBTPerDomain extends App {
           d + " : " + l.toString
         }
         try {
-          sc.parallelize(scoreString, 1).saveAsTextFile(Utils.HDFSSTORAGE + Utils.DSCORES + dMap.apply(d)+System.currentTimeMillis().toString().replace(" ", "_")) // list on place i
-          selectedModel.save(sc, Utils.HDFSSTORAGE + Utils.DMODELS + dMap.apply(d)+System.currentTimeMillis().toString().replace(" ", "_"))
+          sc.parallelize(scoreString, 1).saveAsTextFile(Utils.HDFSSTORAGE + Utils.DSCORES + dMap.apply(d) + System.currentTimeMillis().toString().replace(" ", "_")) // list on place i
+          selectedModel.save(sc, Utils.HDFSSTORAGE + Utils.DMODELS + dMap.apply(d) + System.currentTimeMillis().toString().replace(" ", "_"))
           // sc.parallelize(scoreString, 1).saveAsTextFile(Utils.S3STORAGE + Utils.DSCORES + dMap.apply(d)) // list on place i
           // selectedModel.save(sc, Utils.S3STORAGE + Utils.DMODELS + dMap.apply(d))
         } catch {
-          case _: Throwable => sc.parallelize("dss".toSeq, 1).saveAsTextFile(Utils.HDFSSTORAGE + Utils.DSCORES + "Fails/" + dMap.apply(d)+System.currentTimeMillis().toString().replace(" ", "_"))
+          case _: Throwable => sc.parallelize("dss".toSeq, 1).saveAsTextFile(Utils.HDFSSTORAGE + Utils.DSCORES + "Fails/" + dMap.apply(d) + System.currentTimeMillis().toString().replace(" ", "_"))
         }
 
         //TODO add function to choose candidates and evaluate on url level
@@ -95,7 +86,7 @@ object GBTPerDomain extends App {
       } catch {
         case e: Throwable =>
           val errMsg = "model:  " + d + " " + e.getLocalizedMessage() + e.getMessage()
-          sc.parallelize(List(errMsg), 1).saveAsTextFile(Utils.HDFSSTORAGE + Utils.DMODELS + "log/" + errMsg + d+System.currentTimeMillis().toString().replace(" ", "_"))
+          sc.parallelize(List(errMsg), 1).saveAsTextFile(Utils.HDFSSTORAGE + Utils.DMODELS + "log/" + errMsg + d + System.currentTimeMillis().toString().replace(" ", "_"))
       }
     }
   } catch {

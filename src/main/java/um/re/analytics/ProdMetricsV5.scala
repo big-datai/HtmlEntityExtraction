@@ -1,20 +1,15 @@
 package um.re.analytics
 
-import org.apache.spark.SparkConf
-import com.utils.aws.AWSUtils
-import org.apache.spark.SparkContext
-import com.datastax.spark.connector._
-import org.apache.spark.rdd.RDD
-import org.apache.spark.rdd.PairRDDFunctions
-import org.apache.spark.HashPartitioner
-import um.re.utils.Utils
 import java.util.Calendar
-import java.util.Date
+
+import com.datastax.spark.connector._
+import com.utils.aws.AWSUtils
+import org.apache.spark.{HashPartitioner, SparkConf, SparkContext}
 import org.apache.spark.util.StatCounter
-import java.sql.{ Connection, DriverManager, ResultSet }
+import um.re.utils.Utils
 
 object ProdMetricsV5 {
- def main(args: Array[String]) {
+  def main(args: Array[String]) {
     val conf = new SparkConf()
       .setAppName(getClass.getSimpleName)
     var (cassandraHost, keySpace, tableHP, tableRT, tableRTM, tableHSM, daysBack, hotLevel, numParts) = ("", "", "", "", "", "", "", "", "")
@@ -57,7 +52,7 @@ object ProdMetricsV5 {
 
     try {
 
-//########################################Real Time Metrics################################################      
+      //########################################Real Time Metrics################################################
       val today = Calendar.getInstance().getTime()
       val yesterday = Utils.getDateFromToday(daysBack.toInt)
       //counters and accumulators
@@ -87,135 +82,151 @@ object ProdMetricsV5 {
           val currentPrice = price
           if (iter.count(_ => true) > 1) {
             val previousPrice = sortedList.tail.head._2._4
-           
-            var prevPrices =  sortedList.tail
-            while (currentPrice==prevPrices.head._2._4 && prevPrices.tail!=Nil){
+
+            var prevPrices = sortedList.tail
+            while (currentPrice == prevPrices.head._2._4 && prevPrices.tail != Nil) {
               prevPrices = prevPrices.tail
-             }
-            val lastChange = if (((currentPrice-prevPrices.head._2._4).toDouble/prevPrices.head._2._4).isNaN ||
-                             ((currentPrice-prevPrices.head._2._4).toDouble/prevPrices.head._2._4).isInfinity) 0.0
-                            else ((currentPrice-prevPrices.head._2._4).toDouble/prevPrices.head._2._4)*100
+            }
+            val lastChange = if (((currentPrice - prevPrices.head._2._4).toDouble / prevPrices.head._2._4).isNaN ||
+              ((currentPrice - prevPrices.head._2._4).toDouble / prevPrices.head._2._4).isInfinity) 0.0
+            else ((currentPrice - prevPrices.head._2._4).toDouble / prevPrices.head._2._4) * 100
             val lastPrice = currentPrice
-            val prvPrice=prevPrices.head._2._4
+            val prvPrice = prevPrices.head._2._4
             val delta = currentPrice - previousPrice
             val relativeChange = if ((delta / previousPrice).isNaN || (delta / previousPrice).isInfinity) 0.0
             else (delta / previousPrice) * 100
-            (sys_prod_id, (store_id, sys_prod_id, tmsp, price, sys_prod_title, delta, relativeChange,lastChange,lastPrice,prvPrice))
+            (sys_prod_id, (store_id, sys_prod_id, tmsp, price, sys_prod_title, delta, relativeChange, lastChange, lastPrice, prvPrice))
           } else {
-            (sys_prod_id, (store_id, sys_prod_id, tmsp, price, sys_prod_title, 0.0, 0.0,0.0,0.0,0.0))
+            (sys_prod_id, (store_id, sys_prod_id, tmsp, price, sys_prod_title, 0.0, 0.0, 0.0, 0.0, 0.0))
           }
       }
 
       val deltaData = deltas.groupByKey(partitioner).flatMap {
         case (sys_prod_id, iter) =>
           val sourceList = iter.toList
-          
+
           val sortedByRelativeChange = sourceList.map {
-            case (store_id, sys_prod_id, tmsp, price, sys_prod_title, delta, relativeChange,lastChange,lastPrice,prvPrice) =>
+            case (store_id, sys_prod_id, tmsp, price, sys_prod_title, delta, relativeChange, lastChange, lastPrice, prvPrice) =>
               (relativeChange, (store_id, sys_prod_id, tmsp, price, sys_prod_title, delta, relativeChange))
           }.sorted
-          
+
           val (maxIncrease, maxIncreaseTo, maxIncreaseFrom, maxIncStoreId, maxIncProdId) = {
             val increases = sortedByRelativeChange.filter { l => (l._1 >= 0) && (!(l._1.isNaN() || l._1.isInfinite())) }
             if (increases.size > 0) {
               val (relativeChange, (store_id, sys_prod_id, tmsp, currentPrice, sys_prod_title, delta, relativeChang)) = increases.sorted.reverse.head
-              if (relativeChange!=0.0){
-                    (relativeChange, currentPrice, currentPrice - delta, store_id, sys_prod_id)}else{(0.0, 0.0, 0.0, "<>", "<>")}
+              if (relativeChange != 0.0) {
+                (relativeChange, currentPrice, currentPrice - delta, store_id, sys_prod_id)
+              } else {
+                (0.0, 0.0, 0.0, "<>", "<>")
+              }
             } else (0.0, 0.0, 0.0, "<>", "<>")
           }
-          
+
           val (maxDecrease, maxDecreaseTo, maxDecreaseFrom, maxDecStoreId, maxDecProdId) = {
             val decreases = sortedByRelativeChange.filter { l => (l._1 <= 0) && (!(l._1.isNaN() || l._1.isInfinite())) }
             if (decreases.size > 0) {
               val (relativeChange, (store_id, sys_prod_id, tmsp, currentPrice, sys_prod_title, delta, relativeChang)) = decreases.sorted.head
-              if (relativeChange!=0.0){
-                    (relativeChange, currentPrice, currentPrice - delta, store_id, sys_prod_id)}else{(0.0, 0.0, 0.0, "<>", "<>")}
+              if (relativeChange != 0.0) {
+                (relativeChange, currentPrice, currentPrice - delta, store_id, sys_prod_id)
+              } else {
+                (0.0, 0.0, 0.0, "<>", "<>")
+              }
             } else (0.0, 0.0, 0.0, "<>", "<>")
           }
-           
+
           val sortedByLastChange = sourceList.map {
-            case (store_id, sys_prod_id, tmsp, price, sys_prod_title, delta, relativeChange,lastChange,lastPrice,prvPrice) =>
-              (lastChange, (store_id, sys_prod_id,tmsp,sys_prod_title,lastChange,lastPrice,prvPrice))
+            case (store_id, sys_prod_id, tmsp, price, sys_prod_title, delta, relativeChange, lastChange, lastPrice, prvPrice) =>
+              (lastChange, (store_id, sys_prod_id, tmsp, sys_prod_title, lastChange, lastPrice, prvPrice))
           }
-           
+
           val (maxIncLChange, maxIncLChangeTo, maxIncLChangeFrom, maxIncLChangeStoreId, maxIncLChangeProdId) = {
             val increasesLChange = sortedByLastChange.filter { l => (l._1 > 0) && (!(l._1.isNaN() || l._1.isInfinite())) }
             if (increasesLChange.size > 0) {
-              val forIncrease=increasesLChange.map{case (lastChange, (store_id, sys_prod_id, tmsp,sys_prod_title,lastChang,lastPrice,prvPrice)) =>
+              val forIncrease = increasesLChange.map { case (lastChange, (store_id, sys_prod_id, tmsp, sys_prod_title, lastChang, lastPrice, prvPrice)) =>
                 val tm = tmsp
                 tm.setHours(0)
                 tm.setMinutes(0)
                 tm.setSeconds(0)
-                (tm, (store_id, sys_prod_id, tm,sys_prod_title,lastChang,lastPrice,prvPrice))}.sorted.reverse.head._1
-             
-                println(forIncrease)
-                
-                val increasesLChangeRevised=increasesLChange.map{case (lastChange, (store_id, sys_prod_id, tmsp,sys_prod_title,lastChang,lastPrice,prvPrice))=>
-               val tm = tmsp
+                (tm, (store_id, sys_prod_id, tm, sys_prod_title, lastChang, lastPrice, prvPrice))
+              }.sorted.reverse.head._1
+
+              println(forIncrease)
+
+              val increasesLChangeRevised = increasesLChange.map { case (lastChange, (store_id, sys_prod_id, tmsp, sys_prod_title, lastChang, lastPrice, prvPrice)) =>
+                val tm = tmsp
                 tm.setHours(0)
                 tm.setMinutes(0)
                 tm.setSeconds(0)
-                (lastChange, (store_id, sys_prod_id, tm,sys_prod_title,lastChang,lastPrice,prvPrice))
+                (lastChange, (store_id, sys_prod_id, tm, sys_prod_title, lastChang, lastPrice, prvPrice))
               }
 
-                
-               val TopIncreasesLChange = increasesLChangeRevised.filter(l=>l._2._3==forIncrease).map{case(lastChange, (store_id, sys_prod_id, tm,sys_prod_title,lastChang,lastPrice,prvPrice))=>
-                (lastChange,(store_id, sys_prod_id,sys_prod_title,lastChang,lastPrice,prvPrice))}
-               val (lastChange, (store_id, sys_prod_id, sys_prod_title,lastChang,lastPrice,prvPrice)) = TopIncreasesLChange.sorted.reverse.head
-              if (lastChange!=0.0){
-                    (lastChange, lastPrice, prvPrice, store_id, sys_prod_id)}else{(0.0, 0.0, 0.0, "<>", "<>")}
+
+              val TopIncreasesLChange = increasesLChangeRevised.filter(l => l._2._3 == forIncrease).map { case (lastChange, (store_id, sys_prod_id, tm, sys_prod_title, lastChang, lastPrice, prvPrice)) =>
+                (lastChange, (store_id, sys_prod_id, sys_prod_title, lastChang, lastPrice, prvPrice))
+              }
+              val (lastChange, (store_id, sys_prod_id, sys_prod_title, lastChang, lastPrice, prvPrice)) = TopIncreasesLChange.sorted.reverse.head
+              if (lastChange != 0.0) {
+                (lastChange, lastPrice, prvPrice, store_id, sys_prod_id)
+              } else {
+                (0.0, 0.0, 0.0, "<>", "<>")
+              }
             } else (0.0, 0.0, 0.0, "<>", "<>")
           }
-          
+
           val (maxDecLChange, maxDecLChangeTo, maxDecLChangeFrom, maxDecLChangeStoreId, maxDecLChangeProdId) = {
-            val decreasesLChange = sortedByLastChange.filter { l => (l._1 <0) && (!(l._1.isNaN() || l._1.isInfinite())) }
+            val decreasesLChange = sortedByLastChange.filter { l => (l._1 < 0) && (!(l._1.isNaN() || l._1.isInfinite())) }
             if (decreasesLChange.size > 0) {
-            val forDecrease=decreasesLChange.map{case (lastChange, (store_id, sys_prod_id, tmsp,sys_prod_title,lastChang,lastPrice,prvPrice)) =>
-               val tm = tmsp
-                tm.setHours(0)
-                tm.setMinutes(0)
-                tm.setSeconds(0) 
-              (tm, (store_id, sys_prod_id, tm,sys_prod_title,lastChang,lastPrice,prvPrice))}.sorted.reverse.head._1
-            println(forDecrease )
-            
-            val decreasesLChangeRevised=decreasesLChange.map{case (lastChange, (store_id, sys_prod_id, tmsp,sys_prod_title,lastChang,lastPrice,prvPrice))=>
-             val tm = tmsp
+              val forDecrease = decreasesLChange.map { case (lastChange, (store_id, sys_prod_id, tmsp, sys_prod_title, lastChang, lastPrice, prvPrice)) =>
+                val tm = tmsp
                 tm.setHours(0)
                 tm.setMinutes(0)
                 tm.setSeconds(0)
-                (lastChange, (store_id, sys_prod_id, tm,sys_prod_title,lastChang,lastPrice,prvPrice))
-              }
-            val TopDecreaseLChange = decreasesLChangeRevised.filter(l=>l._2._3==forDecrease).map{case(lastChange, (store_id, sys_prod_id, tm,sys_prod_title,lastChang,lastPrice,prvPrice))=>
-                (lastChange,(store_id, sys_prod_id,sys_prod_title,lastChang,lastPrice,prvPrice))}
+                (tm, (store_id, sys_prod_id, tm, sys_prod_title, lastChang, lastPrice, prvPrice))
+              }.sorted.reverse.head._1
+              println(forDecrease)
 
-              val (lastChange, (store_id, sys_prod_id, sys_prod_title,lastChang,lastPrice,prvPrice)) = TopDecreaseLChange.sorted.head
-             if (lastChange!=0.0){
-                    (lastChange, lastPrice, prvPrice, store_id, sys_prod_id)}else{(0.0, 0.0, 0.0, "<>", "<>")}
+              val decreasesLChangeRevised = decreasesLChange.map { case (lastChange, (store_id, sys_prod_id, tmsp, sys_prod_title, lastChang, lastPrice, prvPrice)) =>
+                val tm = tmsp
+                tm.setHours(0)
+                tm.setMinutes(0)
+                tm.setSeconds(0)
+                (lastChange, (store_id, sys_prod_id, tm, sys_prod_title, lastChang, lastPrice, prvPrice))
+              }
+              val TopDecreaseLChange = decreasesLChangeRevised.filter(l => l._2._3 == forDecrease).map { case (lastChange, (store_id, sys_prod_id, tm, sys_prod_title, lastChang, lastPrice, prvPrice)) =>
+                (lastChange, (store_id, sys_prod_id, sys_prod_title, lastChang, lastPrice, prvPrice))
+              }
+
+              val (lastChange, (store_id, sys_prod_id, sys_prod_title, lastChang, lastPrice, prvPrice)) = TopDecreaseLChange.sorted.head
+              if (lastChange != 0.0) {
+                (lastChange, lastPrice, prvPrice, store_id, sys_prod_id)
+              } else {
+                (0.0, 0.0, 0.0, "<>", "<>")
+              }
             } else (0.0, 0.0, 0.0, "<>", "<>")
           }
-          
+
           val stores = sourceList.map {
-            case ((store_id, sys_prod_id, tmsp, price, sys_prod_title, delta, relativeChange,lastChange,lastPrice,prvPrice)) =>
+            case ((store_id, sys_prod_id, tmsp, price, sys_prod_title, delta, relativeChange, lastChange, lastPrice, prvPrice)) =>
               (store_id, sys_prod_title)
           }.toList.sorted
           val results = stores.map {
             case (store_id, sys_prod_title) =>
-              (sys_prod_id, store_id.replace(" ", ""), sys_prod_title, 
-               maxIncrease, maxIncreaseTo, maxIncreaseFrom, maxIncStoreId,
-               maxDecrease, maxDecreaseTo, maxDecreaseFrom, maxDecStoreId,
-               maxIncLChange, maxIncLChangeTo, maxIncLChangeFrom, maxIncLChangeStoreId,
-               maxDecLChange, maxDecLChangeTo, maxDecLChangeFrom, maxDecLChangeStoreId)
+              (sys_prod_id, store_id.replace(" ", ""), sys_prod_title,
+                maxIncrease, maxIncreaseTo, maxIncreaseFrom, maxIncStoreId,
+                maxDecrease, maxDecreaseTo, maxDecreaseFrom, maxDecStoreId,
+                maxIncLChange, maxIncLChangeTo, maxIncLChangeFrom, maxIncLChangeStoreId,
+                maxDecLChange, maxDecLChangeTo, maxDecLChangeFrom, maxDecLChangeStoreId)
           }
           hpMetricsCounter += results.size
           results
       }
 
-//#############################Saving to Cassandra#################################################################      
-       deltaData.saveToCassandra(keySpace, tableRTM, SomeColumns("sys_prod_id","store_id","sys_prod_title","max_increase","max_increase_to","max_increase_from","max_inc_store_id",
-          "max_decrease","max_decrease_to","max_decrease_from","max_dec_store_id","max_last_inc","max_last_inc_to","max_last_inc_from","max_last_inc_store_id",
-          "max_last_dec","max_last_dec_to","max_last_dec_from","max_last_dec_store_id"))
+      //#############################Saving to Cassandra#################################################################
+      deltaData.saveToCassandra(keySpace, tableRTM, SomeColumns("sys_prod_id", "store_id", "sys_prod_title", "max_increase", "max_increase_to", "max_increase_from", "max_inc_store_id",
+        "max_decrease", "max_decrease_to", "max_decrease_from", "max_dec_store_id", "max_last_inc", "max_last_inc_to", "max_last_inc_from", "max_last_inc_store_id",
+        "max_last_dec", "max_last_dec_to", "max_last_dec_from", "max_last_dec_store_id"))
 
-//#######################################HotSpot Metrics####################################################
+      //#######################################HotSpot Metrics####################################################
       val RtData = sc.cassandraTable(keySpace, tableRT).map { row =>
         val sys_prod_id = row.get[String]("sys_prod_id")
         val store_id = row.get[String]("store_id")
@@ -223,32 +234,32 @@ object ProdMetricsV5 {
         val price = row.get[Double]("price")
         val url = row.get[String]("url")
         val hot = row.get[Option[String]]("hot_level")
-        (sys_prod_id, (store_id, price, url, sys_prod_title ,hot))
+        (sys_prod_id, (store_id, price, url, sys_prod_title, hot))
       }
-      val FilteredRtData = RtData.filter { case (sys_prod_id, (store_id, price, url, sys_prod_title ,hot)) => hot.isDefined }
+      val FilteredRtData = RtData.filter { case (sys_prod_id, (store_id, price, url, sys_prod_title, hot)) => hot.isDefined }
       val hotLevelSet = hotLevel.split(",").toSet
-      val FinalRtData = FilteredRtData.filter { case (sys_prod_id, (store_id, price, url, sys_prod_title ,hot)) => hotLevelSet.contains(hot.get) }
+      val FinalRtData = FilteredRtData.filter { case (sys_prod_id, (store_id, price, url, sys_prod_title, hot)) => hotLevelSet.contains(hot.get) }
 
       val varPosData = FinalRtData.groupByKey(partitioner).flatMap {
         case (sys_prod_id, iter) =>
           var cnt = 0
           val NewTuple = iter.map {
-            case (store_id, price, url, sys_prod_title, hot) => (price, (store_id, url, sys_prod_title ,hot))
+            case (store_id, price, url, sys_prod_title, hot) => (price, (store_id, url, sys_prod_title, hot))
           }.toList.sorted.map {
             case (price, (store_id, url, sys_prod_title, hot)) =>
               cnt += 1
-              (sys_prod_id, price, store_id, url, sys_prod_title ,hot, cnt)
+              (sys_prod_id, price, store_id, url, sys_prod_title, hot, cnt)
           }
           val sze = NewTuple.size
-          val priceList = NewTuple.map { case (sys_prod_id, price, store_id, url, sys_prod_title ,hot, cnt) => price }
+          val priceList = NewTuple.map { case (sys_prod_id, price, store_id, url, sys_prod_title, hot, cnt) => price }
           val std = Math.sqrt(StatCounter(priceList).variance).toDouble
           val meanPrice = StatCounter(priceList).mean
           val maxPrice = priceList.max
           val minPrice = priceList.min
-          val priceDelta = (maxPrice-minPrice).toDouble/minPrice
-          
+          val priceDelta = (maxPrice - minPrice).toDouble / minPrice
+
           val FinalTuples = NewTuple.map {
-            case (sys_prod_id, price, store_id, url, sys_prod_title ,hot, cnt) =>
+            case (sys_prod_id, price, store_id, url, sys_prod_title, hot, cnt) =>
               val relPlace = (cnt.toDouble / sze)
               val cv = (std.toDouble / meanPrice)
               val cvRank = {
@@ -273,28 +284,28 @@ object ProdMetricsV5 {
                 else 100
               }
               if (meanPrice > 0.0)
-                      ((store_id.replace(" ", ""), sys_prod_id), (price, url, sys_prod_title ,hot, cnt, relPlace * 100, relPlaceRank, cv, cvRank, meanPrice, minPrice, maxPrice,priceDelta,sze))             
-                    else
-                      ((store_id.replace(" ", ""), sys_prod_id), (price, url, sys_prod_title ,hot, cnt, relPlace * 100, relPlaceRank, 0.0, 1, meanPrice, minPrice, maxPrice,0.0,sze))
-                    
-                }
+                ((store_id.replace(" ", ""), sys_prod_id), (price, url, sys_prod_title, hot, cnt, relPlace * 100, relPlaceRank, cv, cvRank, meanPrice, minPrice, maxPrice, priceDelta, sze))
+              else
+                ((store_id.replace(" ", ""), sys_prod_id), (price, url, sys_prod_title, hot, cnt, relPlace * 100, relPlaceRank, 0.0, 1, meanPrice, minPrice, maxPrice, 0.0, sze))
+
+          }
           if (priceDelta < 0.3 && sze > 1)
-              rtMetricsCounter += FinalTuples.size
+            rtMetricsCounter += FinalTuples.size
           FinalTuples
       }
 
-      val varPosDataFinal = varPosData.filter(l=> l._2._13 < 0.3 && l._2._14 > 1).map{
-        case ((store_id, sys_prod_id), (price, url, sys_prod_title, hot, cnt, relPlace, relPlaceRank, cv, cvRank, meanPrice, minPrice, maxPrice,priceDelta,sze))=>
-          ((sys_prod_id ,store_id, price, url, sys_prod_title, hot, cnt, relPlace, relPlaceRank, cv, cvRank, meanPrice, minPrice, maxPrice,sze))}
-    
-//#############################Saving to Cassandra#################################################################      
-        varPosDataFinal.saveToCassandra(keySpace, tableHSM, SomeColumns("sys_prod_id", "store_id", "price", "url", "sys_prod_title", "hot_level", "abs_position_in_market","relative_place","relative_place_rank","cv","cv_rank","mean_price","min_price","max_price","num_competitors"))
-        
-      
-        
+      val varPosDataFinal = varPosData.filter(l => l._2._13 < 0.3 && l._2._14 > 1).map {
+        case ((store_id, sys_prod_id), (price, url, sys_prod_title, hot, cnt, relPlace, relPlaceRank, cv, cvRank, meanPrice, minPrice, maxPrice, priceDelta, sze)) =>
+          ((sys_prod_id, store_id, price, url, sys_prod_title, hot, cnt, relPlace, relPlaceRank, cv, cvRank, meanPrice, minPrice, maxPrice, sze))
+      }
+
+      //#############################Saving to Cassandra#################################################################
+      varPosDataFinal.saveToCassandra(keySpace, tableHSM, SomeColumns("sys_prod_id", "store_id", "price", "url", "sys_prod_title", "hot_level", "abs_position_in_market", "relative_place", "relative_place_rank", "cv", "cv_rank", "mean_price", "min_price", "max_price", "num_competitors"))
+
+
       println("!@!@!@!@!   hpMetricsCounter : " + hpMetricsCounter.value +
-        "\n!@!@!@!@!   rtMetricsCounter : " + rtMetricsCounter.value 
-        )
+        "\n!@!@!@!@!   rtMetricsCounter : " + rtMetricsCounter.value
+      )
     } catch {
       case e: Exception => {
         println("########  Somthing went wrong :( ")

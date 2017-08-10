@@ -1,4 +1,5 @@
 package um.re.models
+
 /*
 import um.re.utils.UConf
 import org.apache.spark.SparkConf

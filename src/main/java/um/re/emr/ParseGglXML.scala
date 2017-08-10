@@ -1,9 +1,12 @@
 package um.re.emr
-import scala.xml.XML
+
 import java.io.FileWriter
+
+import scala.xml.XML
+
 /**
- * @author mike
- */
+  * @author mike
+  */
 object ParseGglXML extends App {
 
   val csvFW = new FileWriter("/Users/mike/Documents/deepricerKwaliteitparketFULL.csv", true)
@@ -27,7 +30,7 @@ object ParseGglXML extends App {
         (um.re.utils.Utils.parseDouble((item \ "price").text.substring(0, (item \ "price").text.indexOf(" EUR"))).get)
     }
     val cleanPrice = "%.2f" format price
-    
+
 
     val row = Array(id, cleanCategory, cleanTitle, cleanLink, cleanPrice, "", gtin, "Kwaliteitparket.nl", "NONE", "nl_NL").mkString(",")
     row

@@ -1,24 +1,14 @@
 package um.re.models
 
-import org.apache.spark.rdd.RDD
-import org.apache.spark.mllib.feature.HashingTF
+import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.mllib.feature.{HashingTF, IDF}
 import org.apache.spark.mllib.linalg.Vector
-import scala.collection.JavaConversions.mapAsScalaMap
-import org.apache.spark.SparkConf
-import org.apache.spark.SparkContext
-import org.apache.spark.mllib.linalg.Vectors
-import org.apache.spark.mllib.regression.LabeledPoint
+import org.apache.spark.mllib.stat.Statistics
 import org.apache.spark.mllib.tree.RandomForest
 import org.apache.spark.mllib.tree.configuration.Strategy
-import org.apache.spark.serializer.KryoSerializer
-import org.apache.spark.mllib.linalg.SparseVector
-import org.apache.spark.mllib.feature.IDF
-import org.apache.spark.mllib.stat.{ MultivariateStatisticalSummary, Statistics }
-import um.re.utils.EsUtils
-import um.re.utils.UConf
+import org.apache.spark.rdd.RDD
 import um.re.transform.Transformer
-import org.apache.spark.mllib.tree.model.RandomForestModel
-import um.re.utils.Utils
+import um.re.utils.{UConf, Utils}
 
 object RandomForestFeature extends App {
 

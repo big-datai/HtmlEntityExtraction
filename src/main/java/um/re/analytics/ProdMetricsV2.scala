@@ -1,17 +1,13 @@
 package um.re.analytics
 
-import org.apache.spark.SparkConf
-import com.utils.aws.AWSUtils
-import org.apache.spark.SparkContext
-import com.datastax.spark.connector._
-import org.apache.spark.rdd.RDD
-import org.apache.spark.rdd.PairRDDFunctions
-import org.apache.spark.HashPartitioner
-import um.re.utils.Utils
+import java.sql.DriverManager
 import java.util.Calendar
-import java.util.Date
+
+import com.datastax.spark.connector._
+import com.utils.aws.AWSUtils
+import org.apache.spark.{HashPartitioner, SparkConf, SparkContext}
 import org.apache.spark.util.StatCounter
-import java.sql.{ Connection, DriverManager, ResultSet }
+import um.re.utils.Utils
 
 object ProdMetricsV2 {
 
@@ -103,9 +99,8 @@ object ProdMetricsV2 {
           }.sorted.reverse
           val (store_id, sys_prod_id, tmsp, price, sys_prod_title) = sortedList.head._2
           val currentPrice = price
-          
-          
-         
+
+
           /* A piece of code for calculating last change
           if (iter.count(_ => true) > 1) {
             val previousPrice = sortedList.tail.head._2._4
@@ -128,8 +123,8 @@ object ProdMetricsV2 {
             (sys_prod_id, (store_id, sys_prod_id, tmsp, price, sys_prod_title, 0.0, 0.0,0.0))
           }                
             */
-            
-             if (iter.count(_ => true) > 1) {
+
+          if (iter.count(_ => true) > 1) {
             val previousPrice = sortedList.tail.head._2._4
             val delta = currentPrice - previousPrice
             val relativeChange = if ((delta / previousPrice).isNaN || (delta / previousPrice).isInfinity) 0.0
@@ -162,8 +157,8 @@ object ProdMetricsV2 {
             } else (0.0, 0.0, 0.0, "", "")
           }
           //addition
-          
-          
+
+
           val incDec = (maxIncrease, maxIncreaseTo, maxIncreaseFrom, maxIncStoreId, maxIncProdId, maxDecrease, maxDecreaseTo, maxDecreaseFrom, maxDecStoreId, maxDecProdId)
           val stores = sourceList.map {
             case ((store_id, sys_prod_id, tmsp, price, sys_prod_title, delta, relativeChange)) =>
@@ -205,8 +200,8 @@ object ProdMetricsV2 {
           val meanPrice = StatCounter(priceList).mean
           val maxPrice = priceList.max
           val minPrice = priceList.min
-          val priceDelta = (maxPrice-minPrice).toDouble/minPrice
-          
+          val priceDelta = (maxPrice - minPrice).toDouble / minPrice
+
           val FinalTuples = NewTuple.map {
             case (sys_prod_id, price, store_id, url, hot, cnt) =>
               val relPlace = (cnt.toDouble / sze)
@@ -233,23 +228,24 @@ object ProdMetricsV2 {
                 else 100
               }
               if (meanPrice > 0.0)
-                      ((store_id.replace(" ", ""), sys_prod_id), (price, url, hot, cnt, relPlace * 100, relPlaceRank, cv, cvRank, meanPrice, minPrice, maxPrice,priceDelta,sze))             
-                    else
-                      ((store_id.replace(" ", ""), sys_prod_id), (price, url, hot, cnt, relPlace * 100, relPlaceRank, 0.0, 1, meanPrice, minPrice, maxPrice,0.0,sze))
-                    
-                }
+                ((store_id.replace(" ", ""), sys_prod_id), (price, url, hot, cnt, relPlace * 100, relPlaceRank, cv, cvRank, meanPrice, minPrice, maxPrice, priceDelta, sze))
+              else
+                ((store_id.replace(" ", ""), sys_prod_id), (price, url, hot, cnt, relPlace * 100, relPlaceRank, 0.0, 1, meanPrice, minPrice, maxPrice, 0.0, sze))
+
+          }
           if (priceDelta < 0.3 && sze > 1)
-              rtMetricsCounter += FinalTuples.size
+            rtMetricsCounter += FinalTuples.size
           FinalTuples
       }
 
-     // val varPosDataFinal = varPosData.filter(l=> l._2._12 < 0.3 && l._2._13 > 1).map{
-      val varPosDataFinal = varPosData.filter(l=> l._2._13 > 1).map{
-        case ((store_id, sys_prod_id), (price, url, hot, cnt, relPlace, relPlaceRank, cv, cvRank, meanPrice, minPrice, maxPrice,priceDelta,sze))=>
-          ((store_id, sys_prod_id), (price, url, hot, cnt, relPlace, relPlaceRank, cv, cvRank, meanPrice, minPrice, maxPrice))}
+      // val varPosDataFinal = varPosData.filter(l=> l._2._12 < 0.3 && l._2._13 > 1).map{
+      val varPosDataFinal = varPosData.filter(l => l._2._13 > 1).map {
+        case ((store_id, sys_prod_id), (price, url, hot, cnt, relPlace, relPlaceRank, cv, cvRank, meanPrice, minPrice, maxPrice, priceDelta, sze)) =>
+          ((store_id, sys_prod_id), (price, url, hot, cnt, relPlace, relPlaceRank, cv, cvRank, meanPrice, minPrice, maxPrice))
+      }
       val t = (deltaData.join(varPosDataFinal)).map {
         case ((store_id, sys_prod_id), ((sys_prod_title, maxIncrease, maxIncreaseTo, maxIncreaseFrom, maxIncStoreId, maxIncProdId, maxDecrease, maxDecreaseTo, maxDecreaseFrom, maxDecStoreId, maxDecProdId),
-          (price, url, hot_level, abs_position, relative_position, position_level, var_val, var_level, meanPrice, minPrice, maxPrice))) =>
+        (price, url, hot_level, abs_position, relative_position, position_level, var_val, var_level, meanPrice, minPrice, maxPrice))) =>
           joinedMetricsCounter += 1
           ((store_id, sys_prod_id), ((sys_prod_title, maxIncrease, maxIncreaseTo, maxIncreaseFrom, maxIncStoreId, maxIncProdId, maxDecrease, maxDecreaseTo, maxDecreaseFrom, maxDecStoreId, maxDecProdId),
             (price, url, hot_level, abs_position, relative_position, position_level, var_val, var_level,
@@ -260,17 +256,17 @@ object ProdMetricsV2 {
         val conn = DriverManager.getConnection("jdbc:mysql://" + mysqlHost + ":" + mysqlPort + "/",
           mysqlUser,
           mysqlPass)
-        val del = conn.prepareStatement("INSERT INTO " + mysqlDB + "." + tablePM + 
-            " (store_id,hot_level,var_level,position_level,tmsp,sys_prod_id,abs_position,price,"+
-            "relative_position,sys_prod_title,url,var_val,mean_price,min_price,max_price,"+
-            "max_increase,max_increase_from_to,max_inc_merged_id,"+
-            "max_decrease,max_decrease_from_to,max_dec_merged_id) "+
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CONCAT(?,' -> ',?),CONCAT(?,'|||',?),?,CONCAT(?,' -> ',?),CONCAT(?,'|||',?))"+
-            " ON DUPLICATE KEY UPDATE hot_level = values(hot_level),var_level= values(var_level),position_level= values(position_level),"+
-            "tmsp= values(tmsp),abs_position= values(abs_position),price = values(price),relative_position= values(relative_position),"+
-            "var_val = values(var_val),mean_price= values(mean_price),min_price= values(min_price),max_price= values(max_price),"+
-            "max_increase= values(max_increase),max_increase_from_to= values(max_increase_from_to),max_inc_merged_id= values(max_inc_merged_id),"+
-            "max_decrease= values(max_decrease),max_decrease_from_to= values(max_decrease_from_to),max_dec_merged_id= values(max_dec_merged_id)")
+        val del = conn.prepareStatement("INSERT INTO " + mysqlDB + "." + tablePM +
+          " (store_id,hot_level,var_level,position_level,tmsp,sys_prod_id,abs_position,price," +
+          "relative_position,sys_prod_title,url,var_val,mean_price,min_price,max_price," +
+          "max_increase,max_increase_from_to,max_inc_merged_id," +
+          "max_decrease,max_decrease_from_to,max_dec_merged_id) " +
+          "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,CONCAT(?,' -> ',?),CONCAT(?,'|||',?),?,CONCAT(?,' -> ',?),CONCAT(?,'|||',?))" +
+          " ON DUPLICATE KEY UPDATE hot_level = values(hot_level),var_level= values(var_level),position_level= values(position_level)," +
+          "tmsp= values(tmsp),abs_position= values(abs_position),price = values(price),relative_position= values(relative_position)," +
+          "var_val = values(var_val),mean_price= values(mean_price),min_price= values(min_price),max_price= values(max_price)," +
+          "max_increase= values(max_increase),max_increase_from_to= values(max_increase_from_to),max_inc_merged_id= values(max_inc_merged_id)," +
+          "max_decrease= values(max_decrease),max_decrease_from_to= values(max_decrease_from_to),max_dec_merged_id= values(max_dec_merged_id)")
         for (tuple <- it) {
           try {
             val (store_id, sys_prod_id) = tuple._1

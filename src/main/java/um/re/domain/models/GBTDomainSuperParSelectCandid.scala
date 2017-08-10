@@ -1,32 +1,21 @@
 package um.re.domain.models
 
-import org.apache.spark.rdd.RDD
-import org.apache.spark.SparkContext
-import org.apache.spark.SparkConf
-import org.apache.spark.SparkContext._
-import org.apache.spark.serializer.KryoSerializer
-import org.apache.spark.mllib.feature.{ HashingTF, IDF }
-import org.apache.spark.mllib.linalg.{ Vector, Vectors }
-import org.apache.spark.mllib.regression.LabeledPoint
-import org.apache.spark.mllib.tree.configuration.BoostingStrategy
-import org.apache.spark.mllib.tree.GradientBoostedTrees
+import org.apache.spark.{HashPartitioner, SparkConf, SparkContext}
+import org.apache.spark.mllib.feature.{HashingTF, IDF}
+import org.apache.spark.mllib.linalg.Vector
 import org.apache.spark.mllib.stat.Statistics
-import org.apache.spark.mllib.tree.model.GradientBoostedTreesModel
+import org.apache.spark.mllib.tree.GradientBoostedTrees
+import org.apache.spark.mllib.tree.configuration.BoostingStrategy
+import org.apache.spark.rdd.RDD
 import um.re.transform.Transformer
-import um.re.utils.UConf
-import um.re.utils.Utils
-import scala.collection.parallel.ForkJoinTaskSupport
-import org.apache.hadoop.io.compress.GzipCodec
-import org.apache.log4j.Logger
-import org.apache.log4j.Level
-import org.apache.spark.HashPartitioner
+import um.re.utils.{UConf, Utils}
 
 object GBTDomainSuperParSelectCandid extends App {
   val conf_s = new SparkConf()
   val sc = new SparkContext(conf_s)
 
   try {
-	//TODO we should stick with this repartition or maybe use the hdfs default blocks  
+    //TODO we should stick with this repartition or maybe use the hdfs default blocks
     val parts = Integer.valueOf(args.apply(0))
     val data = new UConf(sc, parts)
     val all = data.getDataFS()
@@ -47,11 +36,11 @@ object GBTDomainSuperParSelectCandid extends App {
 
         // parList.tasksupport = new ForkJoinTaskSupport(new scala.concurrent.forkjoin.ForkJoinPool(1000))
         //Thread sleep r.nextInt(400000)
-    	  sc.parallelize(Seq(""), 1).saveAsTextFile("/temp/list/" + dMap.value.apply(d) + System.currentTimeMillis().toString().replace(" ", "_"))
+        sc.parallelize(Seq(""), 1).saveAsTextFile("/temp/list/" + dMap.value.apply(d) + System.currentTimeMillis().toString().replace(" ", "_"))
         val partForDomain = 10
-        
+
         //val parsedDataPerURL = parsed.filter(l => l._2._4.equals("thebookpeople.co.uk")).coalesce(partForDomain).groupBy(_._1)
-        
+
         //TODO again none needed repartition before filter , post filter better group by key(url) and coalesce  
         //val parsedDataPerURL = parsed.repartition(300).filter(l => l._2._4.equals(d)).groupBy(_._1).repartition(10)
         val parsedDataPerURL = parsed.filter(l => l._2._4.equals(d)).coalesce(partForDomain).groupBy(_._1)
@@ -75,7 +64,7 @@ object GBTDomainSuperParSelectCandid extends App {
         boostingStrategy.treeStrategy.maxDepth = 5
         val model = GradientBoostedTrees.train(training_points, boostingStrategy)
         training_points.unpersist(false)
-        
+
         val res = Transformer.evaluateModelByURL(Transformer.labelAndPredPerURLSelectedCandid(model, test_points), model)
         //val selectedModel = (model, idf_vector_filtered, selected_indices)        
         val selectedScore = res

@@ -1,35 +1,35 @@
 package um.re.emr
 
-import play.api.libs.json._
-
 import java.io.FileWriter
 
+import play.api.libs.json._
+
 /**
- * @author mike
- */
+  * @author mike
+  */
 object WhoIsExtractor {
   def main(args: Array[String]) {
-    
+
     //Set this 4  params before start
     val workDir = "/home/ec2-user/whois/"
     val tmsp = (new java.util.Date).getTime
-    val domainListPath = workDir+"domains.csv"
-    val apiKey = "f4533029deafbc63u0fde266f5210e4b"    
-    
-    val rawWhoIsFW = new FileWriter(workDir+"rawWhoIs_"+tmsp+".txt", true)
-    val contactWhoIsFW = new FileWriter(workDir+"contactWhoIs_"+tmsp+".txt", true)
-    val missingRawWhoIsFW = new FileWriter(workDir+"missingRawWhoIs_"+tmsp+".txt", true)
-    val missingContactWhoIsFW = new FileWriter(workDir+"missingContactWhoIs_"+tmsp+".txt", true)
+    val domainListPath = workDir + "domains.csv"
+    val apiKey = "f4533029deafbc63u0fde266f5210e4b"
+
+    val rawWhoIsFW = new FileWriter(workDir + "rawWhoIs_" + tmsp + ".txt", true)
+    val contactWhoIsFW = new FileWriter(workDir + "contactWhoIs_" + tmsp + ".txt", true)
+    val missingRawWhoIsFW = new FileWriter(workDir + "missingRawWhoIs_" + tmsp + ".txt", true)
+    val missingContactWhoIsFW = new FileWriter(workDir + "missingContactWhoIs_" + tmsp + ".txt", true)
     val rawDelimiter = "!@#@!"
 
     val apiPath = "http://api.whoxy.com/?key=" + apiKey + "&whois="
-    
+
 
     val domainList = scala.io.Source.fromFile(domainListPath).getLines()
-    println("dList "+domainList)
+    println("dList " + domainList)
     domainList.foreach { domain =>
       val raw = scala.io.Source.fromURL(apiPath + domain).mkString
-      println("post request on : "+domain)
+      println("post request on : " + domain)
       try {
         rawWhoIsFW.write(rawDelimiter + raw)
       } catch {
@@ -58,7 +58,7 @@ object WhoIsExtractor {
 
           List(full_name, company_name, mailing_address, city_name, state_name, zip_code, country_name, email_address, phone_number).mkString(rawDelimiter)
         }.mkString(rawDelimiter)
-        contactWhoIsFW.write(contactDetails+"\n")
+        contactWhoIsFW.write(contactDetails + "\n")
       } catch {
         case e: Exception => {
           missingContactWhoIsFW.write(domain)

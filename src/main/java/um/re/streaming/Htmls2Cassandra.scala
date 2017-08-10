@@ -1,27 +1,21 @@
 package um.re.streaming
 
-import org.apache.spark.SparkContext
-import org.apache.spark.streaming.StreamingContext
-import org.apache.spark.streaming.kafka.KafkaUtils
-import kafka.serializer.StringDecoder
-import kafka.producer._
-import org.apache.spark.streaming.Seconds
-import java.util.Properties
-import um.re.utils.Utils
-import org.apache.spark.mllib.tree.model.GradientBoostedTreesModel
-import org.apache.spark.mllib.feature.HashingTF
-import org.apache.spark.rdd.RDD
-import um.re.transform.Transformer
-import org.apache.spark.mllib.linalg.Vectors
-import kafka.serializer.DefaultDecoder
-import com.utils.messages.BigMessage
-import play.api.libs.json.Json
-import org.apache.spark._
-import org.joda.time.DateTime
-import com.datastax.spark.connector.streaming._
 import com.datastax.spark.connector.SomeColumns
-import scala.collection.immutable.HashMap
+import com.datastax.spark.connector.streaming._
 import com.utils.aws.AWSUtils
+import com.utils.messages.BigMessage
+import kafka.serializer.{DefaultDecoder, StringDecoder}
+import org.apache.spark.{SparkContext, _}
+import org.apache.spark.mllib.feature.HashingTF
+import org.apache.spark.mllib.linalg.Vectors
+import org.apache.spark.mllib.tree.model.GradientBoostedTreesModel
+import org.apache.spark.streaming.{Seconds, StreamingContext}
+import org.apache.spark.streaming.kafka.KafkaUtils
+import org.joda.time.DateTime
+import um.re.transform.Transformer
+import um.re.utils.Utils
+
+import scala.collection.immutable.HashMap
 
 object Htmls2Cassandra {
   def main(args: Array[String]) {
@@ -245,7 +239,7 @@ object Htmls2Cassandra {
         case (msg, msgMap) =>
           //yyyy-mm-dd'T'HH:mm:ssZ  2015-07-15T16:25:52.325Z
           val date = DateTime.parse(msgMap.apply("lastUpdatedTime")).toDate() //,DateTimeFormat.forPattern("yyyy-mm-dd'T'HH:mm:ssZ"));
-          val row = (msgMap.apply("prodId"), msgMap.apply("domain"), date, Utils.getPriceFromMsgMap(msgMap), msgMap.apply("title"), msgMap.apply("url"))
+        val row = (msgMap.apply("prodId"), msgMap.apply("domain"), date, Utils.getPriceFromMsgMap(msgMap), msgMap.apply("title"), msgMap.apply("url"))
           historicalFeedCounter += 1
           row
       }.cache
@@ -263,7 +257,7 @@ object Htmls2Cassandra {
         case (msg, msgMap) =>
           //yyyy-mm-dd'T'HH:mm:ssZ  2015-07-15T16:25:52.325Z
           val date = DateTime.parse(msgMap.apply("lastUpdatedTime")).toDate() //,DateTimeFormat.forPattern("yyyy-mm-dd'T'HH:mm:ssZ"));
-          val row = (date, msgMap.apply("errorMessage"), msgMap.apply("url"), msgMap.apply("patternsText"), msgMap.apply("domain"), msgMap.apply("price"), msgMap.apply("updatedPrice"), msgMap.apply("exception"), msgMap.apply("modelPrice"), msgMap.apply("stackTrace"), msgMap.apply("issue"), msgMap.apply("patternsHtml"), msgMap.apply("prodId"), msgMap.apply("lastScrapedTime"), msgMap.apply("errorLocation"), msgMap.apply("title"), msgMap.apply("html"), msgMap.apply("shipping"), Utils.getPriceFromMsgMap(msgMap))
+        val row = (date, msgMap.apply("errorMessage"), msgMap.apply("url"), msgMap.apply("patternsText"), msgMap.apply("domain"), msgMap.apply("price"), msgMap.apply("updatedPrice"), msgMap.apply("exception"), msgMap.apply("modelPrice"), msgMap.apply("stackTrace"), msgMap.apply("issue"), msgMap.apply("patternsHtml"), msgMap.apply("prodId"), msgMap.apply("lastScrapedTime"), msgMap.apply("errorLocation"), msgMap.apply("title"), msgMap.apply("html"), msgMap.apply("shipping"), Utils.getPriceFromMsgMap(msgMap))
           row
       }.cache
       coreLogs.saveToCassandra(keySpace, tableCL, SomeColumns("lastupdatedtime", "errormessage", "url", "patternstext", "domain", "price", "updatedprice", "exception", "modelprice", "stacktrace", "issue", "patternshtml", "prodid", "lastscrapedtime", "errorlocation", "title", "html", "shipping", "selectedprice"))

@@ -1,36 +1,20 @@
 package um.re.models
-import org.apache.spark.SparkContext._
-import org.apache.spark.rdd.RDD
-import org.apache.spark.SparkContext
-import org.apache.spark.mllib.feature.HashingTF
-import org.apache.spark.mllib.linalg.Vector
-import org.apache.hadoop.io.MapWritable
-import org.apache.spark.SparkConf
+
+import org.apache.hadoop.io.{MapWritable, Text}
 import org.apache.hadoop.mapred.JobConf
+import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.mllib.feature.{HashingTF, IDF}
+import org.apache.spark.mllib.linalg.{Vector, Vectors}
+import org.apache.spark.mllib.regression.LabeledPoint
+import org.apache.spark.mllib.tree.GradientBoostedTrees
+import org.apache.spark.mllib.tree.configuration.BoostingStrategy
+import org.apache.spark.rdd.RDD
+import org.apache.spark.serializer.KryoSerializer
 import org.elasticsearch.hadoop.mr.EsInputFormat
+import um.re.utils.{EsUtils, Utils}
+
 import scala.Array.canBuildFrom
 import scala.collection.JavaConversions.mapAsScalaMap
-import org.apache.hadoop.io.MapWritable
-import org.apache.hadoop.io.Text
-import org.apache.hadoop.mapred.JobConf
-import org.apache.spark.SparkConf
-import org.apache.spark.SparkContext
-import org.apache.spark.SparkContext.doubleRDDToDoubleRDDFunctions
-import org.apache.spark.mllib.linalg.Vectors
-import org.apache.spark.mllib.regression.LabeledPoint
-import org.apache.spark.mllib.tree.RandomForest
-import org.apache.spark.mllib.tree.configuration.Strategy
-import org.apache.spark.serializer.KryoSerializer
-import um.re.utils.Utils
-import org.elasticsearch.hadoop.mr.EsInputFormat
-import scala.collection.concurrent.TrieMap
-import org.apache.spark.mllib.tree.configuration.BoostingStrategy
-import org.apache.spark.mllib.tree.GradientBoostedTrees
-import org.apache.spark.mllib.util.MLUtils
-import org.apache.spark.mllib.classification.SVMWithSGD
-import org.apache.spark.mllib.linalg.SparseVector
-import org.apache.spark.mllib.feature.IDF
-import um.re.utils.EsUtils
 
 object GBT extends App {
 
@@ -74,6 +58,31 @@ object GBT extends App {
 
   val idf_vectorp = idfp.idf.toArray
   val idf_vectorn = idfn.idf.toArray
+  val training_pointsp = data_to_points(idf_vectorp, trainP)
+  val training_pointsn = data_to_points(idf_vectorn, trainN)
+  val training_points = training_pointsp ++ training_pointsn
+  val tf: RDD[Vector] = hashingTF.transform(trainingData.map(l => l._2))
+  val idf = (new IDF(minDocFreq = 10)).fit(tf)
+  //val tfidf = idf.transform(tf)
+  val idf_vector = idf.idf.toArray
+  val all_points = data_to_points(idf_vector, trainingData)
+  val f = all_points.map(ll => ll.features.toArray)
+  val test_points = data_to_points(idf_vector, test)
+
+  //new DoubleRDDFunctions(all_points)
+  //  new org.apache.spark.rdd.DoubleRDDFunctions(all_points)
+  val boostingStrategy =
+    BoostingStrategy.defaultParams("Classification")
+  //boostingStrategy.treeStrategy.maxDepth = 2
+  val model =
+  GradientBoostedTrees.train(training_points, boostingStrategy)
+
+  boostingStrategy.numIterations = 3 // Note: Use more in practice
+  val labelAndPreds = labelAndPred(test_points)
+  val tp = labelAndPreds.filter { case (l, p) => (l == 1) && (p == 1) }.count
+  val tn = labelAndPreds.filter { case (l, p) => (l == 0) && (p == 0) }.count
+  val fp = labelAndPreds.filter { case (l, p) => (l == 0) && (p == 1) }.count
+  val fn = labelAndPreds.filter { case (l, p) => (l == 1) && (p == 0) }.count
 
   def data_to_points(idf_vals: Array[Double], data: RDD[(Int, Seq[String], Double)]) = {
     val tf_model = hashingTF
@@ -88,32 +97,6 @@ object GBT extends App {
     }
   }
 
-  val training_pointsp = data_to_points(idf_vectorp, trainP)
-  val training_pointsn = data_to_points(idf_vectorn, trainN)
-  val training_points = training_pointsp ++ training_pointsn
-
-  val tf: RDD[Vector] = hashingTF.transform(trainingData.map(l => l._2))
-
-  val idf = (new IDF(minDocFreq = 10)).fit(tf)
-  //val tfidf = idf.transform(tf)
-  val idf_vector = idf.idf.toArray
-
-  val all_points = data_to_points(idf_vector, trainingData)
-
-  val f = all_points.map(ll => ll.features.toArray)
-
-  //new DoubleRDDFunctions(all_points)
-  //  new org.apache.spark.rdd.DoubleRDDFunctions(all_points)
-
-  val test_points = data_to_points(idf_vector, test)
-  val boostingStrategy =
-    BoostingStrategy.defaultParams("Classification")
-
-  boostingStrategy.numIterations = 3 // Note: Use more in practice
-  //boostingStrategy.treeStrategy.maxDepth = 2
-  val model =
-    GradientBoostedTrees.train(training_points, boostingStrategy)
-
   // Evaluate model on test instances and compute test error
   def labelAndPred(input_points: RDD[LabeledPoint]) = {
     val local_model = model
@@ -123,12 +106,6 @@ object GBT extends App {
     }
     labelAndPreds
   }
-
-  val labelAndPreds = labelAndPred(test_points)
-  val tp = labelAndPreds.filter { case (l, p) => (l == 1) && (p == 1) }.count
-  val tn = labelAndPreds.filter { case (l, p) => (l == 0) && (p == 0) }.count
-  val fp = labelAndPreds.filter { case (l, p) => (l == 0) && (p == 1) }.count
-  val fn = labelAndPreds.filter { case (l, p) => (l == 1) && (p == 0) }.count
 
   println("tp : " + tp + ", tn : " + tn + ", fp : " + fp + ", fn : " + fn)
   println("sensitivity : " + tp / (tp + fn).toDouble + " specificity : " + tn / (fp + tn).toDouble + " precision : " + tp / (tp + fp).toDouble)
